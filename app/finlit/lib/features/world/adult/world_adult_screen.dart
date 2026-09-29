@@ -43,6 +43,40 @@ class WorldAdultScreen extends StatefulWidget {
   static const Key questionKey = ValueKey<String>('adult:question');
   static const Key answerKey = ValueKey<String>('adult:answer');
 
+  /// Множители барьера: 12–29 без 20 (×20 считается в уме как ×2 и ноль).
+  static const Map<int, String> factorWords = <int, String>{
+    12: 'двенадцать',
+    13: 'тринадцать',
+    14: 'четырнадцать',
+    15: 'пятнадцать',
+    16: 'шестнадцать',
+    17: 'семнадцать',
+    18: 'восемнадцать',
+    19: 'девятнадцать',
+    21: 'двадцать один',
+    22: 'двадцать два',
+    23: 'двадцать три',
+    24: 'двадцать четыре',
+    25: 'двадцать пять',
+    26: 'двадцать шесть',
+    27: 'двадцать семь',
+    28: 'двадцать восемь',
+    29: 'двадцать девять',
+  };
+
+  /// Пример словами: «двадцать три × четырнадцать».
+  static String questionText(int left, int right) =>
+      '${factorWords[left]} × ${factorWords[right]}';
+
+  /// Ответ на пример [question] ([questionText]) — для тестов и проверки.
+  static int answerOf(String question) {
+    final Map<String, int> back = <String, int>{
+      for (final MapEntry<int, String> e in factorWords.entries) e.value: e.key,
+    };
+    final List<String> parts = question.split(' × ');
+    return back[parts[0]]! * back[parts[1]]!;
+  }
+
   @override
   State<WorldAdultScreen> createState() => _WorldAdultScreenState();
 }
@@ -67,10 +101,13 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
     super.dispose();
   }
 
-  /// Двузначное на однозначное: взрослый решит в уме, 7-летний — вряд ли.
+  /// Двузначное на двузначное словами (Денис 29.09: «надо что-то
+  /// посильнее»): ребёнку 7–11 лет в уме не решить, взрослый решит на
+  /// бумаге или в калькуляторе; ответ — цифрами.
   void _newChallenge() {
-    _left = 11 + _random.nextInt(29);
-    _right = 3 + _random.nextInt(7);
+    final List<int> f = WorldAdultScreen.factorWords.keys.toList();
+    _left = f[_random.nextInt(f.length)];
+    _right = f[_random.nextInt(f.length)];
   }
 
   Future<void> _tryUnlock() async {
@@ -83,12 +120,7 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
       });
       return;
     }
-    // Спека: неверно — просто закрыть. Закрыть некуда — новый пример.
-    final NavigatorState nav = Navigator.of(context);
-    if (nav.canPop()) {
-      nav.pop();
-      return;
-    }
+    // Неверно — новый пример и подсказка «для взрослых».
     setState(() {
       _wrong = true;
       _newChallenge();
@@ -161,15 +193,18 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
         header: true,
         child: const Text('Этот раздел — для взрослого', style: kitTitle),
       ),
-      const SizedBox(height: Gap.xs),
-      const Text(
-          'Решите пример, чтобы войти. Неверный ответ закроет '
-          'раздел.',
-          style: kitSoft),
+      // Альбомная: пояснение — в подписи поля, иначе «Войти» уходит за
+      // край на шрифте 1,3.
+      if (!land) ...<Widget>[
+        const SizedBox(height: Gap.xs),
+        const Text('Решите пример и введите ответ цифрами, чтобы войти.',
+            style: kitSoft),
+      ],
     ];
-    final Widget question = Text('$_left × $_right',
+    final Widget question = Text(WorldAdultScreen.questionText(_left, _right),
         key: WorldAdultScreen.questionKey,
-        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800));
+        style:
+            TextStyle(fontSize: land ? 20 : 24, fontWeight: FontWeight.w800));
     final Widget field = TextField(
       key: WorldAdultScreen.answerKey,
       controller: _answer,
@@ -182,9 +217,12 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
       style: const TextStyle(fontSize: 22),
       onSubmitted: (String _) => _tryUnlock(),
       decoration: InputDecoration(
-        labelText: 'Ответ',
+        labelText: land ? 'Ответ цифрами' : 'Ответ',
         isDense: land,
-        errorText: _wrong ? 'Не сходится. Вот другой пример.' : null,
+        errorText: _wrong
+            ? 'Не сходится. Этот раздел для взрослых — вот другой пример.'
+            : null,
+        errorMaxLines: 2,
         border: const OutlineInputBorder(),
       ),
     );
@@ -210,11 +248,13 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
               children: <Widget>[
                 ...head,
                 const SizedBox(height: Gap.sm),
+                // Пример словами — слева (в две строки, если длинный),
+                // поле ответа — справа: всё видно без прокрутки.
                 Row(
                   children: <Widget>[
-                    question,
-                    const SizedBox(width: Gap.md),
-                    Expanded(child: field),
+                    Expanded(child: question),
+                    const SizedBox(width: Gap.sm),
+                    SizedBox(width: 120, child: field),
                   ],
                 ),
                 const SizedBox(height: Gap.sm),

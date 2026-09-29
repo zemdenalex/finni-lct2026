@@ -55,9 +55,8 @@ Future<void> _scrollThrough(WidgetTester tester, String listKey) async {
 Future<void> _unlockAdult(WidgetTester tester) async {
   final String q =
       tester.widget<Text>(find.byKey(WorldAdultScreen.questionKey)).data!;
-  final List<int> n = q.split(' × ').map(int.parse).toList();
-  await tester.enterText(
-      find.byKey(WorldAdultScreen.answerKey), '${n[0] * n[1]}');
+  await tester.enterText(find.byKey(WorldAdultScreen.answerKey),
+      '${WorldAdultScreen.answerOf(q)}');
   await _tap(tester, 'adult:enter');
 }
 
@@ -334,6 +333,30 @@ void main() {
     await _tap(tester, 'adult:enter');
     expect(find.byKey(const ValueKey<String>('adult:reset')), findsNothing);
     expect(WorldDemoSession.adultOpened, isFalse);
+    // Новый пример и подсказка «для взрослых».
+    expect(find.textContaining('Этот раздел для взрослых'), findsOneWidget);
+  });
+
+  // Ловит: пример снова решается в уме — цифрами, однозначный множитель
+  // или ×10/×20.
+  testWidgets('взрослым: пример словами, оба множителя 12–29 без 20',
+      (WidgetTester tester) async {
+    for (int seed = 0; seed < 20; seed++) {
+      await pumpWorldScreen(tester, WorldAdultScreen(random: Random(seed)));
+      final String q =
+          tester.widget<Text>(find.byKey(WorldAdultScreen.questionKey)).data!;
+      expect(RegExp(r'\d').hasMatch(q), isFalse, reason: q);
+      final List<String> parts = q.split(' × ');
+      expect(parts, hasLength(2));
+      for (final String p in parts) {
+        final int n = WorldAdultScreen.factorWords.entries
+            .firstWhere((MapEntry<int, String> e) => e.value == p)
+            .key;
+        expect(n, inInclusiveRange(12, 29));
+        expect(n, isNot(20));
+      }
+      expect(WorldAdultScreen.answerOf(q), greaterThanOrEqualTo(144));
+    }
   });
 
   /// Прокрутить список [listKey] до [key] и нажать — для альбомной, где
@@ -384,10 +407,10 @@ void main() {
     // Ответ — экранными цифрами, с ошибкой и «стереть».
     final String q =
         tester.widget<Text>(find.byKey(WorldAdultScreen.questionKey)).data!;
-    final List<int> n = q.split(' × ').map(int.parse).toList();
+    final int answer = WorldAdultScreen.answerOf(q);
     await tester.tap(find.byKey(const ValueKey<String>('adult:key:1')));
     await tester.tap(find.byKey(const ValueKey<String>('adult:key:erase')));
-    for (final String d in '${n[0] * n[1]}'.split('')) {
+    for (final String d in '$answer'.split('')) {
       await tester.tap(find.byKey(ValueKey<String>('adult:key:$d')));
     }
     await tester.pump();
@@ -396,7 +419,7 @@ void main() {
             .widget<TextField>(find.byKey(WorldAdultScreen.answerKey))
             .controller!
             .text,
-        '${n[0] * n[1]}');
+        '$answer');
     await tester.tap(find.byKey(const ValueKey<String>('adult:enter')));
     await _step(tester);
     expect(tester.takeException(), isNull);

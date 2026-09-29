@@ -1,4 +1,5 @@
 import 'package:finlit/app_state.dart';
+import 'package:finlit/core/build_info.dart';
 import 'package:finlit/core/feel.dart';
 import 'package:finlit/core/theme.dart';
 import 'package:finlit/data/storage.dart';
@@ -113,6 +114,22 @@ void main() {
         Duration.zero);
     expect(tester.hasRunningAnimations, isFalse,
         reason: 'анимации выключены — в комнате ничего не движется');
+  });
+
+  // Ловит: по экрану не понять, какая сборка открыта (устаревший кэш веб-демо
+  // дважды выдавал старую) — строка сборки пропала из меню ⋮.
+  testWidgets('меню ⋮: последняя строка — сборка, без BUILD_SHA «dev»',
+      (WidgetTester tester) async {
+    await tester.runAsync(() async {
+      await pumpWorldScreen(tester, const RoomScreen(),
+          world: _livingWorld(worldKinds.last), size: landscape);
+    });
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('room:menu')));
+    await _step(tester);
+    expect(find.byKey(const ValueKey<String>('room:build')), findsOneWidget);
+    expect(find.text('Сборка $buildSha'), findsOneWidget);
+    expect(buildSha, 'dev');
   });
 
   forEachWorld((WorldKind kind) {

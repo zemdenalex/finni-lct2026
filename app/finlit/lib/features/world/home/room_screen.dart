@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/build_info.dart';
 import '../../../core/feel.dart';
 import '../../../core/icons.dart';
 import '../../../core/theme.dart';
@@ -528,6 +529,14 @@ class _RoomScreenState extends State<RoomScreen>
               SizedBox(width: Gap.sm),
               Text('Настройки', style: TextStyle(fontSize: 18)),
             ]),
+          ),
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            key: ValueKey<String>('room:build'),
+            enabled: false,
+            height: TapSize.min,
+            child: Text('Сборка $buildSha',
+                style: TextStyle(fontSize: 16, color: WorldColors.textSoft)),
           ),
         ],
       ),
