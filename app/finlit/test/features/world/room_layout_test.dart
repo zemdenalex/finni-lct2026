@@ -171,7 +171,8 @@ void main() {
     await pumpRoom(tester, scene(near: 'fridge'), noMotion: true);
     // «Анимации» выключены — камера на месте в том же кадре, без догона.
     final double x = cameraX(tester);
-    expect(x, lessThan(home), reason: 'камера сдвинулась вправо');
+    // Готовый фон почти целиком в кадре: камера могла уже стоять у края.
+    expect(x, lessThanOrEqualTo(home), reason: 'камера не ушла влево');
     final Rect fridge =
         tester.getRect(find.byKey(const ValueKey<String>('room:fridge')));
     expect(fridge.left, greaterThanOrEqualTo(0));
@@ -277,9 +278,20 @@ void main() {
       await tester.pump();
       final double want = layout.camera.foregroundShown;
       expect(want, greaterThan(0), reason: 'значение — из файла');
+      // Кровать и стол нарисованы в фоне: их место на экране — место
+      // слота стадии на картинке фона.
+      final Rect bg = tester.getRect(find
+          .byWidgetPredicate((Widget w) =>
+              w is PixelImage && (w.path ?? '').contains('gen-town'))
+          .last);
+      final RoomLayout town = layout.forStage(layout.stages['town']!);
       for (final String id in <String>['bed', 'desk_chair']) {
-        final Rect r =
-            tester.getRect(find.byKey(ValueKey<String>('room:furniture:$id')));
+        final Rect f = town.slots[id]!.rect;
+        final Rect r = Rect.fromLTWH(
+            bg.left + f.left * bg.width,
+            bg.top + f.top * bg.height,
+            f.width * bg.width,
+            f.height * bg.height);
         final Rect seen = r.intersect(Rect.fromLTWH(0, 0, 360, sceneH));
         expect(seen.width / r.width, greaterThanOrEqualTo(want - 0.01),
             reason: '$id: видно ${seen.width} из ${r.width}');
@@ -298,7 +310,7 @@ void main() {
     // Фон комнаты на экране (с учётом сдвига камеры).
     final Rect bg = tester.getRect(find
         .byWidgetPredicate((Widget w) =>
-            w is PixelImage && (w.path ?? '').contains('shell-town'))
+            w is PixelImage && (w.path ?? '').contains('gen-town'))
         .last);
     final Rect r = tester.getRect(g);
     expect((r.left - (bg.left + box.left * bg.width)).abs(), lessThan(1));
@@ -331,4 +343,71 @@ void main() {
       await rootBundle.load(p); // бросит, если файла нет в сборке
     }
   });
+
+  // Готовые фоны команды (мебель нарисована в фоне): рамки предметов,
+  // замеренные по картинкам assets/hires/room/gen-*@3x.png (доли кадра,
+  // x0, y0, x1, y1) — независимо от чисел в room_layout.json.
+  const Map<String, Map<String, List<double>>> drawn =
+      <String, Map<String, List<double>>>{
+    'village': <String, List<double>>{
+      'door': <double>[0.095, 0.085, 0.275, 0.45],
+      'cabinet': <double>[0.29, 0.345, 0.44, 0.475],
+      'piggy': <double>[0.345, 0.265, 0.435, 0.345],
+      'fridge': <double>[0.835, 0.15, 0.995, 0.495],
+      'bed': <double>[0.0, 0.51, 0.355, 1.0],
+      'desk': <double>[0.84, 0.47, 1.0, 0.9],
+    },
+    'town': <String, List<double>>{
+      'door': <double>[0.05, 0.05, 0.245, 0.47],
+      'cabinet': <double>[0.24, 0.335, 0.385, 0.495],
+      'piggy': <double>[0.26, 0.25, 0.36, 0.35],
+      'fridge': <double>[0.8, 0.175, 0.995, 0.5],
+      'bed': <double>[0.0, 0.54, 0.305, 1.0],
+      'desk': <double>[0.8, 0.52, 1.0, 0.93],
+    },
+    'moscow': <String, List<double>>{
+      'door': <double>[0.04, 0.05, 0.245, 0.52],
+      'cabinet': <double>[0.25, 0.36, 0.37, 0.53],
+      'piggy': <double>[0.28, 0.31, 0.35, 0.375],
+      'fridge': <double>[0.855, 0.115, 1.0, 0.54],
+      'bed': <double>[0.0, 0.49, 0.35, 0.87],
+      'desk': <double>[0.81, 0.53, 1.0, 0.95],
+    },
+  };
+
+  for (final String st in drawn.keys) {
+    test(
+        '$st: фон с мебелью, каждая зона касания лежит на нарисованном предмете',
+        () {
+      final LayoutStage s = layout.stages[st]!;
+      expect(s.backgroundHasFurniture, isTrue);
+      expect(art.registry.room(id: s.background), contains('gen-$st'));
+      const Size size = Size(1, 1);
+      final Map<String, Rect> taps = RoomSlots.fromLayout(layout, s, size).taps;
+      expect(taps.keys.toSet(), drawn[st]!.keys.toSet());
+      for (final MapEntry<String, List<double>> e in drawn[st]!.entries) {
+        final List<double> b = e.value;
+        final Rect obj = Rect.fromLTRB(b[0], b[1], b[2], b[3]);
+        final Rect zone = taps[e.key]!;
+        final Rect x = zone.intersect(obj);
+        expect(x.width > 0 && x.height > 0, isTrue, reason: '$st ${e.key}');
+        // Зона почти целиком на предмете, центр зоны — на предмете.
+        expect(
+            x.width * x.height / (zone.width * zone.height), greaterThan(0.6),
+            reason: '$st ${e.key}: $zone vs $obj');
+        expect(obj.contains(zone.center), isTrue, reason: '$st ${e.key}');
+      }
+      // Места с касанием стадии не перекрываются, кроме заявленных пар.
+      final List<MapEntry<String, LayoutSlot>> t = layout.forStage(s).tappable;
+      for (int i = 0; i < t.length; i++) {
+        for (int j = i + 1; j < t.length; j++) {
+          final Rect x = t[i].value.rect.intersect(t[j].value.rect);
+          final bool declared = t[i].value.overlaps.contains(t[j].key) ||
+              t[j].value.overlaps.contains(t[i].key);
+          expect(x.width > 1e-9 && x.height > 1e-9 && !declared, isFalse,
+              reason: '$st: ${t[i].key} × ${t[j].key}');
+        }
+      }
+    });
+  }
 }

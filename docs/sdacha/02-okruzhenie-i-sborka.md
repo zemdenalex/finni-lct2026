@@ -52,7 +52,7 @@ keytool -genkeypair -v \
 
 ```bash
 cd app/finlit/android
-cp key.properties.example key.properties   # заполнить storeFile, storePassword, keyAlias, keyPassword
+cp key.properties.example key.properties   # вписать storeFile, storePassword, keyAlias, keyPassword
 git check-ignore -v key.properties          # должна что-то напечатать: файл перекрыт .gitignore
 ```
 
@@ -145,5 +145,8 @@ Flutter в release включает R8, и это минификация Java/Ko
 
 Публиковать приложение во время хакатона не требуется (§2.7.4), нужна готовность к
 публикации (§3.3): уникальный пакет `ru.lct2026.finlit`, подписанный universal APK, minSdk 26,
-разрешений нет. 🟡 заполнить: Алина — черновик карточки RuStore (название, описание,
-скриншоты нового интерфейса, возрастная маркировка 0+).
+разрешений нет. Черновик карточки — `docs/karta-rustore.md` (внутренний документ команды): название «Питомец Финни»,
+категория «Образование» (дополнительная — «Родителям»), краткое и подробное описание, возрастная маркировка 0+
+с обоснованием в `docs/vozrastnaya-markirovka.md` (внутренний документ команды); рекламы, покупок и сбора данных
+нет. Иконка 512 × 512 и скриншоты — `app/finlit/assets/store/` (нового интерфейса — `world/`, отрисованы
+автотестом; снимки с телефона — в плане до финала).

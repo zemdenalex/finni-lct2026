@@ -50,6 +50,33 @@ class RoomLayout {
 
   static const String asset = 'assets/content/world/room_layout.json';
 
+  /// Раскладка стадии: места слотов из [LayoutStage.slots] (готовый фон
+  /// команды нарисовал предмет чуть в стороне от общего места — касание
+  /// должно попадать в нарисованный предмет); действие, приоритет и
+  /// перекрытия — общие.
+  RoomLayout forStage(LayoutStage stage) {
+    if (stage.slots.isEmpty) return this;
+    return RoomLayout(
+      floorY: floorY,
+      slots: <String, LayoutSlot>{
+        for (final MapEntry<String, LayoutSlot> e in slots.entries)
+          e.key: switch (stage.slots[e.key]) {
+            final Rect r => LayoutSlot(r,
+                action: e.value.action,
+                priority: e.value.priority,
+                overlaps: e.value.overlaps),
+            null => e.value,
+          },
+      },
+      walk: walk,
+      finni: finni,
+      decor: decor,
+      stages: stages,
+      depth: depth,
+      camera: camera,
+    );
+  }
+
   /// id предмета комнаты у слота: так его зовут фокус сценок, кнопка у
   /// предмета и джойстик (`desk_chair` → `desk`).
   static String objectOf(String slot) => switch (slot) {
@@ -168,6 +195,7 @@ class LayoutStage {
     required this.background,
     required this.backgroundHasFurniture,
     required this.furniture,
+    this.slots = const <String, Rect>{},
     this.edgeWall,
     this.edgeFloor,
   });
@@ -175,6 +203,10 @@ class LayoutStage {
   final String background;
   final bool backgroundHasFurniture;
   final Map<String, String> furniture;
+
+  /// Места слотов этой стадии поверх общих (доли кадра): только у фонов,
+  /// где мебель уже нарисована ([backgroundHasFurniture]).
+  final Map<String, Rect> slots;
   final Color? edgeWall;
   final Color? edgeFloor;
 
@@ -183,6 +215,7 @@ class LayoutStage {
     final Object? bg = v['background'];
     final Object? has = v['background_has_furniture'];
     final Object? f = v['furniture'];
+    final Object? sl = v['slots'];
     if (bg is! String || has is! bool) return null;
     return LayoutStage(
       background: bg,
@@ -191,6 +224,12 @@ class LayoutStage {
         if (f is Map<String, Object?>)
           for (final MapEntry<String, Object?> e in f.entries)
             if (e.value is String) e.key: e.value! as String,
+      },
+      slots: <String, Rect>{
+        if (sl is Map<String, Object?>)
+          for (final MapEntry<String, Object?> e in sl.entries)
+            if (!e.key.startsWith('_'))
+              if (RoomLayout._rect(e.value) case final Rect r) e.key: r,
       },
       edgeWall: _hex(v['edge_wall']),
       edgeFloor: _hex(v['edge_floor']),
@@ -211,12 +250,17 @@ class DepthScale {
       {required this.yBack,
       required this.back,
       required this.yFront,
-      required this.front});
+      required this.front,
+      this.finni = 1});
 
   static const DepthScale none =
       DepthScale(yBack: 0, back: 1, yFront: 1, front: 1);
 
   final double yBack, back, yFront, front;
+
+  /// Во сколько раз Финни крупнее своего спрайта в комнате (питомец — нет).
+  /// Денис 29.09: в готовых фонах команды он вышел слишком маленьким.
+  final double finni;
 
   /// Масштаб при ногах на [y] (доля кадра).
   double at(double y) {
@@ -230,11 +274,13 @@ class DepthScale {
     final Object? yb = v['y_back'], b = v['scale_back'];
     final Object? yf = v['y_front'], f = v['scale_front'];
     if (yb is! num || b is! num || yf is! num || f is! num) return null;
+    final Object? fi = v['finni'];
     return DepthScale(
         yBack: yb.toDouble(),
         back: b.toDouble(),
         yFront: yf.toDouble(),
-        front: f.toDouble());
+        front: f.toDouble(),
+        finni: fi is num && fi > 0 ? fi.toDouble() : 1);
   }
 }
 

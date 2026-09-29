@@ -72,10 +72,10 @@
  },
  "walk": {
   "x0": 0.3,
-  "x1": 0.7,
+  "x1": 0.78,
   "y0": 0.5,
   "y1": 0.95,
-  "_note": "Где ноги Финни могут стоять (джойстик, подход к предмету)."
+  "_note": "Где ноги Финни могут стоять (джойстик, подход к предмету). Справа до 0,78: в готовых фонах команды холодильник ближе к правой стене, к нему надо подойти."
  },
  "finni": {
   "x": 0.5,
@@ -136,7 +136,7 @@
  "stages": {
   "village": {
    "background": "village_room",
-   "background_has_furniture": false,
+   "background_has_furniture": true,
    "furniture": {
     "door": "door",
     "bedside_cabinet": "room_cabinet",
@@ -146,12 +146,62 @@
     "desk_chair": "room_desk_village",
     "pet_corner": "room_pet_corner"
    },
-   "edge_wall": "#d9af85",
-   "edge_floor": "#a05d41"
+   "edge_wall": "#da9a63",
+   "edge_floor": "#934e36",
+   "slots": {
+    "door": {
+     "x": 0.095,
+     "y": 0.085,
+     "w": 0.18,
+     "h": 0.365
+    },
+    "bedside_cabinet": {
+     "x": 0.29,
+     "y": 0.345,
+     "w": 0.15,
+     "h": 0.13
+    },
+    "piggy": {
+     "x": 0.345,
+     "y": 0.265,
+     "w": 0.095,
+     "h": 0.085
+    },
+    "window": {
+     "x": 0.45,
+     "y": 0.065,
+     "w": 0.35,
+     "h": 0.28
+    },
+    "fridge": {
+     "x": 0.835,
+     "y": 0.15,
+     "w": 0.12,
+     "h": 0.345
+    },
+    "bed": {
+     "x": 0.0,
+     "y": 0.5,
+     "w": 0.355,
+     "h": 0.43
+    },
+    "desk_chair": {
+     "x": 0.84,
+     "y": 0.5,
+     "w": 0.16,
+     "h": 0.4
+    },
+    "pet_corner": {
+     "x": 0.04,
+     "y": 0.44,
+     "w": 0.27,
+     "h": 0.11
+    }
+   }
   },
   "town": {
    "background": "town_room",
-   "background_has_furniture": false,
+   "background_has_furniture": true,
    "furniture": {
     "door": "door",
     "bedside_cabinet": "room_cabinet",
@@ -161,12 +211,62 @@
     "desk_chair": "room_desk_town",
     "pet_corner": "room_pet_corner"
    },
-   "edge_wall": "#eabd8f",
-   "edge_floor": "#ac6446"
+   "edge_wall": "#d5a87e",
+   "edge_floor": "#a15d3d",
+   "slots": {
+    "door": {
+     "x": 0.05,
+     "y": 0.05,
+     "w": 0.195,
+     "h": 0.42
+    },
+    "bedside_cabinet": {
+     "x": 0.25,
+     "y": 0.335,
+     "w": 0.135,
+     "h": 0.16
+    },
+    "piggy": {
+     "x": 0.26,
+     "y": 0.25,
+     "w": 0.1,
+     "h": 0.1
+    },
+    "window": {
+     "x": 0.38,
+     "y": 0.015,
+     "w": 0.4,
+     "h": 0.33
+    },
+    "fridge": {
+     "x": 0.8,
+     "y": 0.175,
+     "w": 0.15,
+     "h": 0.325
+    },
+    "bed": {
+     "x": 0.0,
+     "y": 0.54,
+     "w": 0.305,
+     "h": 0.39
+    },
+    "desk_chair": {
+     "x": 0.8,
+     "y": 0.52,
+     "w": 0.2,
+     "h": 0.41
+    },
+    "pet_corner": {
+     "x": 0.02,
+     "y": 0.46,
+     "w": 0.34,
+     "h": 0.13
+    }
+   }
   },
   "moscow": {
    "background": "moscow_room",
-   "background_has_furniture": false,
+   "background_has_furniture": true,
    "furniture": {
     "door": "door",
     "bedside_cabinet": "room_cabinet",
@@ -176,17 +276,68 @@
     "desk_chair": "room_desk_moscow",
     "pet_corner": "room_pet_corner"
    },
-   "edge_wall": "#cba47d",
-   "edge_floor": "#96573d"
+   "edge_wall": "#dca879",
+   "edge_floor": "#ad5e35",
+   "slots": {
+    "door": {
+     "x": 0.04,
+     "y": 0.05,
+     "w": 0.205,
+     "h": 0.47
+    },
+    "bedside_cabinet": {
+     "x": 0.25,
+     "y": 0.365,
+     "w": 0.12,
+     "h": 0.165
+    },
+    "piggy": {
+     "x": 0.28,
+     "y": 0.31,
+     "w": 0.07,
+     "h": 0.065
+    },
+    "window": {
+     "x": 0.375,
+     "y": 0.0,
+     "w": 0.475,
+     "h": 0.39
+    },
+    "fridge": {
+     "x": 0.855,
+     "y": 0.115,
+     "w": 0.1,
+     "h": 0.425
+    },
+    "bed": {
+     "x": 0.0,
+     "y": 0.53,
+     "w": 0.35,
+     "h": 0.34
+    },
+    "desk_chair": {
+     "x": 0.81,
+     "y": 0.55,
+     "w": 0.19,
+     "h": 0.38
+    },
+    "pet_corner": {
+     "x": 0.23,
+     "y": 0.535,
+     "w": 0.19,
+     "h": 0.06
+    }
+   }
   }
  },
- "_stages_note": "background — id в группе room реестра (assets/registry.json). background_has_furniture: false — фон пустой, мебель рисуется спрайтами furniture (id в night_items / room_objects) на местах slots; true — мебель уже в фоне (готовые фоны команды): спрайты не рисуются, остаются зоны касания. Холодильник рисуется всегда: на его полках еда недели. edge_wall / edge_floor — цвет полей, когда экран шире или выше квадрата.",
+ "_stages_note": "background — id в группе room реестра (assets/registry.json). background_has_furniture: false — фон пустой, мебель рисуется спрайтами furniture (id в night_items / room_objects) на местах slots; true — мебель уже в фоне (готовые фоны команды): спрайты не рисуются, остаются зоны касания. Холодильник рисуется всегда: на его полках еда недели. edge_wall / edge_floor — цвет полей, когда экран шире или выше квадрата. slots у стадии — места предметов, нарисованных в готовом фоне (доли кадра, как slots выше; действие, priority и overlaps — общие): касание попадает в нарисованный предмет. Замерены по картинке фона; тест room_layout_test сверяет их с замером.",
  "depth_scale": {
   "y_back": 0.5,
   "scale_back": 0.75,
   "y_front": 0.95,
   "scale_front": 1.0,
-  "_note": "Перспектива: чем дальше в глубине Финни, тем он чуть меньше: масштаб Финни и питомца по y ног, линейно от линии задней стены (0,75) к переднему краю зоны ходьбы (1,0); за пределами — края."
+  "finni": 1.3,
+  "_note": "Перспектива: чем дальше в глубине Финни, тем он чуть меньше: масштаб Финни и питомца по y ног, линейно от линии задней стены (0,75) к переднему краю зоны ходьбы (1,0); за пределами — края. finni — множитель роста Финни в комнате (питомец не растёт): 1,3 — в готовых фонах команды он был слишком маленьким (Денис 29.09)."
  },
  "camera": {
   "dead_zone": 0.3,

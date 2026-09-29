@@ -108,7 +108,8 @@ void main() {
             final WorldState ws = WorldState(stageWorld(stage));
             await pumpCity(tester, state: ws, size: size, variant: v);
             // Спрайт прочитан: зона касания — размер картинки, а не коробка-заглушка.
-            // Парк высокого разрешения (@4x, в коробке 120 × 84): 86,8 × 84.
+            // Парк стадии (@4x, 96 в ширину): деревня 96 × 59, город 96 × 74,25,
+            // Москва 96 × 73,5.
             // Масштаб карты: целый, а в альбомной, где карта при 1× выше
             // экрана, — дробный по высоте.
             final double k = tester
@@ -117,8 +118,13 @@ void main() {
                 CityScreen.mapBaseFor(v).width;
             final Size park = tester.getSize(
                 find.byKey(const ValueKey<String>('city:building:park')));
-            expect(park.width, closeTo(86.8 * k, 0.5));
-            expect(park.height, closeTo(84 * k, 0.5));
+            final double parkH = switch (stage) {
+              WorldStage.village => 59,
+              WorldStage.town => 74.25,
+              WorldStage.moscow => 73.5,
+            };
+            expect(park.width, closeTo(96 * k, 0.5));
+            expect(park.height, closeTo(parkH * k, 0.5));
             // Башни Москва-Сити — только в Москве и целиком внутри карты.
             final Finder towers = find.byWidgetPredicate((Widget w) =>
                 w.key is ValueKey<String> &&
@@ -195,7 +201,8 @@ void main() {
           tester.getRect(find.byKey(ValueKey<String>('city:event:$id')));
       final Rect house =
           tester.getRect(find.byKey(ValueKey<String>('city:building:$id')));
-      expect(marker.size, const Size(48, 48));
+      expect(marker.width, closeTo(48, 1e-6));
+      expect(marker.height, closeTo(48, 1e-6));
       expect(marker.center.dx, closeTo(house.center.dx, 1));
       expect(marker.bottom, lessThanOrEqualTo(house.top + 8));
 

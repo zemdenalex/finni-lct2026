@@ -1,0 +1,240 @@
+{
+ "frames": [
+  {
+   "filename": "finni-a2_poses@4x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 1",
+   "frame": {
+    "x": 455,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 2",
+   "frame": {
+    "x": 910,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 3",
+   "frame": {
+    "x": 1365,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 4",
+   "frame": {
+    "x": 0,
+    "y": 442,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 5",
+   "frame": {
+    "x": 455,
+    "y": 442,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 6",
+   "frame": {
+    "x": 910,
+    "y": 442,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  },
+  {
+   "filename": "finni-a2_poses@4x 7",
+   "frame": {
+    "x": 1365,
+    "y": 442,
+    "w": 455,
+    "h": 442
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 455,
+    "h": 442
+   },
+   "sourceSize": {
+    "w": 455,
+    "h": 442
+   },
+   "duration": 400
+  }
+ ],
+ "meta": {
+  "app": "tools/finni_walk_g7.py",
+  "image": "finni-a2_poses@4x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1820,
+   "h": 884
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep-1",
+    "from": 0,
+    "to": 0,
+    "direction": "forward"
+   },
+   {
+    "name": "joy-1",
+    "from": 1,
+    "to": 1,
+    "direction": "forward"
+   },
+   {
+    "name": "sleep-2",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   },
+   {
+    "name": "joy-2",
+    "from": 3,
+    "to": 3,
+    "direction": "forward"
+   },
+   {
+    "name": "sleep-3",
+    "from": 4,
+    "to": 4,
+    "direction": "forward"
+   },
+   {
+    "name": "joy-3",
+    "from": 5,
+    "to": 5,
+    "direction": "forward"
+   },
+   {
+    "name": "sleep-4",
+    "from": 6,
+    "to": 6,
+    "direction": "forward"
+   },
+   {
+    "name": "joy-4",
+    "from": 7,
+    "to": 7,
+    "direction": "forward"
+   }
+  ]
+ }
+}

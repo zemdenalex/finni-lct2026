@@ -578,6 +578,12 @@ class _CityMapState extends State<_CityMap>
   /// Реальные размеры спрайтов и их альфа — для попадания в силуэт.
   final Map<String, _Alpha> _alpha = <String, _Alpha>{};
   AssetRegistry? _loadedFor;
+  WorldStage? _loadedStage;
+
+  /// Картинка здания для стадии: вариант `village` / `town` / `moscow` из
+  /// реестра, иначе выбранная по умолчанию.
+  String? _art(AssetRegistry? reg, String id) =>
+      reg?.building(id, variant: widget.stage.name);
 
   CityGeometry get _geo => widget.geo;
 
@@ -885,13 +891,17 @@ class _CityMapState extends State<_CityMap>
 
   void _loadAlpha() {
     final AssetRegistry? reg = widget.registry;
-    if (reg == null || identical(reg, _loadedFor)) return;
+    if (reg == null ||
+        (identical(reg, _loadedFor) && widget.stage == _loadedStage)) {
+      return;
+    }
     _loadedFor = reg;
+    _loadedStage = widget.stage;
     for (final String id in <String>[
       for (final CityBuilding b in cityBuildings) b.id,
       for (final (String id, Offset _) in _geo.skyline) id,
     ]) {
-      final String? path = reg.building(id);
+      final String? path = _art(reg, id);
       if (path == null) continue;
       _Alpha.load(path).then((_Alpha a) {
         if (mounted) setState(() => _alpha[id] = a);
@@ -1049,7 +1059,7 @@ class _CityMapState extends State<_CityMap>
                     child: Align(
                       alignment: Alignment.bottomCenter,
                       child: PixelImage(
-                        reg?.building(b.id),
+                        _art(reg, b.id),
                         scale: k,
                         fallback: _NoArt(b),
                       ),

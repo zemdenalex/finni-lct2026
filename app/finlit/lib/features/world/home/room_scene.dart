@@ -37,7 +37,10 @@ class RoomSlots {
   /// доли картинки → px фона размером [size] (size_px фона в реестре). Все предметы с
   /// действием — зоны касания по id предмета ([RoomLayout.objectOf]);
   /// мебель — места спрайтов ([furniture]); декор — коробки ([boxes]).
-  factory RoomSlots.fromLayout(RoomLayout l, LayoutStage stage, Size size) {
+  factory RoomSlots.fromLayout(
+      RoomLayout layout, LayoutStage stage, Size size) {
+    // Места слотов стадии (готовый фон команды) поверх общих.
+    final RoomLayout l = layout.forStage(stage);
     final double sw = size.width, s = size.height;
     Rect px(Rect r) =>
         Rect.fromLTWH(r.left * sw, r.top * s, r.width * sw, r.height * s);
@@ -78,9 +81,21 @@ class RoomSlots {
         final Rect? bed = l.slots['bed']?.rect,
             desk = l.slots['desk_chair']?.rect;
         if (v <= 0 || bed == null || desk == null) return null;
-        final double a = (bed.left + (1 - v) * bed.width) * sw;
-        final double b = (desk.right - (1 - v) * desk.width) * sw;
-        return b > a ? Rect.fromLTRB(a, 0, b, s) : null;
+        double a = bed.left + (1 - v) * bed.width;
+        double b = desk.right - (1 - v) * desk.width;
+        if (b <= a) return null;
+        // Прочие предметы с касанием (дверь, холодильник) — целиком: в
+        // готовом фоне команды они стоят ближе к краям кадра.
+        for (final MapEntry<String, LayoutSlot> e in l.tappable) {
+          if (e.key == 'bed' || e.key == 'desk_chair') continue;
+          // С запасом: зона касания растёт до 48 dp.
+          a = math.min(a, e.value.rect.left - 0.03);
+          b = math.max(b, e.value.rect.right + 0.03);
+        }
+        // Камера в покое смотрит на Финни: полоса симметрична его месту.
+        final double fx = l.finni.dx;
+        final double half = math.min(0.5, math.max(fx - a, b - fx));
+        return Rect.fromLTRB((fx - half) * sw, 0, (fx + half) * sw, s);
       }(),
       boxes: <String, Rect>{
         for (final MapEntry<String, Rect> e in l.decor.entries)
@@ -912,7 +927,7 @@ class RoomScene extends StatelessWidget {
       final bool behindFront =
           lay != null ? behindLayout : frontLine != null && feet.dy < frontLine;
       // Перспектива: в глубине Финни и питомец чуть меньше.
-      final double fk = k * slots.depthAt(feet.dy);
+      final double fk = k * slots.depthAt(feet.dy) * (slots.depth?.finni ?? 1);
       final double pk =
           k * slots.depthAt(slots.slot(petAwake ? 'pet_floor' : 'pet_bed').dy);
       final bool behindFridge = fridgeLine != null && feet.dy < fridgeLine;
@@ -1119,7 +1134,11 @@ class RoomScene extends StatelessWidget {
                 ])
                   if (sprite(id) case final String path)
                     _furniture(id, path, onScreen(slots.furniture[id]!)),
-              if (lay != null && slots.furniture['fridge'] != null)
+              // Готовый фон: холодильник уже нарисован — второй поверх не
+              // рисуется; касание и еда — по зоне холодильника, как прежде.
+              if (lay != null &&
+                  !lay.backgroundHasFurniture &&
+                  slots.furniture['fridge'] != null)
                 if (reg?.roomObject(lay.furniture['fridge'] ?? 'fridge')
                     case final RoomObjectArt f)
                   _layoutFridge(onScreen(slots.furniture['fridge']!), f,
@@ -1145,6 +1164,13 @@ class RoomScene extends StatelessWidget {
                 for (final String id in <String>['bed', 'desk_chair'])
                   if (sprite(id) case final String path)
                     _furniture(id, path, onScreen(slots.furniture[id]!)),
+              // Готовый фон с мебелью: кровать и стол — вырезка того же фона
+              // на своём месте поверх Финни, когда он за ними (глубина).
+              if (lay != null && lay.backgroundHasFurniture)
+                for (final String id in <String>['bed', 'desk_chair'])
+                  if (slots.furniture[id] case final Rect f)
+                    _backgroundCut(id, bg!, onScreen(f),
+                        Rect.fromLTWH(left, top, rw, rh), k),
               if (front != null && placed.isNotEmpty)
                 Positioned(
                   key: const ValueKey<String>('room:front'),
@@ -1585,6 +1611,31 @@ Widget _furniture(String id, String path, Rect rect) => Positioned.fromRect(
           alignment: Alignment.bottomCenter,
           filterQuality: FilterQuality.medium,
           errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+/// Предмет, нарисованный в готовом фоне ([cut] на экране), как отдельный
+/// слой: та же картинка фона ([room] на экране), обрезанная по месту
+/// предмета. Шва нет — пиксели те же, что под ним.
+Widget _backgroundCut(String id, String bg, Rect cut, Rect room, double k) =>
+    Positioned.fromRect(
+      key: ValueKey<String>('room:furniture:$id'),
+      rect: cut,
+      child: IgnorePointer(
+        child: ClipRect(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Positioned(
+                left: room.left - cut.left,
+                top: room.top - cut.top,
+                width: room.width,
+                height: room.height,
+                child: PixelImage(bg, scale: k),
+              ),
+            ],
+          ),
         ),
       ),
     );

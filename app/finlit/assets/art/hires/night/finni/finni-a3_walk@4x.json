@@ -354,7 +354,7 @@
   }
  ],
  "meta": {
-  "app": "tools/hires_art.py",
+  "app": "tools/finni_walk_g7.py",
   "image": "finni-a3_walk@4x.png",
   "format": "RGBA8888",
   "size": {

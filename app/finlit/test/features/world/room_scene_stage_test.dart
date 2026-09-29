@@ -8,9 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// (группа `room`, фоны общей раскладки `<stage>_room` из
 /// `room_layout.json`), выписаны руками, а не взяты из `roomIdByStage`.
 const Map<WorldStage, String> _bgByStage = <WorldStage, String>{
-  WorldStage.village: 'shell-village@3x.png',
-  WorldStage.town: 'shell-town@3x.png',
-  WorldStage.moscow: 'shell-moscow@3x.png',
+  WorldStage.village: 'gen-village@3x.png',
+  WorldStage.town: 'gen-town@3x.png',
+  WorldStage.moscow: 'gen-moscow@3x.png',
 };
 
 /// Ловит (ТЗ 2.5.10.1): на всех стадиях одна комната — стадия не доходит
@@ -82,9 +82,10 @@ void main() {
           .widgetList<PixelImage>(find.byType(PixelImage))
           .map((PixelImage p) => p.path ?? '')
           .toList();
-      expect(find.byKey(const ValueKey<String>('room:furniture:door')),
+      // Мебель в готовом фоне: кровать — его вырезка поверх Финни.
+      expect(find.byKey(const ValueKey<String>('room:furniture:bed')),
           findsOneWidget,
-          reason: 'дверь нарисована — иначе проверка пустая: $paths');
+          reason: 'кровать нарисована — иначе проверка пустая: $paths');
       expect(
           find.bySemanticsLabel(
               RegExp(r'^(Холодильник|Дверь — в город|Кровать — лечь спать)')),

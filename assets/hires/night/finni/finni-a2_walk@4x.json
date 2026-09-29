@@ -20,7 +20,7 @@
     "w": 354,
     "h": 468
    },
-   "duration": 220
+   "duration": 160
   },
   {
    "filename": "finni-a2_walk@4x 1",
@@ -42,7 +42,7 @@
     "w": 354,
     "h": 468
    },
-   "duration": 220
+   "duration": 160
   },
   {
    "filename": "finni-a2_walk@4x 2",
@@ -307,10 +307,54 @@
     "h": 468
    },
    "duration": 160
+  },
+  {
+   "filename": "finni-a2_walk@4x 14",
+   "frame": {
+    "x": 708,
+    "y": 1404,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a2_walk@4x 15",
+   "frame": {
+    "x": 1062,
+    "y": 1404,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 160
   }
  ],
  "meta": {
-  "app": "tools/hires_art.py",
+  "app": "tools/finni_walk_g7.py",
   "image": "finni-a2_walk@4x.png",
   "format": "RGBA8888",
   "size": {
@@ -322,25 +366,25 @@
    {
     "name": "walk-1",
     "from": 0,
-    "to": 1,
+    "to": 3,
     "direction": "forward"
    },
    {
     "name": "walk-2",
-    "from": 2,
-    "to": 5,
+    "from": 4,
+    "to": 7,
     "direction": "forward"
    },
    {
     "name": "walk-3",
-    "from": 6,
-    "to": 9,
+    "from": 8,
+    "to": 11,
     "direction": "forward"
    },
    {
     "name": "walk-4",
-    "from": 10,
-    "to": 13,
+    "from": 12,
+    "to": 15,
     "direction": "forward"
    }
   ]

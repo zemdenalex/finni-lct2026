@@ -291,8 +291,10 @@ void main() {
                 .getRect(find.byKey(ValueKey<String>('city:icon:${b.id}'))),
           },
         };
-        // Спрайт прочитан — коробка по картинке, а не заглушка.
-        expect(boxes['park']!.width, lessThan(boxes['home']!.width + 40));
+        // Спрайт прочитан — коробка по картинке (парк деревни 96 × 59),
+        // а не заглушка 122 × 82.
+        expect(boxes['park']!.height / boxes['park']!.width,
+            closeTo(59 / 96, 0.01));
         final List<String> ids = boxes.keys.toList();
         for (int i = 0; i < ids.length; i++) {
           for (int j = i + 1; j < ids.length; j++) {

@@ -194,6 +194,15 @@ void main() {
             (x.key! as ValueKey<String>)
                 .value
                 .startsWith('room:fridge:portion'));
+        // Готовый фон с мебелью: холодильник нарисован в фоне, второй
+        // (с полками) поверх не рисуется — еда открывается касанием.
+        late final RoomArt art;
+        await tester.runAsync(() async => art = await RoomArt.load());
+        if (art.layout?.stages[roomIdByStage[stage]]?.backgroundHasFurniture ??
+            false) {
+          expect(portions, findsNothing);
+          return;
+        }
         expect(portions, findsNWidgets(stock.portions));
         for (final Element e in portions.evaluate()) {
           final Rect r = tester.getRect(find.byWidget(e.widget));

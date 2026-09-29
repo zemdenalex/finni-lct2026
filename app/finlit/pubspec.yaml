@@ -60,7 +60,10 @@ flutter:
     - assets/art/hires/night/finni/
     - assets/art/hires/night/events/
     - assets/art/hires/night/work/
-    - assets/art/hires/hud/
+    - assets/art/hires/gen/city/
+    - assets/art/hires/gen/hud/
+    - assets/art/hires/gen/items/
+    - assets/art/hires/gen/room/
     # Контент нового мира (копия content/*.json из корня репозитория). Папки в
     # assets не рекурсивны, поэтому world/ указана отдельно. Копию сверяет
     # test/world_content_test.dart.
