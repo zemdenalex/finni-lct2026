@@ -25,7 +25,7 @@ import 'shop/world_shop_screen.dart';
 /// Маршруты нового мира (поток B). Номера экранов — `docs/game/`.
 ///
 /// Каждая карточка правит только свой экран; таблица маршрутов здесь уже
-/// полная, чтобы параллельные агенты не спорили за один файл.
+/// полная, чтобы правки не конфликтовали в одном файле.
 abstract final class WorldRoutes {
   static const String onboarding = '/w/onboarding'; // S0 · B1
   static const String room = '/w/room'; // S1 · B2

@@ -19,7 +19,7 @@ import '../../support/world_harness.dart';
 /// не влезает в 360 × 640 при шрифте 1,3.
 ///
 /// Маршрут смены — зонд, который запоминает аргументы: сама мини-игра в
-/// работе у другого агента.
+/// отдельной задаче.
 void main() {
   forEachWorld((WorldKind kind) {
     late List<RouteSettings> pushed;
