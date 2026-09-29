@@ -119,6 +119,12 @@ void main() {
         roomFrame(s, box: const Size(640, 560), hires: true, topInset: 120);
     expect(f.top, 120);
     expect(f.k * 368, closeTo(440, 1e-6));
+    // Длинный портрет: масштаб ограничен (кровать и стол на ¾), но комната
+    // всё равно сразу под HUD — пустой полосы над стеной нет.
+    final RoomFrame tall =
+        roomFrame(s, box: const Size(360, 700), hires: true, topInset: 100);
+    expect(tall.top, 100);
+    expect(tall.k * 368, lessThan(600), reason: 'масштаб ограничен');
   });
 
   Future<void> pumpRoom(WidgetTester tester, Widget room,
@@ -288,8 +294,10 @@ void main() {
     expect(g, findsOneWidget);
     final Rect box = layout.decor['decor_globe']!;
     // Фон комнаты на экране (с учётом сдвига камеры).
-    final Rect bg = tester.getRect(find.byWidgetPredicate((Widget w) =>
-        w is PixelImage && (w.path ?? '').contains('shell-town')));
+    final Rect bg = tester.getRect(find
+        .byWidgetPredicate((Widget w) =>
+            w is PixelImage && (w.path ?? '').contains('shell-town'))
+        .last);
     final Rect r = tester.getRect(g);
     expect((r.left - (bg.left + box.left * bg.width)).abs(), lessThan(1));
     expect((r.top - (bg.top + box.top * bg.height)).abs(), lessThan(1));

@@ -568,6 +568,41 @@ void main() {
     });
   }
 
+  // Ловит (29.09): строка цели «Финни копит: Кв…» на 360 dp — цель не
+  // прочитать. Теперь ⚑ + название; первое слово видно целиком даже при
+  // шрифте ×1,3, подпись TalkBack — полная.
+  for (final WorldKind kind in worldKinds) {
+    testWidgets('$kind · цель в строке: первое слово целиком при ×1,3',
+        (WidgetTester tester) async {
+      final World w = kind.make();
+      ok(w.startWeek());
+      ok(w.plan(needs: 250, wants: 100, goal: 50));
+      ok(w.chooseGoal('home_flat'));
+      final String title = w.catalogItem('home_flat')!.title;
+      await pumpWorldScreen(tester, const RoomScreen(),
+          world: w, size: const Size(360, 640), textScale: 1.3);
+      await _settle(tester);
+      final Finder t = find.byKey(const ValueKey<String>('room:goal:title'));
+      expect(tester.widget<Text>(t).data, title);
+      final RenderParagraph p = tester.renderObject<RenderParagraph>(
+          find.descendant(of: t, matching: find.byType(RichText)));
+      final TextStyle style = tester.widget<Text>(t).style!;
+      final double firstWord = (TextPainter(
+        text: TextSpan(text: '${title.split(' ').first}…', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: p.textScaler,
+        maxLines: 1,
+      )..layout())
+          .width;
+      expect(!p.didExceedMaxLines || firstWord <= p.size.width + 0.5, isTrue,
+          reason: 'первое слово «$title» не влезает: $firstWord > '
+              '${p.size.width}');
+      expect(find.bySemanticsLabel(RegExp('^Цель: ${RegExp.escape(title)}')),
+          findsOneWidget);
+      expect(find.textContaining('копит:'), findsNothing);
+    });
+  }
+
   // ТЗ 2.5.2.2: имя, которое выбрал ребёнок, видно на главном — табличкой
   // в комнате, а не только в подписи для TalkBack. Самое длинное допустимое
   // имя (16 символов) видно целиком в обеих ориентациях.

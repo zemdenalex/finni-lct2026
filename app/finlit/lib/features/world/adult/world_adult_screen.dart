@@ -64,6 +64,12 @@ class WorldAdultScreen extends StatefulWidget {
     29: 'двадцать девять',
   };
 
+  /// Зачем пример (Денис 29.09): любой барьер обходится калькулятором —
+  /// он только от случайного входа; вход родителя — отдельным приложением.
+  static const String gateNote =
+      'Пример защищает от случайного входа. Полноценный вход для родителя '
+      '— в отдельном приложении (в планах).';
+
   /// Пример словами: «двадцать три × четырнадцать».
   static String questionText(int left, int right) =>
       '${factorWords[left]} × ${factorWords[right]}';
@@ -201,10 +207,19 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
             style: kitSoft),
       ],
     ];
-    final Widget question = Text(WorldAdultScreen.questionText(_left, _right),
+    final Widget example = Text(WorldAdultScreen.questionText(_left, _right),
         key: WorldAdultScreen.questionKey,
         style:
             TextStyle(fontSize: land ? 20 : 24, fontWeight: FontWeight.w800));
+    // Альбомная: пояснение — подсказкой у примера (строка столкнула бы
+    // «Войти» за край на шрифте 1,3); TalkBack читает её с примером.
+    final Widget question = land
+        ? Tooltip(
+            key: const ValueKey<String>('adult:note'),
+            message: WorldAdultScreen.gateNote,
+            triggerMode: TooltipTriggerMode.tap,
+            child: example)
+        : example;
     final Widget field = TextField(
       key: WorldAdultScreen.answerKey,
       controller: _answer,
@@ -284,6 +299,9 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               question,
+              const SizedBox(height: Gap.xs),
+              const Text(WorldAdultScreen.gateNote,
+                  key: ValueKey<String>('adult:note'), style: kitSoft),
               const SizedBox(height: Gap.sm),
               field,
               const SizedBox(height: Gap.sm),

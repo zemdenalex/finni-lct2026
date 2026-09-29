@@ -337,6 +337,20 @@ void main() {
     expect(find.textContaining('Этот раздел для взрослых'), findsOneWidget);
   });
 
+  // Ловит: пропало пояснение, что пример — только от случайного входа
+  // (Денис 29.09): в портрете строкой под примером, в альбомной — подсказкой.
+  testWidgets(
+      'взрослым: пояснение «от случайного входа» есть в обеих '
+      'ориентациях', (WidgetTester tester) async {
+    await pumpWorldScreen(tester, WorldAdultScreen(random: Random(1)));
+    expect(find.text(WorldAdultScreen.gateNote), findsOneWidget);
+    await pumpWorldScreen(tester, WorldAdultScreen(random: Random(1)),
+        size: landscape, textScale: 1.3);
+    expect(find.byTooltip(WorldAdultScreen.gateNote), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('adult:enter')).hitTestable(),
+        findsOneWidget);
+  });
+
   // Ловит: пример снова решается в уме — цифрами, однозначный множитель
   // или ×10/×20.
   testWidgets('взрослым: пример словами, оба множителя 12–29 без 20',

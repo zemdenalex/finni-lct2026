@@ -340,15 +340,16 @@ RoomFrame roomFrame(RoomSlots slots,
     final double inset = topInset.clamp(0.0, h * 0.5).toDouble();
     // По высоте сцены, но не крупнее, чем нужно, чтобы кровать и стол в
     // покое были видны почти целиком ([RoomSlots.restSpan]); ниже высоты —
-    // комната стоит на низу сцены, сверху полоса стены (под HUD).
+    // комната сразу под HUD ([topInset]), пол продолжается вниз (сцена рисует
+    // зеркальную полосу пола), без пустой полосы над стеной.
     final Rect? rest = slots.restSpan;
     final double k = math.min(
         (h - inset) / sh, rest == null ? double.infinity : w / rest.width);
-    final double rw = sw * k, rh = sh * k;
+    final double rw = sw * k;
     final double left = rw <= w
         ? (w - rw) / 2
         : (w / 2 - sw / 2 * k).clamp(w - rw, 0.0).toDouble();
-    return (k: k, left: left, top: math.max(inset, h - rh));
+    return (k: k, left: left, top: inset);
   }
   // [cover] — фон закрывает сцену целиком, без полей по бокам (сценки
   // знакомства: узкая полоса комнаты над планом не должна быть в швах).
@@ -941,15 +942,19 @@ class RoomScene extends StatelessWidget {
       // Имя, которое выбрал ребёнок (ТЗ 2.5.2.2), — табличка в углу
       // комнаты (при камере — в углу экрана, а не мира). TalkBack его не
       // читает второй раз: имя уже в подписи самого Финни.
+      // Общая раскладка: под показателями ([topInset]), у потолка — не на
+      // предметах. Касания не ловит.
       final Widget namePlate = Positioned(
         left: Gap.sm,
-        top: Gap.sm,
+        top: (slots.interest != null ? topInset : 0) + Gap.sm,
         right: Gap.sm,
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: ExcludeSemantics(
-            child: _NamePlate(
-                key: const ValueKey<String>('room:name'), name: finniName),
+        child: IgnorePointer(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ExcludeSemantics(
+              child: _NamePlate(
+                  key: const ValueKey<String>('room:name'), name: finniName),
+            ),
           ),
         ),
       );
@@ -1013,6 +1018,55 @@ class RoomScene extends StatelessWidget {
                   bottom: 0,
                   child: ColoredBox(
                       color: slots.edgeFloor ?? SceneColors.floorLine),
+                ),
+              // Общая раскладка: над комнатой (под HUD) — потолок: верхние
+              // ряды фона растянуты по высоте полосы, без пустой полосы и без
+              // повторов окна (29.09).
+              if (slots.interest != null && top > 0.5)
+                Positioned(
+                  key: const ValueKey<String>('room:ceiling:more'),
+                  left: left,
+                  top: 0,
+                  width: rw,
+                  height: top,
+                  child: IgnorePointer(
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      child: ClipRect(
+                        child: SizedBox(
+                          width: rw,
+                          height: 4 * k,
+                          child: OverflowBox(
+                            alignment: Alignment.topCenter,
+                            minHeight: rh,
+                            maxHeight: rh,
+                            child: PixelImage(bg, scale: k),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Общая раскладка ниже сцены: пол продолжается вниз — нижние
+              // ряды фона зеркально (без пустой полосы, 29.09).
+              if (slots.interest != null && top + rh < h - 0.5)
+                Positioned(
+                  key: const ValueKey<String>('room:floor:more'),
+                  left: left,
+                  top: top + rh,
+                  width: rw,
+                  height: h - top - rh,
+                  child: IgnorePointer(
+                    child: ClipRect(
+                      child: OverflowBox(
+                        alignment: Alignment.topCenter,
+                        minHeight: rh,
+                        maxHeight: rh,
+                        child: Transform.flip(
+                            flipY: true, child: PixelImage(bg, scale: k)),
+                      ),
+                    ),
+                  ),
                 ),
               Positioned(
                 left: left,

@@ -553,9 +553,9 @@ class _RoomScreenState extends State<RoomScreen>
             species: profile.species,
             idleTag: profile.idleTag,
             finniName: profile.finniName,
-            // Имя — табличкой в ряду показателей: в углу сцены его накрыли бы
-            // фишки поверх комнаты.
-            showName: false,
+            // Имя — табличкой в сцене под показателями (строка цели — только
+            // цель, 29.09: «Финни копит: Кв…» не давало прочитать цель).
+            showName: true,
             happiness: snap.happiness,
             petId: snap.activePetId,
             petAwake: _petAwake,
@@ -621,8 +621,9 @@ class _RoomScreenState extends State<RoomScreen>
       progress: priced ? (snap.saved / price).clamp(0.0, 1.0).toDouble() : null,
       onTap: () => _go(WorldRoutes.piggy),
     );
-    // Цель тонкой строкой под показателями (ревью В2): «Финни копит:
-    // Рыбка» · полоса · «200/400». Имя — здесь: так понятно, чьё оно.
+    // Цель тонкой строкой под показателями (ревью В2): ⚑ «Рыбка» · полоса ·
+    // «200/400». Без «Финни копит:» — на 360 dp цель не влезала (29.09);
+    // имя — табличкой в сцене.
     // [stacked] — в два ряда (узкий боковой столбец альбомной).
     Widget goalLineOf({bool stacked = false}) => _GoalLine(
           key: const ValueKey<String>('room:goal'),
@@ -688,14 +689,12 @@ class _RoomScreenState extends State<RoomScreen>
     // интерфейса по вертикали 20–30 %, Денис 29.09; room_ui_budget_test).
     Widget sceneArea({required bool withStick, required bool withGoal}) =>
         LayoutBuilder(builder: (BuildContext context, BoxConstraints area) {
-          // Сцена — на всю область; комната (общая раскладка, по высоте
-          // сцены за вычетом [inset]) встаёт под показатели и не выше
-          // [roomMaxAspect] ширины: иначе на длинном экране (360×800) камера
-          // за Финни срезает холодильник. Лишнее сверху — цвет стены.
+          // Сцена — на всю область; комната (общая раскладка) встаёт сразу
+          // под показатели. Масштаб ограничивает сама сцена (кровать и стол
+          // в покое видны на ¾, camera.foreground_shown), лишнее снизу —
+          // продолжение пола: пустой полосы над стеной нет (29.09).
           final double h = area.maxHeight;
-          final double inset = math.max(
-              withGoal ? hudOverlayHeight : hudChipsHeight,
-              h - area.maxWidth * roomMaxAspect);
+          final double inset = withGoal ? hudOverlayHeight : hudChipsHeight;
           final Widget scene = sceneWith(inset);
           final BoxConstraints box =
               BoxConstraints.tight(Size(area.maxWidth, h));
@@ -872,11 +871,6 @@ class _RoomScreenState extends State<RoomScreen>
 
   /// Ряд фишек сверху с отступами: отступ · 48 · отступ.
   static const double hudChipsHeight = Gap.xs + 48 + Gap.xs;
-
-  /// Комната не выше этой доли ширины экрана: Финни в центре (x 0,5), край
-  /// холодильника на 0,87 ширины квадратной раскладки — он в кадре, пока
-  /// ширина комнаты ≤ экран / 0,74 (запас на ходьбу).
-  static const double roomMaxAspect = 1.3;
 
   /// Строка цели ([_GoalLine]): 5 + строка 16 × 1,1 + 5, с запасом.
   static const double goalLineHeight = 28;
@@ -1328,23 +1322,12 @@ class _GoalLine extends StatelessWidget {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      if (name.isNotEmpty)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: FittedBox(
-                            key: const ValueKey<String>('room:name'),
-                            fit: BoxFit.scaleDown,
-                            child: Text(name,
-                                maxLines: 1,
-                                softWrap: false,
-                                style:
-                                    main.copyWith(fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                      Text(name.isEmpty ? title : 'копит: $title',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: main),
+                      Row(children: <Widget>[
+                        const Pictogram(Pic.flag,
+                            size: 16, color: WorldColors.goal),
+                        const SizedBox(width: Gap.xs),
+                        Expanded(child: GoalTitle(title, style: main)),
+                      ]),
                       const SizedBox(height: Gap.xs),
                       Row(children: <Widget>[
                         if (progress case final double p) ...<Widget>[
@@ -1384,25 +1367,9 @@ class _GoalLine extends StatelessWidget {
                       const Pictogram(Pic.flag,
                           size: 16, color: WorldColors.goal),
                       const SizedBox(width: Gap.xs),
-                      if (name.isNotEmpty)
-                        Flexible(
-                          flex: 2,
-                          child: FittedBox(
-                            key: const ValueKey<String>('room:name'),
-                            fit: BoxFit.scaleDown,
-                            child: Text(name,
-                                maxLines: 1,
-                                softWrap: false,
-                                style:
-                                    main.copyWith(fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                      Flexible(
-                        flex: 3,
-                        child: Text(name.isEmpty ? title : ' копит: $title',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: main),
+                      Expanded(
+                        child: GoalTitle(title,
+                            style: main.copyWith(fontWeight: FontWeight.w800)),
                       ),
                       const SizedBox(width: Gap.sm),
                       if (progress case final double p)
@@ -1474,4 +1441,47 @@ class _PadView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Название цели в строке: целиком, если влезает; не влезает — сначала
+/// ужимается шрифт (не мельче 12), чтобы первое слово было видно целиком, а
+/// многоточие — только после него (29.09: «Кв…» не давало прочитать цель).
+class GoalTitle extends StatelessWidget {
+  const GoalTitle(this.title, {super.key, required this.style});
+
+  final String title;
+  final TextStyle style;
+
+  static const double minSize = 12;
+
+  @override
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (BuildContext context, BoxConstraints box) {
+        final TextScaler scaler = MediaQuery.textScalerOf(context);
+        double width(String t, double size) => (TextPainter(
+              text: TextSpan(text: t, style: style.copyWith(fontSize: size)),
+              textDirection: TextDirection.ltr,
+              textScaler: scaler,
+              maxLines: 1,
+            )..layout())
+                .width;
+        final double base = style.fontSize ?? 16;
+        // Не влезает целиком — должно влезть первое слово с многоточием.
+        final List<String> words = title.split(' ');
+        final String head = words.length > 1 ? '${words.first}…' : title;
+        double size = base;
+        if (width(title, base) > box.maxWidth &&
+            width(head, base) > box.maxWidth) {
+          // С запасом на округление ширины глифов при другом кегле.
+          size = (base * box.maxWidth / width(head, base) * 0.98)
+              .clamp(minSize, base)
+              .toDouble();
+        }
+        return Text(title,
+            key: const ValueKey<String>('room:goal:title'),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: style.copyWith(fontSize: size));
+      });
 }
