@@ -338,7 +338,7 @@
         368
       ],
       "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
-      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the village window from room-village@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the village window from room-village@3x.png scaled into the layout window slot (tools/room_shell.py). The team replaces it with a generated background, then background_has_furniture in room_layout.json turns true.",
       "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
       "status": "placeholder"
     },
@@ -351,7 +351,7 @@
         368
       ],
       "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
-      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the town window from room-town@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the town window from room-town@3x.png scaled into the layout window slot (tools/room_shell.py). The team replaces it with a generated background, then background_has_furniture in room_layout.json turns true.",
       "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
       "status": "placeholder"
     },
@@ -364,7 +364,7 @@
         368
       ],
       "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
-      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the moscow window from room-moscow@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the moscow window from room-moscow@3x.png scaled into the layout window slot (tools/room_shell.py). The team replaces it with a generated background, then background_has_furniture in room_layout.json turns true.",
       "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
       "status": "placeholder"
     }
@@ -1372,7 +1372,7 @@
     }
   },
   "job_pictures": {
-    "_note": "Картинка работы на доске смен (S6): id работы из economy.json → id предмета в items / night_items. Placeholder SDXL 29.09 (tools/night_art.py, ART2_WORK), финал — от Дениса.",
+    "_note": "Картинка работы на доске смен (S6): id работы из economy.json → id предмета в items / night_items. Placeholder SDXL 29.09 (tools/night_art.py, ART2_WORK), финал рисует команда.",
     "cashier": "work_cash_register",
     "consultant": "work_price_tags",
     "accountant": "work_ledger",

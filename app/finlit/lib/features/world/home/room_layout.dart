@@ -241,7 +241,8 @@ class DepthScale {
 /// Камера комнаты: доля ширины экрана, где Финни ходит без сдвига камеры
 /// ([deadZone]), и за сколько камера его догоняет ([ease]).
 class CameraSpec {
-  const CameraSpec({required this.deadZone, required this.ease});
+  const CameraSpec(
+      {required this.deadZone, required this.ease, this.foregroundShown = 0});
 
   static const CameraSpec standard =
       CameraSpec(deadZone: 0.3, ease: Duration(milliseconds: 250));
@@ -249,11 +250,19 @@ class CameraSpec {
   final double deadZone;
   final Duration ease;
 
+  /// Какая доля ширины кровати и стола (передний план у краёв) видна, когда
+  /// камера в центре комнаты: масштаб не крупнее, чтобы они не прятались
+  /// наполовину за краем. 0 — без ограничения.
+  final double foregroundShown;
+
   static CameraSpec? parse(Object? v) {
     if (v is! Map<String, Object?>) return null;
     final Object? d = v['dead_zone'], e = v['ease_ms'];
+    final Object? f = v['foreground_shown'];
     if (d is! num || e is! num) return null;
     return CameraSpec(
-        deadZone: d.toDouble(), ease: Duration(milliseconds: e.toInt()));
+        deadZone: d.toDouble(),
+        ease: Duration(milliseconds: e.toInt()),
+        foregroundShown: f is num ? f.toDouble() : 0);
   }
 }

@@ -164,6 +164,10 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
         args == null ? null : ws.world.offer(args.jobId, variant: args.variant);
     final String title = offer?.title ?? 'Смена';
     final bool land = WorldLayout.isLandscape(context);
+    // Итог смены с уроком без ответа: ни «Назад», ни системная кнопка не
+    // уводят — сначала выбор (урок обязателен, Денис 29.09).
+    final bool lessonLock =
+        _stage == _Stage.result && ws.world.pendingLesson != null;
     final Widget stage = AnimatedSwitcher(
       duration: context.motion(Motion.state),
       child: KeyedSubtree(
@@ -184,52 +188,55 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
         },
       ),
     );
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        // Альбомная — основная: низкая шапка, высота нужна игре.
-        toolbarHeight: land ? 48 : null,
-        leading: IconButton(
-          key: const ValueKey<String>('job:back'),
-          icon: const Icon(Icons.arrow_back_rounded),
-          tooltip: 'Назад',
-          iconSize: 28,
-          constraints: const BoxConstraints(
-              minWidth: TapSize.min, minHeight: TapSize.min),
-          onPressed: _back,
-        ),
-        title: Text(title),
-        actions: <Widget>[
-          HelpButton(
-            key: const ValueKey<String>('job:help'),
-            onPressed: () => _help(game),
+    return PopScope(
+      canPop: !lessonLock,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          // Альбомная — основная: низкая шапка, высота нужна игре.
+          toolbarHeight: land ? 48 : null,
+          leading: IconButton(
+            key: const ValueKey<String>('job:back'),
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Назад',
+            iconSize: 28,
+            constraints: const BoxConstraints(
+                minWidth: TapSize.min, minHeight: TapSize.min),
+            onPressed: lessonLock ? null : _back,
           ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: <Widget>[
-            // Во время игры в альбомной HUD прячется: числа до конца смены
-            // не меняются (они на карточке), а поле получает 56 dp высоты.
-            if (!(land && _stage == _Stage.play))
-              WorldHud(snapshot: ws.snapshot),
-            Expanded(
-              child: land
-                  // Альбомная: высота ограничена, игра и карточки сами
-                  // раскладываются на панели (GameSplit), без общей прокрутки.
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          Gap.md, Gap.sm, Gap.md, Gap.sm),
-                      child: stage,
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                          Gap.md, Gap.sm, Gap.md, Gap.lg),
-                      child: stage,
-                    ),
+          title: Text(title),
+          actions: <Widget>[
+            HelpButton(
+              key: const ValueKey<String>('job:help'),
+              onPressed: () => _help(game),
             ),
           ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: <Widget>[
+              // Во время игры в альбомной HUD прячется: числа до конца смены
+              // не меняются (они на карточке), а поле получает 56 dp высоты.
+              if (!(land && _stage == _Stage.play))
+                WorldHud(snapshot: ws.snapshot),
+              Expanded(
+                child: land
+                    // Альбомная: высота ограничена, игра и карточки сами
+                    // раскладываются на панели (GameSplit), без общей прокрутки.
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            Gap.md, Gap.sm, Gap.md, Gap.sm),
+                        child: stage,
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(
+                            Gap.md, Gap.sm, Gap.md, Gap.lg),
+                        child: stage,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -281,7 +288,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
           value: 'до ${offer.efficiencyBonusMax}',
         ),
         _Row(
-          icon: Pic.spark,
+          icon: Pic.bolt,
           label: 'Потратишь энергии',
           value: WorldHud.energyText(offer.energyCost),
           valueKey: 'job:offer:energy',
@@ -332,11 +339,14 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     final int lessonMood =
         lessonDone != null && lessonDone.ok ? lessonDone.happiness : 0;
     final int mood = r.happiness + lessonMood;
+    // Урок после смены обязателен (Денис 29.09): уйти можно, только
+    // выбрав ответ.
+    final bool mustAnswer = ws.world.pendingLesson != null;
     final List<Widget> leave = <Widget>[
       FilledButton.icon(
         key: const ValueKey<String>('job:toBoard'),
         style: FilledButton.styleFrom(minimumSize: wide),
-        onPressed: _back,
+        onPressed: mustAnswer ? null : _back,
         icon: const Icon(Icons.work_rounded),
         label: const Text('К доске работ'),
       ),
@@ -344,7 +354,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
       OutlinedButton.icon(
         key: const ValueKey<String>('job:toRoom'),
         style: OutlinedButton.styleFrom(minimumSize: wide),
-        onPressed: _toRoom,
+        onPressed: mustAnswer ? null : _toRoom,
         icon: const Icon(Icons.home_rounded),
         label: const Text('Домой'),
       ),
@@ -394,7 +404,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
             value: '+$bonus',
             valueKey: 'job:result:bonus'),
         _Row(
-            icon: Pic.spark,
+            icon: Pic.bolt,
             label: good
                 ? 'Энергии потрачено (с хорошей сменой)'
                 : 'Энергии потрачено',

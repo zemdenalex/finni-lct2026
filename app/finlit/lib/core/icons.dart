@@ -26,7 +26,7 @@ enum Pic {
   paw, house, scooter, gift,
   // Навигация и состояния
   task, chart, dictionary, family, sliders, question,
-  check, cross, plus, minus, clock, week, heart, spark,
+  check, cross, plus, minus, clock, week, heart, spark, bolt,
   // Стрелки и раскрытие
   arrowRight, arrowDown, caretUp, caretDown,
   // Действия с деньгами и вещами
@@ -622,6 +622,18 @@ class _PicPainter extends CustomPainter {
           ..close();
         canvas.drawPath(heart, soft);
         canvas.drawPath(heart, line);
+
+      // Энергия — молния (Денис 29.09: «иконку энергии на молнию»).
+      case Pic.bolt:
+        final Path bolt = Path()
+          ..moveTo(13.5 * u, 2 * u)
+          ..lineTo(4.5 * u, 13.5 * u)
+          ..lineTo(11 * u, 13.5 * u)
+          ..lineTo(9.5 * u, 22 * u)
+          ..lineTo(19.5 * u, 9.5 * u)
+          ..lineTo(13 * u, 9.5 * u)
+          ..close();
+        canvas.drawPath(bolt, fill);
 
       case Pic.spark:
         for (final List<double> t in <List<double>>[

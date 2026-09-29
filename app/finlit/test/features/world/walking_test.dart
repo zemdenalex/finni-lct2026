@@ -7,6 +7,7 @@ import 'package:finlit/data/storage.dart';
 import 'package:finlit/domain/models/profile.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
 import 'package:finlit/features/world/finni_walker.dart';
+import 'package:finlit/features/world/history/history_screen.dart';
 import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/piggy/piggy_screen.dart';
@@ -184,13 +185,13 @@ void main() {
     await pump(tester, const RoomScreen(), size: portrait);
     await tester.tap(find.byKey(const ValueKey<String>('room:piggy')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey<String>('room:nav:shop')));
+    await tester.tap(find.byKey(const ValueKey<String>('room:nav:progress')));
     await tester.pump();
     await tester.pump(RoomScene.roomWalk + const Duration(milliseconds: 100));
     await tester.pump();
-    expect(find.byType(WorldShopScreen), findsOneWidget);
+    expect(find.byType(HistoryScreen), findsOneWidget);
     expect(find.byType(PiggyScreen), findsNothing,
-        reason: 'комната уже под магазином — копилка не открывается');
+        reason: 'комната уже под «Прогрессом» — копилка не открывается');
   });
 
   testWidgets('город: здание, а следом кнопка списка — только один переход',

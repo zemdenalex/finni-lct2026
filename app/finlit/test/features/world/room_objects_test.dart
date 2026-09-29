@@ -7,6 +7,7 @@ import 'package:finlit/domain/world/fake_world.dart';
 import 'package:finlit/domain/world/fridge_stock.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
+import 'package:finlit/features/world/home/room_layout.dart';
 import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/piggy/piggy_screen.dart';
@@ -214,6 +215,13 @@ void main() {
           json = jsonDecode(await rootBundle.loadString(
               '${AssetRegistry.base}registry.json')) as Map<String, Object?>;
         });
+        // Проверка — про прежние слоты стадии. Когда сцена рисует общую
+        // раскладку (её фон есть в реестре), этих слотов на экране нет:
+        // холодильник раскладки проверяет «холодильник виден» по экрану.
+        final LayoutStage? ls = art.layout?.stages[roomIdByStage[stage]];
+        if (ls != null && art.registry.room(id: ls.background) != null) {
+          return;
+        }
         final RoomSlots slots = art.slotsFor(roomIdByStage[stage]);
         final Map<String, Size> sizes = <String, Size>{
           for (final String id in slots.objects.keys)
@@ -294,13 +302,11 @@ void main() {
         expect(anyZone(finni), isFalse, reason: 'зона под центром Финни');
         for (final String hud in <String>[
           'hud:coins',
-          'hud:saved',
           'hud:energy',
           'hud:happiness',
           'room:goal',
           'room:now',
-          'room:city',
-          'room:main',
+          'room:menu',
           'room:help',
         ]) {
           final Offset c = tester.getCenter(find.byKey(ValueKey<String>(hud)));
@@ -333,9 +339,12 @@ void main() {
         ('Копилка', PiggyScreen),
       ]) {
         await _pumpRoom(tester, _livingAt(stage), landscape);
-        // «Копилка» есть и в нижней панели — берём ту, что в комнате.
+        // «Копилка» есть и в нижней панели — берём ту, что в комнате; у
+        // копилки в подписи ещё сумма («Копилка: 200 монет»).
         final Finder f = find.descendant(
-            of: find.byType(RoomScene), matching: find.bySemanticsLabel(label));
+            of: find.byType(RoomScene),
+            matching:
+                find.bySemanticsLabel(RegExp('^${RegExp.escape(label)}')));
         expect(f, findsOneWidget, reason: label);
         final SemanticsNode n = tester.getSemantics(f);
         expect(n.getSemanticsData().hasAction(SemanticsAction.tap), isTrue,

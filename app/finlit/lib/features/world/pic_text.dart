@@ -27,7 +27,7 @@ class PicText extends StatelessWidget {
   /// в тексте и так стоит его слово («📊 Потом сверяем план…»).
   static (Pic, Color, String) _of(String mark) => switch (mark) {
         '💰' => (Pic.coin, WorldColors.gold, 'монет'),
-        '⚡' => (Pic.spark, WorldColors.energy, 'энергии'),
+        '⚡' => (Pic.bolt, WorldColors.energy, 'энергии'),
         '😊' => (Pic.smile, WorldColors.mood, 'настроения'),
         '🐷' => (Pic.jar, WorldColors.needs, 'копилка'),
         '📈' => (Pic.chart, WorldColors.textSoft, 'опыт'),

@@ -30,6 +30,7 @@ class RoomSlots {
       this.boxes = const <String, Rect>{},
       this.furniture = const <String, Rect>{},
       this.actions = const <String, String>{},
+      this.restSpan,
       this.depth});
 
   /// Слоты из общей раскладки ([RoomLayout], `content/room_layout.json`):
@@ -70,6 +71,17 @@ class RoomSlots {
       },
       walk: px(l.walk),
       interest: interest,
+      restSpan: () {
+        // Что видно при камере в центре: кровать и стол не меньше
+        // [CameraSpec.foregroundShown] своей ширины.
+        final double v = l.camera.foregroundShown;
+        final Rect? bed = l.slots['bed']?.rect,
+            desk = l.slots['desk_chair']?.rect;
+        if (v <= 0 || bed == null || desk == null) return null;
+        final double a = (bed.left + (1 - v) * bed.width) * sw;
+        final double b = (desk.right - (1 - v) * desk.width) * sw;
+        return b > a ? Rect.fromLTRB(a, 0, b, s) : null;
+      }(),
       boxes: <String, Rect>{
         for (final MapEntry<String, Rect> e in l.decor.entries)
           e.key: px(e.value),
@@ -180,6 +192,11 @@ class RoomSlots {
   /// Общая раскладка: действие касания по id предмета (`city`, `sleep`,
   /// `jobs`, `piggy`, `food`) — из файла, сцена зовёт по нему обработчик.
   final Map<String, String> actions;
+
+  /// Общая раскладка: полоса мира (px фона), которая целиком видна при
+  /// камере в центре комнаты — ограничивает масштаб сверху. Нет — только
+  /// по высоте.
+  final Rect? restSpan;
 
   /// Общая раскладка: перспектива по y ног. Нет — масштаб 1.
   final DepthScale? depth;
@@ -321,12 +338,17 @@ RoomFrame roomFrame(RoomSlots slots,
   // неё, предметы у задней стены не прячутся под плашками.
   if (slots.interest != null) {
     final double inset = topInset.clamp(0.0, h * 0.5).toDouble();
-    final double k = (h - inset) / sh;
-    final double rw = sw * k;
+    // По высоте сцены, но не крупнее, чем нужно, чтобы кровать и стол в
+    // покое были видны почти целиком ([RoomSlots.restSpan]); ниже высоты —
+    // комната стоит на низу сцены, сверху полоса стены (под HUD).
+    final Rect? rest = slots.restSpan;
+    final double k = math.min(
+        (h - inset) / sh, rest == null ? double.infinity : w / rest.width);
+    final double rw = sw * k, rh = sh * k;
     final double left = rw <= w
         ? (w - rw) / 2
-        : (w / 2 - slots.slot('finni').dx * k).clamp(w - rw, 0.0).toDouble();
-    return (k: k, left: left, top: inset);
+        : (w / 2 - sw / 2 * k).clamp(w - rw, 0.0).toDouble();
+    return (k: k, left: left, top: math.max(inset, h - rh));
   }
   // [cover] — фон закрывает сцену целиком, без полей по бокам (сценки
   // знакомства: узкая полоса комнаты над планом не должна быть в швах).
@@ -599,6 +621,7 @@ class RoomScene extends StatelessWidget {
     this.onDoorTap,
     this.onPiggyTap,
     this.onDeskTap,
+    this.piggySaved,
     this.fridge = FridgeStock.empty,
     this.onFridgeTap,
     this.focus,
@@ -639,6 +662,10 @@ class RoomScene extends StatelessWidget {
 
   /// Стол (общая раскладка): работа — доска смен.
   final VoidCallback? onDeskTap;
+
+  /// Сколько в копилке: табличка над копилкой (общая раскладка) и подпись
+  /// копилки для TalkBack. null — без суммы (знакомство, старая комната).
+  final int? piggySaved;
 
   /// Холодильник (этап 4, п. 7 фидбека): еда недели на полках, пустеет по
   /// ходу недели ([fridgeOf]). Касание — магазин на вкладке «Еда».
@@ -1076,7 +1103,11 @@ class RoomScene extends StatelessWidget {
                     zone(
                         id,
                         key,
-                        id == 'fridge' ? fridgeLabel(fridge) : label,
+                        id == 'fridge'
+                            ? fridgeLabel(fridge)
+                            : id == 'piggy' && piggySaved != null
+                                ? 'Копилка: $piggySaved монет'
+                                : label,
                         switch (slots.actions[id]) {
                           'city' => onDoorTap,
                           'sleep' => onBedTap,
@@ -1091,6 +1122,25 @@ class RoomScene extends StatelessWidget {
                 if (slots.taps.containsKey('piggy'))
                   zone('piggy', 'room:piggy', 'Копилка', onPiggyTap),
               ],
+              // Сумма копилки — над копилкой, всегда видна (Денис 29.09:
+              // «сколько в копилке лучше показать над копилкой»).
+              if (lay != null &&
+                  piggySaved != null &&
+                  slots.furniture['piggy'] != null)
+                Positioned(
+                  left: onScreen(slots.furniture['piggy']!).center.dx - 60,
+                  width: 120,
+                  bottom: h - onScreen(slots.furniture['piggy']!).top + 2,
+                  child: IgnorePointer(
+                    child: ExcludeSemantics(
+                      child: Center(
+                        child: _PiggyAmount(
+                            key: const ValueKey<String>('room:piggy:amount'),
+                            amount: piggySaved!),
+                      ),
+                    ),
+                  ),
+                ),
               if (petId != null)
                 at(
                   petAwake ? 'pet_floor' : 'pet_bed',
@@ -1566,7 +1616,7 @@ class _FollowCameraState extends State<_FollowCamera> {
 }
 
 /// Сдвиг камеры (px экрана, ≤ 0): от прежнего [prev] (null — первый кадр:
-/// Финни по центру). Финни ([target], px мира) в мёртвой зоне — камера
+/// центр комнаты). Финни ([target], px мира) в мёртвой зоне — камера
 /// стоит, вышел — сдвиг ровно до края зоны; предмет действия [focus]
 /// доводится до экрана; мир не уходит с экрана.
 double followCameraX({
@@ -1577,7 +1627,9 @@ double followCameraX({
   required double deadZone,
   Rect? focus,
 }) {
-  double x = prev ?? viewport / 2 - target;
+  // Первый кадр — центр комнаты (покой, после знакомства); дальше —
+  // мёртвая зона за Финни.
+  double x = prev ?? (viewport - world) / 2;
   final double lo = viewport * (0.5 - deadZone / 2);
   final double hi = viewport * (0.5 + deadZone / 2);
   final double at = target + x;
@@ -1588,4 +1640,30 @@ double followCameraX({
     if (focus.right + x > viewport) x = viewport - focus.right;
   }
   return x.clamp(math.min(0.0, viewport - world), 0.0).toDouble();
+}
+
+/// Табличка суммы над копилкой: крупно, на тёмной подложке — читается на
+/// любом фоне при 360 dp.
+class _PiggyAmount extends StatelessWidget {
+  const _PiggyAmount({super.key, required this.amount});
+
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: WorldColors.night.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(Radii.chip),
+          border: Border.all(color: WorldColors.needs, width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Text('$amount',
+              maxLines: 1,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: WorldColors.text)),
+        ),
+      );
 }

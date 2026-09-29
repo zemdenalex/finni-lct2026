@@ -147,12 +147,10 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   bool get _lastScene =>
       _loaded != null && _scene == _loaded!.scenes.length - 1;
 
-  /// По умолчанию всё — в НУЖНО, сколько просит счёт недели. Ребёнок может
-  /// переложить.
+  /// Конверты с нуля: раскладывает ребёнок сам (Денис, 29.09: «может
+  /// сделать изначально 0 и пускай сами распределяют»).
   void _presetPlan(ResourceSnapshot s) {
-    final int toBill =
-        s.weeklyBill < s.unallocated ? s.weeklyBill : s.unallocated;
-    _needs = toBill;
+    _needs = 0;
     _wants = 0;
     _goal = 0;
   }

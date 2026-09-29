@@ -9,6 +9,7 @@ import 'package:finlit/domain/models/profile.dart';
 import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/features/world/onboarding/onboarding_script.dart';
 import 'package:finlit/features/world/onboarding/world_onboarding_screen.dart';
+import 'package:finlit/core/widgets.dart';
 import 'package:finlit/features/world/pic_text.dart';
 import 'package:finlit/features/world/world_state.dart';
 import 'package:flutter/material.dart';
@@ -67,6 +68,19 @@ Future<void> _talkToPlan(WidgetTester tester) async {
   expect(_planPlus, findsOneWidget, reason: 'сценки дошли до плана');
 }
 
+/// Жмёт «+» у НУЖНО, пока есть что раскладывать (конверты с нуля).
+Future<void> _fillNeeds(WidgetTester tester) async {
+  await tester.ensureVisible(_planPlus);
+  for (int i = 0;
+      i < 200 &&
+          find.byKey(const ValueKey<String>('plan:full')).evaluate().isEmpty;
+      i++) {
+    await tester.tap(_planPlus);
+    await tester.pump();
+  }
+  await _settle(tester);
+}
+
 /// Проходит регистрацию и все сценки; возвращает состояние мира.
 Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
     {double textScale = 1, Size size = portrait}) async {
@@ -76,7 +90,8 @@ Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
   await _register(tester);
   expect(ws.phase, WeekPhase.planning);
   await _talkToPlan(tester);
-  await _tapNext(tester); // план по умолчанию: счета — в НУЖНО
+  await _fillNeeds(tester); // конверты с нуля: всё — в НУЖНО
+  await _tapNext(tester);
   expect(ws.phase, WeekPhase.living);
   expect(tester.widget<FilledButton>(_next).onPressed, isNull,
       reason: 'цель по умолчанию не выбирается');
@@ -644,12 +659,53 @@ void main() {
       await _register(tester, customise: false);
       await tester.tap(_skip);
       await _settle(tester);
+      await _fillNeeds(tester);
       expect(find.text(planAllSpentLine), findsOneWidget);
       final Finder plus = find.byKey(const ValueKey<String>('plus:want'));
       await tester.ensureVisible(plus);
       await tester.tap(plus);
       await tester.pump();
-      expect(find.text(planAllSpentHint), findsOneWidget);
+      expect(find.text(contentScript.t('pool_full')), findsOneWidget);
+    });
+  });
+
+  // Денис 29.09: «изначально 0 и пускай сами распределяют»; «всего 600, в
+  // копилке то, что ты не можешь трогать» — в плане видно, сколько на
+  // неделю, а не сумма с копилкой.
+  forEachWorld((WorldKind kind) {
+    testWidgets(
+        'план: конверты с нуля, «На неделю» — только карманные · '
+        '${kind.name}', (WidgetTester tester) async {
+      final World fresh = kind.make();
+      ok(fresh.startWeek());
+      final int pool = fresh.snapshot.unallocated;
+      await pumpWorldScreen(tester, const WorldOnboardingScreen(),
+          world: kind.make(), size: portrait);
+      await _register(tester, customise: false);
+      await tester.tap(_skip);
+      await _settle(tester);
+      for (final String id in <String>['need', 'want', 'goal']) {
+        final Finder v = find.descendant(
+            of: find
+                .ancestor(
+                    of: find.byKey(ValueKey<String>('plus:$id')),
+                    matching: find.byType(Row))
+                .first,
+            matching: find.text('0'));
+        expect(v, findsOneWidget, reason: '$id начинается с 0');
+      }
+      final Finder row = find.byKey(const ValueKey<String>('plan:pool'));
+      expect(
+          find.descendant(
+              of: row, matching: find.text(contentScript.t('pool'))),
+          findsOneWidget);
+      expect(
+          find.descendant(
+              of: row,
+              matching: find.byWidgetPredicate(
+                  (Widget w) => w is Coins && w.amount == pool)),
+          findsOneWidget);
+      expect(contentScript.t('pool'), isNot(contains('Пришло')));
     });
   });
 

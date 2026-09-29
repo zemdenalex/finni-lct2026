@@ -307,6 +307,17 @@ void main() {
             .top));
     expect(find.byKey(const ValueKey<String>('job:slider')), findsNothing);
     expect(find.byKey(const ValueKey<String>('job:toPiggy')), findsNothing);
+    // Урок обязателен (Денис 29.09): до ответа уйти нельзя — ни «Назад»,
+    // ни «К доске работ», ни «Домой».
+    for (final String k in <String>['job:back', 'job:toBoard', 'job:toRoom']) {
+      final Widget b = tester.widget(find.byKey(ValueKey<String>(k)));
+      final VoidCallback? on = switch (b) {
+        final IconButton x => x.onPressed,
+        final ButtonStyleButton x => x.onPressed,
+        _ => () {},
+      };
+      expect(on, isNull, reason: '$k до ответа на урок');
+    }
     final Finder choice = find.byKey(const ValueKey<String>('lesson:cushion'));
     await tester.ensureVisible(choice);
     expect(tester.getSize(choice).height, greaterThanOrEqualTo(48));
@@ -320,6 +331,10 @@ void main() {
         findsOneWidget);
     expect(
         find.byKey(const ValueKey<String>('lesson:situation')), findsNothing);
+    // После ответа — уйти можно.
+    final Widget toBoard =
+        tester.widget(find.byKey(const ValueKey<String>('job:toBoard')));
+    expect((toBoard as ButtonStyleButton).onPressed, isNotNull);
     expect(tester.takeException(), isNull);
   });
 

@@ -48,10 +48,11 @@ World _short(WorldKind kind) {
 
 /// Главные диалоги и листы мира — то, что ребёнок открывает чаще всего.
 final Map<String, _Opened> _dialogs = <String, _Opened>{
-  'лист «План недели»': (const RoomScreen(), _planning, 'room:nav:plan'),
+  // До плана «Сейчас: план недели» открывает лист плана.
+  'лист «План недели»': (const RoomScreen(), _planning, 'room:now'),
   'подсказка HUD «Монеты»': (const RoomScreen(), _living, 'hud:coins'),
   'подсказка «?» комнаты': (const RoomScreen(), _living, 'room:help'),
-  '«Лечь спать?»': (const RoomScreen(), _living, 'room:main'),
+  '«Лечь спать?»': (const RoomScreen(), _living, 'room:bed'),
   'покупка питомца': (const PetShopScreen(), _saved, 'buy:pet_fish'),
   'итоги: «Взять из копилки?»': (
     const WeekReviewScreen(),
@@ -97,8 +98,10 @@ void main() {
           await tester.pump();
           await tester.tap(opener);
           // Спрайты анимируются бесконечно — pumpAndSettle не дождётся.
+          // Кровать: Финни сначала доходит до неё (RoomScene.roomWalk).
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 400));
+          await tester.pump(const Duration(milliseconds: 200));
           expect(tester.takeException(), isNull);
           // Без этого промах мимо кнопки проверил бы сам экран — зелёным.
           expect(

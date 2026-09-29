@@ -81,6 +81,8 @@ void main() {
     expect(find.byType(RoomScreen), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing);
 
+    await tester.tap(find.byKey(const ValueKey<String>('room:menu')));
+    await _step(tester);
     await tester.tap(find.byKey(const ValueKey<String>('room:adult')));
     await _step(tester);
     expect(find.byType(WorldAdultScreen), findsOneWidget);

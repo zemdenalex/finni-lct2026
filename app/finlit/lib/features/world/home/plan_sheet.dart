@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/feel.dart';
@@ -10,6 +8,7 @@ import '../shop/shop_kit.dart' show billPartsText;
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
 import '../pic_text.dart';
+import 'plan_pool.dart';
 
 /// Быстрый план недели из комнаты: карманные по НУЖНО / ХОЧУ / ЦЕЛЬ.
 ///
@@ -47,18 +46,24 @@ class _PlanSheetState extends State<_PlanSheet> {
   late final int bill = widget.state.snapshot.weeklyBill;
   late final WeekBillParts parts = widget.state.world.weeklyBillParts;
 
-  /// Подсказка по умолчанию: сначала счета недели, остальное — в ХОЧУ.
-  /// Ребёнок двигает сам.
-  late int need = math.min(bill, total);
-  late int want = total - need;
+  /// Конверты с нуля: раскладывает ребёнок сам (Денис, 29.09: «может
+  /// сделать изначально 0 и пускай сами распределяют»).
+  int need = 0;
+  int want = 0;
   int goal = 0;
   String? refusal;
+
+  /// «+» без остатка: строка «На неделю» трясётся, под ней «Всё уже
+  /// разложено» ([PlanPool]).
+  int shake = 0;
+  bool full = false;
 
   int get rest => total - need - want - goal;
 
   void _set(void Function() f) => setState(() {
         f();
         refusal = null;
+        full = false;
       });
 
   @override
@@ -73,7 +78,10 @@ class _PlanSheetState extends State<_PlanSheet> {
           onMinus: value >= step ? () => _set(() => put(value - step)) : null,
           onPlus: rest >= step
               ? () => _set(() => put(value + step))
-              : () => setState(() => refusal = planAllSpentHint),
+              : () => setState(() {
+                    shake++;
+                    full = true;
+                  }),
         );
 
     return SafeArea(
@@ -86,9 +94,15 @@ class _PlanSheetState extends State<_PlanSheet> {
             Text('План недели',
                 style: AppType.title(21, color: WorldColors.text)),
             const SizedBox(height: Gap.xs),
-            Text('Разложи $total монет. Счёт недели — $bill '
-                '(${billPartsText(parts)}): он спишется из НУЖНО в конце '
-                'недели.'),
+            Text('Счёт недели — $bill (${billPartsText(parts)}): он '
+                'спишется из НУЖНО в конце недели.'),
+            const SizedBox(height: Gap.xs),
+            PlanPool(
+              amount: total,
+              saved: widget.state.snapshot.saved,
+              shake: shake,
+              full: full,
+            ),
             const SizedBox(height: Gap.sm),
             row(Pic.basket, 'НУЖНО', WorldColors.needs, need,
                 (int v) => need = v),

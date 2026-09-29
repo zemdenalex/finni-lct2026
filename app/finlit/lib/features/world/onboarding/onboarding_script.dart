@@ -51,6 +51,8 @@ class OnboardingScript {
     'plan_ready',
     'bills',
     'in_piggy',
+    'pool_full',
+    'piggy_locked',
   ];
 
   static const String path = 'assets/content/world/onboarding.json';
@@ -214,11 +216,13 @@ class OnboardingScript {
       'plan_done': 'Готово',
       'to_room': 'Дальше',
       'scenes_title': 'Финни',
-      'pool': 'Пришло:',
+      'pool': 'На неделю:',
       'unallocated': 'Не разложено: {left}',
       'plan_ready': 'План готов.',
       'bills': 'счета {bill}',
       'in_piggy': 'В копилке:',
+      'pool_full': 'Всё уже разложено',
+      'piggy_locked': 'В копилке: {saved} — на цель, тратить нельзя',
     },
     species: <String, String>{},
     envelopesShort: (need: 'нужное', want: 'желаемое', goal: 'отложить'),

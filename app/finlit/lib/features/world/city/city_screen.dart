@@ -17,6 +17,7 @@ import '../onboarding/onboarding_script.dart';
 import '../world_help.dart';
 import '../world_layout.dart';
 import '../world_routes.dart';
+import '../home/hud_chips.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
 import 'city_filler.dart';
@@ -301,26 +302,15 @@ class _CityScreenState extends State<CityScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    Gap.md, Gap.sm, 0, Gap.xs),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text('Город',
-                                        style: AppType.title(20,
-                                            color: WorldColors.text)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            _helpButton(),
-                          ],
+                        // Показатели — фишками, как в комнате (вариант В); не
+                        // на карте: там здания, которые нажимают.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              Gap.sm, Gap.sm, Gap.sm, 0),
+                          child: _chips(),
                         ),
+                        // Заголовок «Город» снят (вариант В): высота — списку
+                        // мест под показателями; подсказка — в прокрутке.
                         Expanded(
                           child: SingleChildScrollView(
                             key: const ValueKey<String>('city:list'),
@@ -376,21 +366,28 @@ class _CityScreenState extends State<CityScreen> {
     final bool on = context.motionOnListening;
     final CityBuilding? near = _near;
     return Scaffold(
-      appBar: AppBar(
-        leading: _backButton(),
-        automaticallyImplyLeading: false,
-        title: const Text('Город'),
-        actions: <Widget>[_helpButton()],
-      ),
       body: SafeArea(
-        top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            // Одна полоса сверху (≤ ~21 % на обе полосы, 29.09): «Назад»,
+            // показатели, «?» — как в комнате. «Назад» и «?» всегда под
+            // пальцем (ТЗ 2.5.1.3). Не на карте: там «!» и здания.
             Padding(
+              key: const ValueKey<String>('city:top'),
               padding:
-                  const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
-              child: Text(_hint(ev), style: text.bodyLarge),
+                  const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.xs),
+              child: switch (maybeWorldState(context)) {
+                final WorldState ws => HudChips(
+                    snapshot: ws.snapshot,
+                    leading: _backButton(),
+                    trailing: <Widget>[_helpButton()]),
+                null => Row(children: <Widget>[
+                    HudBacking(child: _backButton()),
+                    const Spacer(),
+                    HudBacking(child: _helpButton()),
+                  ]),
+              },
             ),
             Expanded(
               child: Stack(
@@ -413,6 +410,7 @@ class _CityScreenState extends State<CityScreen> {
               ),
             ),
             Padding(
+              key: const ValueKey<String>('city:bar'),
               padding:
                   const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, Gap.xs),
               child: Row(
@@ -422,8 +420,15 @@ class _CityScreenState extends State<CityScreen> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerRight,
+                      // Подсказка — в нижней полосе рядом с «Все места»;
+                      // у здания её место занимает «войти».
                       child: near == null
-                          ? const SizedBox.shrink()
+                          ? Text(_hint(ev),
+                              key: const ValueKey<String>('city:hint'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: text.bodyMedium)
                           : FittedBox(
                               fit: BoxFit.scaleDown,
                               child: _EnterButton(
@@ -441,6 +446,19 @@ class _CityScreenState extends State<CityScreen> {
         ),
       ),
     );
+  }
+
+  /// Показатели города (альбомная, над списком мест) — те же фишки, что в
+  /// комнате, и «?»; без мира (отдельный тест экрана) — только «?».
+  Widget _chips() {
+    final WorldState? ws = maybeWorldState(context);
+    if (ws == null) {
+      return Align(
+          alignment: Alignment.centerRight,
+          child: HudBacking(child: _helpButton()));
+    }
+    return HudChips(
+        snapshot: ws.snapshot, dense: true, trailing: <Widget>[_helpButton()]);
   }
 
   /// Джойстик поверх карты — полупрозрачный: город под ним виден.

@@ -362,7 +362,7 @@ class _OptionCard extends StatelessWidget {
     final List<Widget> stats = <Widget>[
       stat('leisure:price:${e.id}', Pic.coin, WorldColors.gold,
           e.price == 0 ? 'бесплатно' : '${e.price}'),
-      stat('leisure:energy:${e.id}', Pic.spark, WorldColors.energy,
+      stat('leisure:energy:${e.id}', Pic.bolt, WorldColors.energy,
           WorldHud.energyText(energy)),
       stat('leisure:happiness:${e.id}', Pic.smile, WorldColors.mood,
           '+${e.happiness}'),

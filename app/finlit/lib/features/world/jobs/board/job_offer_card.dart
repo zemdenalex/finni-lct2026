@@ -124,7 +124,7 @@ class JobOfferCard extends StatelessWidget {
                 children: <Widget>[
                   _Fact(
                       key: ValueKey<String>('jobs:energy:$k'),
-                      pic: Pic.spark,
+                      pic: Pic.bolt,
                       text: 'энергия $energy',
                       semantic: 'Потратит энергии: $energy'),
                   _Fact(

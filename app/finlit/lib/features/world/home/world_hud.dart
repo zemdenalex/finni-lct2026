@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../pic_text.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/theme.dart';
@@ -34,12 +39,70 @@ class WorldHud extends StatelessWidget {
   /// ⚡ дробная с шагом 0,5 — «7» или «7,5».
   static String energyText(double e) => energyShown(e);
 
-  static void _hint(BuildContext context, String title, String text) {
-    showDialog<void>(
+  /// Тексты карточек — `content/hud.json` (копия в сборке).
+  static const String textsAsset = 'assets/content/world/hud.json';
+
+  /// Карточка числа HUD (Денис 29.09: «после нажатия на число написано, что
+  /// это такое»): что это, текущее значение и полоса, где она есть. Тексты
+  /// из [textsAsset]; файла нет — запасной текст.
+  static Future<void> explain(BuildContext context, String id,
+      {required String value,
+      String max = '',
+      double? fill,
+      Color color = WorldColors.gold,
+      String? reason,
+      required String fallbackTitle}) async {
+    Map<String, Object?> e = const <String, Object?>{};
+    try {
+      final Object? root = jsonDecode(await rootBundle.loadString(textsAsset));
+      if (root is Map<String, Object?> && root[id] is Map<String, Object?>) {
+        e = root[id]! as Map<String, Object?>;
+      }
+    } on Object {
+      // без файла — только заголовок и значение
+    }
+    String fill_(Object? t) => (t is String ? t : '')
+        .replaceAll('{value}', value)
+        .replaceAll('{max}', max);
+    final String title =
+        e['title'] is String ? e['title']! as String : fallbackTitle;
+    final String line = e['value'] is String ? fill_(e['value']) : value;
+    final String text = <String>[
+      if (reason != null && reason.isNotEmpty) reason,
+      fill_(e['text']),
+    ].where((String t) => t.isNotEmpty).join('\n\n');
+    if (!context.mounted) return;
+    await showDialog<void>(
       context: context,
       builder: (BuildContext c) => AlertDialog(
-        title: Text(title),
-        content: Text(text),
+        key: ValueKey<String>('hud:explain:$id'),
+        title: PicText(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(line,
+                key: ValueKey<String>('hud:explain:$id:value'),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            if (fill != null) ...<Widget>[
+              const SizedBox(height: Gap.xs),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                    key: const ValueKey<String>('hud:hint:bar'),
+                    value: fill.clamp(0.0, 1.0),
+                    minHeight: 12,
+                    color: color,
+                    backgroundColor: WorldColors.night),
+              ),
+            ],
+            if (text.isNotEmpty) ...<Widget>[
+              const SizedBox(height: Gap.sm),
+              Text(text, style: const TextStyle(fontSize: 16)),
+            ],
+          ],
+        ),
         actions: <Widget>[
           TextButton(
               onPressed: () => Navigator.of(c).pop(),
@@ -48,6 +111,33 @@ class WorldHud extends StatelessWidget {
       ),
     );
   }
+
+  /// Подсказки по показателям — одни у полосы HUD и у фишек поверх сцены
+  /// ([HudChips]): карточка [explain] с текущим значением.
+  static void hintCoins(BuildContext context, {int? coins}) =>
+      explain(context, 'coins',
+          value: coins == null ? '' : '$coins', fallbackTitle: 'Монеты');
+
+  static void hintSaved(BuildContext context, {int? saved}) =>
+      explain(context, 'saved',
+          value: saved == null ? '' : '$saved', fallbackTitle: 'Копилка');
+
+  static void hintEnergy(BuildContext context, {double? energy}) =>
+      explain(context, 'energy',
+          value: energy == null ? '' : energyText(energy),
+          max: energyText(energyMax),
+          fill: energy == null ? null : energy / energyMax,
+          color: WorldColors.energy,
+          fallbackTitle: 'Энергия');
+
+  static void hintMood(BuildContext context, {int? mood, String? reason}) =>
+      explain(context, 'happiness',
+          value: mood == null ? '' : '$mood',
+          max: '100',
+          fill: mood == null ? null : mood / 100,
+          color: WorldColors.mood,
+          reason: reason,
+          fallbackTitle: 'Настроение');
 
   @override
   Widget build(BuildContext context) {
@@ -60,39 +150,19 @@ class WorldHud extends StatelessWidget {
       value: '${s.available}',
       caption: 'есть',
       semantic: 'Монет доступно: ${s.available}',
-      onTap: () => _hint(
-          context,
-          'Монеты',
-          'Сколько можно тратить сейчас: НУЖНО, ХОЧУ, заработок '
-              'и неразложенные карманные. Копилка сюда не входит.'),
+      onTap: () => hintCoins(context, coins: s.available),
     );
-    final Widget saved = _Cell(
-      key: const ValueKey<String>('hud:saved'),
-      icon: Pic.jar,
-      iconColor: WorldColors.needs,
-      value: '${s.saved}',
-      caption: 'в копилке',
-      semantic: 'Накоплено на цель: ${s.saved}',
-      onTap: () => _hint(
-          context,
-          'Копилка',
-          'Сколько накоплено на цель. Эти монеты не тратятся '
-              'на покупки — только на цель.'),
-    );
+    // Копилки в HUD нет (Денис 29.09): её сумма — над копилкой в комнате и
+    // в плане недели.
     final Widget energyMeter = _Meter(
       key: const ValueKey<String>('hud:energy'),
-      icon: Pic.spark,
+      icon: Pic.bolt,
       iconColor: WorldColors.energy,
       fill: (s.energy / energyMax).clamp(0.0, 1.0),
       color: WorldColors.energy,
       value: energy,
       semantic: 'Энергия: $energy из 14',
-      onTap: () => _hint(
-          context,
-          'Энергия',
-          'Силы на неделю. Работа и отдых тратят энергию. '
-              'Кончилась — неделя закончилась. Лечь спать '
-              'пораньше — бонус к настроению.'),
+      onTap: () => hintEnergy(context, energy: s.energy),
     );
     final Widget happinessMeter = _Meter(
       key: const ValueKey<String>('hud:happiness'),
@@ -102,12 +172,7 @@ class WorldHud extends StatelessWidget {
       color: WorldColors.mood,
       value: '${s.happiness}',
       semantic: 'Настроение: ${s.happiness} из 100',
-      onTap: () => _hint(
-          context,
-          'Настроение',
-          'Как чувствует себя Финни, от 0 до 100. Отдых, '
-              'питомцы, вкусная еда и новые вещи радуют. '
-              'С хорошим настроением работа даётся легче.'),
+      onTap: () => hintMood(context, mood: s.happiness),
     );
     // Альбомная — основная (world_layout.dart): одна строка, чтобы сцене
     // осталась высота. Портрет — две строки, как раньше.
@@ -118,7 +183,6 @@ class WorldHud extends StatelessWidget {
               // тянется, а число и подпись — нет (подпись «в копилке»
               // при 3 : 4 ужималась до 12 sp).
               Expanded(flex: 4, child: coins),
-              Expanded(flex: 4, child: saved),
               Expanded(flex: 3, child: energyMeter),
               const SizedBox(width: Gap.sm),
               Expanded(flex: 3, child: happinessMeter),
@@ -131,7 +195,6 @@ class WorldHud extends StatelessWidget {
               Row(
                 children: <Widget>[
                   Expanded(child: coins),
-                  Expanded(child: saved),
                   if (trailing != null) trailing!,
                 ],
               ),

@@ -12,6 +12,7 @@ import '../pic_text.dart';
 import '../world_layout.dart';
 import '../world_state.dart';
 import 'onboarding_script.dart';
+import '../home/plan_pool.dart';
 import '../../../core/world_theme.dart';
 
 /// Регистрация S0 (ник, облик и имя) и то, что показывают сценки знакомства
@@ -483,7 +484,7 @@ class _LookTile extends StatelessWidget {
 ///
 /// Смысл конвертов ([meanings]) стоит прямо под названием: ребёнок, который
 /// пропустил разговор, всё равно видит три решения (ТЗ 2.5.1.1).
-class PlanEditor extends StatelessWidget {
+class PlanEditor extends StatefulWidget {
   const PlanEditor({
     super.key,
     required this.ui,
@@ -509,8 +510,37 @@ class PlanEditor extends StatelessWidget {
   final void Function(int needs, int wants, int goal) onChange;
 
   @override
+  State<PlanEditor> createState() => _PlanEditorState();
+}
+
+class _PlanEditorState extends State<PlanEditor> {
+  /// «+» без остатка: сколько раз (строка «На неделю» трясётся) и показать
+  /// ли «Всё уже разложено».
+  int _shake = 0;
+  bool _full = false;
+
+  @override
+  void didUpdateWidget(PlanEditor old) {
+    super.didUpdateWidget(old);
+    if (old.needs != widget.needs ||
+        old.wants != widget.wants ||
+        old.goal != widget.goal) {
+      _full = false;
+    }
+  }
+
+  void _onFull() => setState(() {
+        _shake++;
+        _full = true;
+      });
+
+  @override
   Widget build(BuildContext context) {
-    if (!planning) {
+    final OnboardingScript ui = widget.ui;
+    final ResourceSnapshot snapshot = widget.snapshot;
+    final int needs = widget.needs, wants = widget.wants, goal = widget.goal;
+    final void Function(int, int, int) onChange = widget.onChange;
+    if (!widget.planning) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -538,17 +568,15 @@ class PlanEditor extends StatelessWidget {
       _Stepper(
         id: 'need',
         title: 'НУЖНО',
-        // Счета — в реплике Финни; в альбомном ряду место только на смысл.
-        hint: row
-            ? ui.envelopesShort.need
-            : '${ui.envelopesShort.need}, ${ui.t('bills', <String, String>{
-                    'bill': '${snapshot.weeklyBill}'
-                  })}',
+        // Счета — в реплике Финни («Счета недели — …»): строка конверта
+        // короткая, копилке под «На неделю» хватает места на 360 dp.
+        hint: ui.envelopesShort.need,
         color: WorldColors.needs,
         value: needs,
         step: step,
         column: row,
         canAdd: left >= step,
+        onFull: _onFull,
         onSet: (int v) => onChange(v, wants, goal),
       ),
       _Stepper(
@@ -560,6 +588,7 @@ class PlanEditor extends StatelessWidget {
         step: step,
         column: row,
         canAdd: left >= step,
+        onFull: _onFull,
         onSet: (int v) => onChange(needs, v, goal),
       ),
       _Stepper(
@@ -571,6 +600,7 @@ class PlanEditor extends StatelessWidget {
         step: step,
         column: row,
         canAdd: left >= step,
+        onFull: _onFull,
         onSet: (int v) => onChange(needs, wants, v),
       ),
     ];
@@ -578,16 +608,15 @@ class PlanEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // Сколько пришло — и в реплике; в альбомной высоты на строку нет.
-        if (!row) ...<Widget>[
-          Row(
-            children: <Widget>[
-              Flexible(child: Text(ui.t('pool'), style: _text)),
-              const SizedBox(width: Gap.sm),
-              Coins(pool, size: 22),
-            ],
-          ),
-          const SizedBox(height: Gap.xs),
-        ],
+        // Альбомная тоже: «Всё уже разложено» и копилка отдельно нужны везде.
+        PlanPool(
+          amount: pool,
+          saved: snapshot.saved,
+          shake: _shake,
+          full: _full,
+          compact: row,
+        ),
+        const SizedBox(height: Gap.xs),
         if (row)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,6 +672,7 @@ class _Stepper extends StatelessWidget {
     required this.step,
     required this.column,
     required this.canAdd,
+    required this.onFull,
     required this.onSet,
   });
 
@@ -654,6 +684,9 @@ class _Stepper extends StatelessWidget {
   final int step;
   final bool column;
   final bool canAdd;
+
+  /// «+», когда раскладывать уже нечего.
+  final VoidCallback onFull;
   final ValueChanged<int> onSet;
 
   static const TextStyle _hintStyle =
@@ -693,13 +726,7 @@ class _Stepper extends StatelessWidget {
           key: ValueKey<String>('plus:$id'),
           icon: Icons.add,
           label: '$title: больше',
-          onTap: canAdd
-              ? () => onSet(value + step)
-              : () => ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(const SnackBar(
-                    key: ValueKey<String>('plan:full'),
-                    content: Text(planAllSpentHint))),
+          onTap: canAdd ? () => onSet(value + step) : onFull,
         ),
       ],
     );

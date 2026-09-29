@@ -116,7 +116,7 @@ void main() {
     final RoomSlots s = RoomSlots.fromLayout(
         layout, layout.stages['town']!, const Size(368, 368));
     final RoomFrame f =
-        roomFrame(s, box: const Size(360, 560), hires: true, topInset: 120);
+        roomFrame(s, box: const Size(640, 560), hires: true, topInset: 120);
     expect(f.top, 120);
     expect(f.k * 368, closeTo(440, 1e-6));
   });
@@ -251,6 +251,33 @@ void main() {
     expect((byGeo.center.dx - onScreen).abs(), lessThan(8),
         reason: 'без сдвига камеры геометрия уезжала на весь сдвиг');
   });
+
+  // Ловит: в высоком портрете кровать у края срезана наполовину (Денис:
+  // передний план — чуть срезан кадром, не наполовину).
+  for (final double sceneH in <double>[420, 560, 700]) {
+    testWidgets('в покое кровать и стол видны на ¾ · сцена 360×$sceneH',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(MediaQuery(
+        data: MediaQueryData(size: Size(360, sceneH), disableAnimations: true),
+        child: MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(width: 360, height: sceneH, child: scene()),
+          ),
+        ),
+      ));
+      await tester.pump();
+      final double want = layout.camera.foregroundShown;
+      expect(want, greaterThan(0), reason: 'значение — из файла');
+      for (final String id in <String>['bed', 'desk_chair']) {
+        final Rect r =
+            tester.getRect(find.byKey(ValueKey<String>('room:furniture:$id')));
+        final Rect seen = r.intersect(Rect.fromLTWH(0, 0, 360, sceneH));
+        expect(seen.width / r.width, greaterThanOrEqualTo(want - 0.01),
+            reason: '$id: видно ${seen.width} из ${r.width}');
+      }
+    });
+  }
 
   testWidgets('купленный глобус стоит на своём месте раскладки',
       (WidgetTester tester) async {

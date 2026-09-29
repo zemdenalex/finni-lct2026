@@ -7,9 +7,9 @@ import 'package:finlit/domain/world/fake_world.dart';
 import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/home/world_hud.dart';
+import 'package:finlit/features/world/city/city_screen.dart';
 import 'package:finlit/features/world/history/history_screen.dart';
 import 'package:finlit/features/world/jobs/job_board_screen.dart';
-import 'package:finlit/features/world/leisure/leisure_screen.dart';
 import 'package:finlit/features/world/piggy/piggy_screen.dart';
 import 'package:finlit/features/world/shop/world_shop_screen.dart';
 import 'package:finlit/features/world/pic_text.dart';
@@ -72,6 +72,11 @@ const Map<String, Size> _roomSizes = <String, Size>{
   'портрет 360×800': Size(360, 800),
 };
 
+/// Разделы нижней панели в текущем варианте ([RoomScreen.threeTabs]).
+const List<String> _navIds = RoomScreen.threeTabs
+    ? <String>['week', 'city', 'progress']
+    : <String>['plan', 'jobs', 'shop', 'piggy', 'progress'];
+
 void main() {
   // AppState.boot() читает контент через rootBundle, а он кеширует Future
   // из зоны первого теста — второй boot() в файле завис бы молча.
@@ -91,6 +96,8 @@ void main() {
     expect(tester.hasRunningAnimations, isTrue,
         reason: 'пока анимации включены, Финни двигается');
 
+    await tester.tap(find.byKey(const ValueKey<String>('room:menu')));
+    await _step(tester);
     await tester.tap(find.byKey(const ValueKey<String>('room:settings')));
     await _step(tester);
     await tester.ensureVisible(find.byKey(WorldSettingsScreen.motionKey));
@@ -123,7 +130,9 @@ void main() {
       void expectHud() {
         final ResourceSnapshot s = state.snapshot;
         expect(_textIn(tester, 'hud:coins'), contains('${s.available}'));
-        expect(_textIn(tester, 'hud:saved'), contains('${s.saved}'));
+        // Копилка — не в HUD, а над копилкой в комнате (Денис 29.09).
+        expect(find.byKey(const ValueKey<String>('hud:saved')), findsNothing);
+        expect(_textIn(tester, 'room:piggy:amount'), contains('${s.saved}'));
         expect(_textIn(tester, 'hud:energy'),
             contains(WorldHud.energyText(s.energy)));
         expect(_textIn(tester, 'hud:happiness'), contains('${s.happiness}'));
@@ -154,22 +163,13 @@ void main() {
           final Rect view = Offset.zero & o.value;
           for (final String key in <String>[
             'hud:coins',
-            'hud:saved',
             'hud:energy',
             'hud:happiness',
             'room:finni',
             'room:goal',
             'room:now',
-            'room:city',
-            'room:main',
-            'room:nav:plan',
-            'room:nav:jobs',
-            'room:nav:shop',
-            'room:nav:leisure',
-            'room:nav:piggy',
-            'room:nav:progress',
-            'room:adult',
-            'room:settings',
+            for (final String id in _navIds) 'room:nav:$id',
+            'room:menu',
             'room:help',
           ]) {
             final Rect r = tester.getRect(find.byKey(ValueKey<String>(key)));
@@ -179,11 +179,11 @@ void main() {
                 isTrue,
                 reason: '$key $r вне $view');
           }
-          // Кнопки — не меньше 48 dp, ⚙ — не меньше 56.
+          // Кнопки — не меньше 48 dp.
           for (final (String key, double min) in <(String, double)>[
-            ('room:city', 48),
-            ('room:main', 48),
-            ('room:settings', 56),
+            ('room:now', 48),
+            ('room:menu', 48),
+            ('room:help', 48),
           ]) {
             expect(tester.getSize(find.byKey(ValueKey<String>(key))).height,
                 greaterThanOrEqualTo(min),
@@ -208,14 +208,7 @@ void main() {
           });
           await _settle(tester);
           final List<double> sizes = <double>[
-            for (final String id in <String>[
-              'plan',
-              'jobs',
-              'shop',
-              'leisure',
-              'piggy',
-              'progress'
-            ])
+            for (final String id in _navIds)
               // Подпись — `Text`; значок Material тоже рисуется RichText.
               shownTextSize(tester.renderObject<RenderParagraph>(
                   find.descendant(
@@ -292,7 +285,7 @@ void main() {
     });
 
     // Ловит: карточка цели берёт название и цену не из каталога мира.
-    testWidgets('карточка «Цель» — название и цена из каталога мира',
+    testWidgets('строка «Цель» — название и цена из каталога мира',
         (WidgetTester tester) async {
       final World world = _livingWorld(kind);
       ok(world.chooseGoal('pet_hamster'));
@@ -302,10 +295,11 @@ void main() {
       await _settle(tester);
       final WorldCatalogItem goal = world.catalogItem('pet_hamster')!;
       final int saved = world.snapshot.saved;
+      // Строка цели (вариант В2): название и «накоплено/цена» — на экране,
+      // остаток — в подписи для TalkBack.
       for (final String part in <String>[
         goal.title,
-        '$saved из ${goal.price}',
-        'осталось ${goal.price - saved}',
+        '$saved/${goal.price}',
       ]) {
         expect(
             find.descendant(
@@ -314,6 +308,15 @@ void main() {
             findsOneWidget,
             reason: part);
       }
+      final SemanticsHandle sem = tester.ensureSemantics();
+      await tester.pump();
+      expect(
+          tester
+              .getSemantics(find.byKey(const ValueKey<String>('room:goal')))
+              .label,
+          allOf(contains(goal.title),
+              contains('осталось ${goal.price - saved}')));
+      sem.dispose();
     });
 
     // Ловит: «Спать» не закрывает неделю или не ведёт к итогам.
@@ -325,7 +328,9 @@ void main() {
       });
       await _settle(tester);
 
-      await tester.tap(find.byKey(const ValueKey<String>('room:main')));
+      // «Спать» раньше срока — кровать в комнате (вариант В: одна кнопка
+      // «Сейчас» ведёт в город, пока есть силы).
+      await tester.tap(find.byKey(const ValueKey<String>('room:bed')));
       await _step(tester);
       await tester.tap(find.byKey(const ValueKey<String>('sleep:confirm')));
       await _step(tester);
@@ -337,11 +342,11 @@ void main() {
       expect(find.byType(WeekReviewScreen), findsOneWidget);
     });
 
-    // Ловит: цель снова уехала вниз или в столбец управления (дизайнер
-    // 28.09: показатели сверху, управление снизу) — или полоса цели не
+    // Ловит: строка цели легла на комнату или оторвалась от «Сейчас»
+    // (Денис 29.09, вариант В: внизу — строка цели и одна кнопка), или не
     // открывает копилку.
     for (final MapEntry<String, Size> o in _roomSizes.entries) {
-      testWidgets('цель наверху, над комнатой, тап — копилка · ${o.key}',
+      testWidgets('цель — тонкой строкой под показателями · ${o.key}',
           (WidgetTester tester) async {
         final World world = _livingWorld(kind);
         ok(world.chooseGoal('pet_hamster'));
@@ -353,42 +358,93 @@ void main() {
         final Rect scene = tester.getRect(find.byType(RoomScene));
         final Finder goalKey = find.byKey(const ValueKey<String>('room:goal'));
         final Rect goal = tester.getRect(goalKey);
+        final Rect now =
+            tester.getRect(find.byKey(const ValueKey<String>('room:now')));
         final Rect coins =
             tester.getRect(find.byKey(const ValueKey<String>('hud:coins')));
-        expect(goal.bottom, lessThanOrEqualTo(scene.top + 0.5),
-            reason: 'цель $goal ниже верха комнаты $scene');
-        expect(goal.top, lessThan(coins.bottom + 64),
-            reason: 'цель $goal оторвана от HUD $coins');
-        expect(goal.height, greaterThanOrEqualTo(48));
-        await tester.tap(goalKey);
-        await _step(tester);
-        expect(find.byType(PiggyScreen), findsOneWidget);
+        final Rect finni =
+            tester.getRect(find.byKey(const ValueKey<String>('room:finni')));
+        // Вариант В2 (ревью 29.09): в портрете — тонкая строка под
+        // показателями поверх сцены; в альбомной — в боковом столбце под
+        // «Сейчас» (над комнатой только ряд фишек, иначе она мельчает).
+        // Не на Финни, не на «Сейчас», не кнопка.
+        expect(goal.overlaps(now), isFalse);
+        expect(goal.overlaps(finni), isFalse,
+            reason: 'цель $goal закрывает Финни $finni');
+        if (o.value.width > o.value.height) {
+          final Rect side =
+              tester.getRect(find.byKey(const ValueKey<String>('room:side')));
+          expect(side.contains(goal.center), isTrue,
+              reason: 'цель $goal в столбце $side');
+          expect(goal.top, greaterThanOrEqualTo(now.bottom));
+          expect(goal.height, lessThanOrEqualTo(80),
+              reason: 'три строки, не карточка');
+        } else {
+          expect(goal.top, greaterThanOrEqualTo(coins.bottom),
+              reason: 'цель $goal выше показателей $coins');
+          expect(goal.height, lessThanOrEqualTo(40),
+              reason: 'строка, не карточка');
+          expect(goal.left, greaterThanOrEqualTo(scene.left));
+        }
       });
     }
 
-    // Ловит: раздел пропал с панели, открывает не тот экран, или игры
-    // снова спрятаны за «Заданиями» (дизайнер 28.09 их не нашла): шесть
-    // кнопок, у каждой свой экран, «Работа» — это мини-игры.
+    // Ловит: раздел пропал с панели или открывает не тот экран; экран,
+    // до которого раньше был раздел, стал недостижим (вариант Б: план и
+    // копилка — через «Неделю», работа, магазин и прогулки — через город).
     for (final MapEntry<String, Size> o in bothOrientations.entries) {
-      for (final (String id, String label, Finder Function() opened)
-          in <(String, String, Finder Function())>[
-        (
-          'plan',
-          'План',
-          () => find.byKey(const ValueKey<String>('plan:confirm'))
-        ),
-        ('jobs', 'Работа', () => find.byType(JobBoardScreen)),
-        ('shop', 'Магазин', () => find.byType(WorldShopScreen)),
-        ('leisure', 'Прогулки', () => find.byType(LeisureScreen)),
-        ('piggy', 'Копилка', () => find.byType(PiggyScreen)),
-        ('progress', 'Прогресс', () => find.byType(HistoryScreen)),
-      ]) {
-        testWidgets('панель: «$label» открывает свой экран · ${o.key}',
-            (WidgetTester tester) async {
-          // «План» открывает лист только до плана недели.
+      for (final (
+            String id,
+            String label,
+            String? then,
+            Finder Function() opened
+          ) in RoomScreen.threeTabs
+              ? <(String, String, String?, Finder Function())>[
+                  (
+                    'week',
+                    'Неделя',
+                    'room:week:plan',
+                    () => find.byKey(const ValueKey<String>('plan:confirm'))
+                  ),
+                  (
+                    'week',
+                    'Неделя',
+                    'room:week:piggy',
+                    () => find.byType(PiggyScreen)
+                  ),
+                  ('city', 'Город', null, () => find.byType(CityScreen)),
+                  (
+                    'progress',
+                    'Прогресс',
+                    null,
+                    () => find.byType(HistoryScreen)
+                  ),
+                ]
+              : <(String, String, String?, Finder Function())>[
+                  (
+                    'plan',
+                    'План',
+                    null,
+                    () => find.byKey(const ValueKey<String>('plan:confirm'))
+                  ),
+                  ('jobs', 'Работа', null, () => find.byType(JobBoardScreen)),
+                  ('shop', 'Магазин', null, () => find.byType(WorldShopScreen)),
+                  ('piggy', 'Копилка', null, () => find.byType(PiggyScreen)),
+                  (
+                    'progress',
+                    'Прогресс',
+                    null,
+                    () => find.byType(HistoryScreen)
+                  ),
+                ]) {
+        testWidgets(
+            'панель: «$label»${then == null ? '' : ' → $then'} открывает '
+            'свой экран · ${o.key}', (WidgetTester tester) async {
+          // План открывает лист только до плана недели.
+          final bool toPlan = id == 'plan' || then == 'room:week:plan';
           final World world = kind.make();
           ok(world.startWeek());
-          if (id != 'plan') ok(world.plan(needs: 250, wants: 100, goal: 50));
+          if (!toPlan) ok(world.plan(needs: 250, wants: 100, goal: 50));
           await tester.runAsync(() async {
             await pumpWorldScreen(tester, const RoomScreen(),
                 world: world, size: o.value);
@@ -398,11 +454,15 @@ void main() {
             final Key? k = w.key;
             return k is ValueKey<String> && k.value.startsWith('room:nav:');
           });
-          expect(navItems, findsNWidgets(6));
+          expect(navItems, findsNWidgets(_navIds.length));
           final Finder item = find.byKey(ValueKey<String>('room:nav:$id'));
           expect(_textIn(tester, 'room:nav:$id'), label);
           await tester.tap(item);
           await _step(tester);
+          if (then != null) {
+            await tester.tap(find.byKey(ValueKey<String>(then)));
+            await _step(tester);
+          }
           expect(opened(), findsOneWidget);
         });
       }
@@ -418,7 +478,11 @@ void main() {
             world: _livingWorld(kind));
       });
       await _settle(tester);
-      expect(find.bySemanticsLabel('Работа — мини-игры'), findsOneWidget);
+      // Вариант Б: работа — в городе, подпись «Города» называет мини-игры.
+      expect(
+          find.bySemanticsLabel(
+              RegExp('Работа — мини-игры|работа — мини-игры')),
+          findsOneWidget);
       sem.dispose();
     });
 
@@ -442,7 +506,8 @@ void main() {
         await pumpWorldScreen(tester, const RoomScreen(), state: state);
       });
       await _settle(tester);
-      await tester.tap(find.byKey(const ValueKey<String>('room:nav:plan')));
+      // План недели: «Сейчас» до плана (в обоих вариантах панели).
+      await tester.tap(find.byKey(const ValueKey<String>('room:now')));
       await _step(tester);
       expect(find.textContaining(food), findsOneWidget,
           reason: 'план недели: $food');
@@ -470,26 +535,19 @@ void main() {
     (0.5, false),
   ]) {
     testWidgets(
-        'золотая кнопка: ⚡ = цена дела ${over == 0 ? '' : '− 0,5 '}→ '
-        '${cityGold ? '«В город»' : '«Спать»'}', (WidgetTester tester) async {
+        'кнопка «Сейчас»: ⚡ = цена дела ${over == 0 ? '' : '− 0,5 '}→ '
+        '${cityGold ? '«в город»' : '«спать»'}', (WidgetTester tester) async {
       final _CostWorld w = _CostWorld()..over = over;
       ok(w.startWeek());
       ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
       await pumpWorldScreen(tester, const RoomScreen(), world: w);
       await _settle(tester);
-      final Widget city =
-          tester.widget(find.byKey(const ValueKey<String>('room:city')));
-      final Widget main =
-          tester.widget(find.byKey(const ValueKey<String>('room:main')));
-      expect(city, cityGold ? isA<FilledButton>() : isA<OutlinedButton>());
-      expect(main, cityGold ? isA<OutlinedButton>() : isA<FilledButton>());
-      expect(_textIn(tester, 'room:main'), contains('Спать'));
-      expect(
-          find.descendant(
-              of: find.byKey(const ValueKey<String>('room:now')),
-              matching: find.textContaining('пора спать', findRichText: true)),
-          cityGold ? findsNothing : findsOneWidget,
-          reason: '«Сейчас» и золотая кнопка говорят об одном');
+      // Одна золотая кнопка «Сейчас: …» (вариант В): её текст — шаг.
+      expect(tester.widget(find.byKey(const ValueKey<String>('room:now'))),
+          isA<FilledButton>());
+      expect(find.byType(FilledButton), findsOneWidget);
+      expect(_textIn(tester, 'room:now'),
+          cityGold ? isNot(contains('спать')) : 'Сейчас: спать');
     });
   }
 
@@ -515,11 +573,15 @@ void main() {
         final RenderParagraph p = tester.renderObject<RenderParagraph>(
             find.descendant(of: plate, matching: find.byType(RichText)));
         expect(p.didExceedMaxLines, isFalse, reason: 'имя обрезано');
-        // Табличка — внутри сцены, а не поверх карточек и кнопок.
+        // Табличка — поверх сцены в ряду показателей (вариант В), на экране
+        // и не на кнопках: сцена начинается у верхнего края.
         final Rect scene = tester.getRect(find.byType(RoomScene));
         final Rect r = tester.getRect(plate);
-        expect(
-            scene.contains(r.topLeft) && scene.contains(r.bottomRight), isTrue);
+        final Rect now =
+            tester.getRect(find.byKey(const ValueKey<String>('room:now')));
+        expect((Offset.zero & o.value).contains(r.bottomRight), isTrue);
+        expect(r.overlaps(now), isFalse);
+        expect(r.left, greaterThanOrEqualTo(scene.left));
       });
     }
   }

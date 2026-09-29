@@ -52,6 +52,12 @@ void main() {
       .getRect(find.byKey(const ValueKey<String>('room:finni:spot')))
       .topLeft;
 
+  /// Где Финни в комнате, а не на экране: камера (общая раскладка) ведёт
+  /// комнату за ним, и на экране он почти стоит — считать от двери.
+  Offset inRoom(WidgetTester tester) =>
+      feet(tester) -
+      tester.getRect(find.byKey(const ValueKey<String>('room:door'))).topLeft;
+
   /// Держит ручку отведённой в [dir] (доля радиуса) [ms] миллисекунд.
   Future<TestGesture> hold(WidgetTester tester, Offset dir, int ms) async {
     final Offset c = tester.getCenter(stick);
@@ -95,16 +101,16 @@ void main() {
         (WidgetTester tester) async {
       await pump(tester, size: o.value);
       expect(stick, findsOneWidget);
-      final Offset start = feet(tester);
+      final Offset start = inRoom(tester);
       final TestGesture g = await hold(tester, const Offset(1, 0), 500);
-      final Offset moved = feet(tester);
+      final Offset moved = inRoom(tester);
       expect(moved.dx, greaterThan(start.dx + 10),
           reason: 'Финни пошёл вправо');
       await g.up();
       await tester.pump(const Duration(milliseconds: 100));
-      final Offset stopped = feet(tester);
+      final Offset stopped = inRoom(tester);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(feet(tester), stopped, reason: 'ручку отпустили — стоит');
+      expect(inRoom(tester), stopped, reason: 'ручку отпустили — стоит');
     });
 
     testWidgets('${o.key}: джойстик долго влево — Финни не уходит за пол',
@@ -183,6 +189,22 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(WorldShopScreen), findsOneWidget);
+  });
+
+  // Ловит (Денис 29.09: «снизу слишком много кнопок»): джойстик снова
+  // виден всегда — он показывается, только пока палец ведёт по полу.
+  testWidgets('джойстик не виден, пока палец не ведёт по полу',
+      (WidgetTester tester) async {
+    await pump(tester);
+    final Finder pad = find.byKey(const ValueKey<String>('room:pad'));
+    expect(pad, findsNothing, reason: 'без касания джойстика не видно');
+    final Offset start = feet(tester);
+    final TestGesture g = await hold(tester, const Offset(1, 0), 300);
+    expect(pad, findsOneWidget, reason: 'палец ведёт — джойстик под ним');
+    expect(feet(tester).dx, greaterThan(start.dx), reason: 'Финни идёт');
+    await g.up();
+    await tester.pump();
+    expect(pad, findsNothing, reason: 'палец поднят — джойстик пропал');
   });
 
   testWidgets('«Анимации» выкл. — джойстика нет, ходьбы нет',
@@ -308,11 +330,11 @@ void main() {
 
   // Ревью 29.09: Финни уходил наполовину за край и прятался под джойстиком.
   for (final MapEntry<String, Size> o in bothOrientations.entries) {
-    testWidgets('${o.key}: Финни целиком в кадре и не под джойстиком',
-        (WidgetTester tester) async {
+    // Джойстик теперь плавающий (рисуется под пальцем, пока ведёшь) —
+    // «не под джойстиком» больше не про место на экране.
+    testWidgets('${o.key}: Финни целиком в кадре', (WidgetTester tester) async {
       await pump(tester, size: o.value);
       final Rect scene = tester.getRect(find.byType(RoomScene));
-      final Rect pad = tester.getRect(stick);
       for (final Offset dir in <Offset>[
         const Offset(1, 0),
         const Offset(-1, 1),
@@ -334,12 +356,6 @@ void main() {
             finni.isEmpty ? Rect.fromLTWH(f.dx - 1, f.dy - 1, 2, 2) : finni;
         expect(body.left, greaterThanOrEqualTo(scene.left - 1), reason: '$dir');
         expect(body.right, lessThanOrEqualTo(scene.right + 1), reason: '$dir');
-        final Rect under = body.intersect(pad);
-        final double part = under.width <= 0 || under.height <= 0
-            ? 0
-            : under.width * under.height / (body.width * body.height);
-        // Джойстик вне сцены — Финни под ним не бывает.
-        expect(part, 0, reason: '$dir: $body за джойстиком $pad');
       }
     });
 
