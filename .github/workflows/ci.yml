@@ -1,0 +1,157 @@
+name: CI
+
+# Why this shape:
+#
+# The fast gate (analyze + test) runs on every push and PR — with four people in
+# one branch for 14 days, a broken main has to surface in minutes, not at the
+# next person's `flutter run`.
+#
+# The Android build is deliberately NOT on every push: the first Android build
+# pulls the NDK (~9 GB locally), and a CI job that is slow or flaky on disk gets
+# ignored, which is worse than no CI. It runs on demand instead — Actions tab →
+# "CI" → "Run workflow".
+#
+# 🔴 Release signing is not wired into CI on purpose. The keystore lives outside
+# the repo (see docs/sborka-i-dostavka.md); putting it into Actions secrets is a
+# decision about who can sign builds, and nobody has taken it. Every artifact
+# this workflow produces is therefore signed with the throwaway ANDROID DEBUG
+# key — never hand one to the jury. The jury's build is made locally.
+#
+# The on-demand job still builds the *release* variant, because that is the one
+# §8.2 grades for reproducibility. Building it on a clean runner is the only
+# check we have that the documented commands work on a machine that is not
+# Denis's — it is what caught AGP 9.1.0 being incompatible with this Flutter's
+# Gradle plugin.
+
+on:
+  push:
+    branches: [main, feat/world-v2, feat/world-v2-domain, feat/world-v2-ui]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build_apk:
+        description: 'Also build Android artifacts (release variant, debug-signed)'
+        type: boolean
+        default: true
+
+env:
+  # 🔴 Pinned to the version the artifact is actually verified on, not to the
+  # newest stable. Everything we can point a judge at — the emulator run, the
+  # measured APK and AAB sizes, the twelve steps of Appendix A walked by hand —
+  # happened on 3.41.7. A build checked on one toolchain and shipped from
+  # another is not a reproducible build, and §8.2 scores reproducibility.
+  #
+  # Changing this number means re-measuring the sizes in
+  # docs/sborka-i-dostavka.md and re-running the device walkthrough. Do not
+  # bump it in the last week before a deadline.
+  FLUTTER_VERSION: '3.41.7'
+  # The Flutter project is not at the repo root: the repo also holds the team
+  # docs, and server/ if the ТЗ ends up requiring one.
+  APP_DIR: app/finlit
+
+jobs:
+  analyze:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter pub get
+
+      # Formatting is reported but does not fail the build. In a two-week sprint
+      # a red CI over whitespace is noise; `dart format .` fixes it locally.
+      - name: Format (report only)
+        working-directory: ${{ env.APP_DIR }}
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed .
+
+      # No arguments on purpose: the gate must look at test/ and tool/ too.
+      - name: Analyze
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter analyze
+
+      - name: Test
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter test
+
+  android:
+    name: Android release build (debug-signed)
+    needs: analyze
+    if: github.event_name == 'workflow_dispatch' && inputs.build_apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # 🔴 `flutter build appbundle --release` verifies its own output with
+      # apkanalyzer, which lives in the cmdline-tools SDK component. Without it
+      # the build fails with "failed to strip debug symbols from native
+      # libraries" — a message that points at the NDK and at flutter doctor,
+      # neither of which is the cause. Fail here instead, with the real reason.
+      - name: Check cmdline-tools is present
+        run: |
+          if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" ]; then
+            echo "::error::apkanalyzer not found in \$ANDROID_HOME/cmdline-tools/latest/bin."
+            echo "::error::The appbundle build needs it. Install the 'Android SDK Command-line Tools (latest)' component."
+            exit 1
+          fi
+          echo "apkanalyzer: OK"
+
+      - name: Dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter pub get
+
+      # GeneratedPluginRegistrant.java is generated and gitignored, so a fresh
+      # runner has none — this only guards against a cached one going stale.
+      # See docs/sborka-i-dostavka.md, "Грабли".
+      - name: Drop the generated plugin registrant
+        working-directory: ${{ env.APP_DIR }}
+        run: rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+      - name: Build release APK
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build apk --release
+
+      - name: Build release AAB
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build appbundle --release
+
+      # Prints the signer so the log always says, in plain text, which key the
+      # artifact carries. On CI this must read "CN=Android Debug": if it ever
+      # reads anything else, a keystore leaked into the repo or into secrets.
+      - name: Show which key signed it
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs -v build/app/outputs/flutter-apk/app-release.apk \
+            | grep -E "Verified using|certificate DN|key size"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # The name is the warning. These are release-mode builds signed with
+          # the Android debug key: fine for smoke-testing a branch on a phone,
+          # not for the jury and not for RuStore.
+          name: finlit-release-DEBUG-SIGNED-do-not-ship
+          path: |
+            ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+            ${{ env.APP_DIR }}/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14

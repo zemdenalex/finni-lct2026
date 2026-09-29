@@ -1,0 +1,348 @@
+{
+ "frames": [
+  {
+   "filename": "finni-a1_walk@4x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 220
+  },
+  {
+   "filename": "finni-a1_walk@4x 1",
+   "frame": {
+    "x": 344,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 220
+  },
+  {
+   "filename": "finni-a1_walk@4x 2",
+   "frame": {
+    "x": 688,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 3",
+   "frame": {
+    "x": 1032,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 4",
+   "frame": {
+    "x": 0,
+    "y": 468,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 5",
+   "frame": {
+    "x": 344,
+    "y": 468,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 6",
+   "frame": {
+    "x": 688,
+    "y": 468,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 7",
+   "frame": {
+    "x": 1032,
+    "y": 468,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 8",
+   "frame": {
+    "x": 0,
+    "y": 936,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 9",
+   "frame": {
+    "x": 344,
+    "y": 936,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 10",
+   "frame": {
+    "x": 688,
+    "y": 936,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 11",
+   "frame": {
+    "x": 1032,
+    "y": 936,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 12",
+   "frame": {
+    "x": 0,
+    "y": 1404,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  },
+  {
+   "filename": "finni-a1_walk@4x 13",
+   "frame": {
+    "x": 344,
+    "y": 1404,
+    "w": 344,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 344,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 344,
+    "h": 468
+   },
+   "duration": 160
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "finni-a1_walk@4x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1376,
+   "h": 1872
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "walk-1",
+    "from": 0,
+    "to": 1,
+    "direction": "forward"
+   },
+   {
+    "name": "walk-2",
+    "from": 2,
+    "to": 5,
+    "direction": "forward"
+   },
+   {
+    "name": "walk-3",
+    "from": 6,
+    "to": 9,
+    "direction": "forward"
+   },
+   {
+    "name": "walk-4",
+    "from": 10,
+    "to": 13,
+    "direction": "forward"
+   }
+  ]
+ }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "b3_by_the_holiday",
+  "topic": "savings",
+  "kind": "numericInput",
+  "title": "Успеть к празднику",
+  "prompt": "До праздника {weeks:недели}. Подарок стоит {price:монетки}, в копилке уже {saved}. Сколько откладывать каждую неделю, чтобы успеть?",
+  "reward": 3,
+  "_": "Обратная задача к «Сколько недель копить?»: срок известен, ищем взнос. weeks — недели, от масштаба не зависят.",
+  "money": [
+    "price",
+    "saved",
+    "rest",
+    "answer"
+  ],
+  "plain": [
+    "weeks"
+  ],
+  "params": {
+    "weeks": 4,
+    "price": 20,
+    "saved": 8,
+    "rest": 12,
+    "answer": 3,
+    "workings": "{price} − {saved} = {rest:монетки} осталось. {rest} : {weeks} = {answer:монетки} в неделю.",
+    "unit": "монеток"
+  },
+  "explainAny": "Здесь срок известен, а ищем, сколько откладывать. Сколько осталось, делим на число недель: {rest} : {weeks} = {answer}.",
+  "explainBest": "Такой расчёт называется планом накоплений — с ним праздник не застанет врасплох.",
+  "variants": [
+    {
+      "params": {
+        "weeks": 3,
+        "price": 15,
+        "saved": 3,
+        "rest": 12,
+        "answer": 4
+      }
+    },
+    {
+      "params": {
+        "weeks": 5,
+        "price": 20,
+        "saved": 10,
+        "rest": 10,
+        "answer": 2
+      }
+    }
+  ]
+}

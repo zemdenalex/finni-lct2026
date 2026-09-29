@@ -1,0 +1,63 @@
+# --- секреты: никогда в историю ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# --- сборки и артефакты ---
+*.apk
+*.aab
+*.ipa
+build/
+dist/
+out/
+.expo/
+.expo-shared/
+android/app/build/
+ios/build/
+ios/Pods/
+
+# --- зависимости ---
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/releases
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- инструменты и ОС ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# --- локальные данные ---
+*.sqlite
+*.sqlite3
+*.db
+coverage/
+.cache/
+tmp/
+scratchpad/
+
+# Материалы организатора: ТЗ и Единая рамка компетенций.
+# В репозиторий не кладём — §6 ТЗ разрешает использовать их «только в рамках,
+# допускаемых правообладателем». Ссылки на источники — в docs/.
+/6_Департамент_финансов_города_Москвы.pdf
+/Единая-рамка-ФГ(приложение)-2026.pdf
+
+# --- сайт команды: сборка, не исходник ---
+site-build/

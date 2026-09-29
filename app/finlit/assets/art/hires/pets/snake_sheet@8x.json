@@ -1,0 +1,94 @@
+{
+ "frames": [
+  {
+   "filename": "snake_sheet@8x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "sourceSize": {
+    "w": 368,
+    "h": 540
+   },
+   "duration": 700
+  },
+  {
+   "filename": "snake_sheet@8x 1",
+   "frame": {
+    "x": 368,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "sourceSize": {
+    "w": 368,
+    "h": 540
+   },
+   "duration": 700
+  },
+  {
+   "filename": "snake_sheet@8x 2",
+   "frame": {
+    "x": 736,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 368,
+    "h": 540
+   },
+   "sourceSize": {
+    "w": 368,
+    "h": 540
+   },
+   "duration": 800
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "snake_sheet@8x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1104,
+   "h": 540
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wake",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

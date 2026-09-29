@@ -1,0 +1,1384 @@
+{
+  "_note": "id -> file. Buildings: d072 chosen by Denis 26.09 (d045 kept for comparison). Sprite sheets: horizontal strips, frame rects and tags in the .json next to them (Aseprite json-array). Finni: ChatGPT-based looks (4 per species) replace the code-drawn draft (Denis 26.09: closer to ChatGPT). Room sprites are sized so Finni (~110 px) stands at 'finni' slot. Pets are cleaned on a coarser grid (--px 13/15) so their pixels match Finni's. HI-RES (28.09, 'not pixel-y — hard on their eyes'): defaults now point to assets/hires/, built by tools/hires_art.py from the 27.09 ChatGPT uploads. Density is in the file name: name@4x.png = 4 source px per logical px; the app shows it at px/density and downscales with FilterQuality.medium. size_px / frame_px of hi-res entries are LOGICAL px. Old low-res files stay as 'lowres'/'variants' for fallback. Rooms by growth stage: village = upload #30 left half (empty room: mattress, boxes — Finni just moved in), town = #30 right half (the same room furnished: bed, desk, rug — so the progress reads as 'same room, furnished'), moscow = #31 right half (furnished room with a bigger city behind the window). Still low-res: finni-a3 (hamster, no hi-res upload), pets hamster/dog/fish/turtle, buildings park/cinema/piggy-bank, room 'home' (old horizontal room, kept for onboarding fallback).",
+  "buildings": {
+    "home": {
+      "screen": "S1",
+      "default": "hires/city/khrushchyovka@4x.png",
+      "variants": {
+        "d045": "city/d045/home.png",
+        "d072": "city/d072/home.png",
+        "hires": "hires/city/khrushchyovka@4x.png"
+      },
+      "size_px": [
+        90,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "ChatGPT upload #28 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    },
+    "grocery": {
+      "screen": "S4",
+      "default": "hires/city/market@4x.png",
+      "variants": {
+        "d045": "city/d045/grocery.png",
+        "d072": "city/d072/grocery.png",
+        "hires": "hires/city/market@4x.png"
+      },
+      "size_px": [
+        111,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "ChatGPT upload #17 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    },
+    "job-centre": {
+      "screen": "S6",
+      "default": "hires/city/stalinka@4x.png",
+      "variants": {
+        "d045": "city/d045/job-centre.png",
+        "d072": "city/d072/job-centre.png",
+        "hires": "hires/city/stalinka@4x.png"
+      },
+      "size_px": [
+        84,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "ChatGPT upload #28 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    },
+    "pet-shop": {
+      "screen": "S5",
+      "default": "hires/city/shop@4x.png",
+      "variants": {
+        "d045": "city/d045/pet-shop.png",
+        "d072": "city/d072/pet-shop.png",
+        "hires": "hires/city/shop@4x.png"
+      },
+      "size_px": [
+        110,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "ChatGPT upload #17 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    },
+    "park": {
+      "screen": "S8",
+      "default": "hires/city/park@4x.png",
+      "variants": {
+        "d045": "city/d045/park.png",
+        "d072": "city/d072/park.png",
+        "lowres": "city/d072/park.png"
+      },
+      "size_px": [
+        87,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 71, prompt «a small city park with green trees, a pond, benches and a flower bed, isometric view, detailed pixel art, cozy modern indie city builder game building sprite, soft shading, warm evening light, clean outline, small square ground tile under it, plain light beige background, centered, single building» (28.09, tools/hires_generated.py)"
+    },
+    "cinema": {
+      "screen": "S8",
+      "default": "hires/city/cinema@4x.png",
+      "variants": {
+        "d045": "city/d045/cinema.png",
+        "d072": "city/d072/cinema.png",
+        "lowres": "city/d072/cinema.png"
+      },
+      "size_px": [
+        89,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 71, prompt «a small cozy cinema building with a red awning, marquee lights and film posters, isometric view, detailed pixel art, cozy modern indie city builder game building sprite, soft shading, warm evening light, clean outline, small square ground tile under it, plain light beige background, centered, single building» (28.09, tools/hires_generated.py)"
+    },
+    "piggy-bank": {
+      "screen": "S9",
+      "default": "hires/city/piggy-bank@4x.png",
+      "variants": {
+        "d045": "city/d045/piggy-bank.png",
+        "d072": "city/d072/piggy-bank.png",
+        "lowres": "city/d072/piggy-bank.png"
+      },
+      "size_px": [
+        81,
+        84
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready",
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 72, prompt «a small classic bank building with white columns and a golden coin emblem on the roof, isometric view, detailed pixel art, cozy modern indie city builder game building sprite, soft shading, warm evening light, clean outline, small square ground tile under it, plain light beige background, centered, single building» (28.09, tools/hires_generated.py)"
+    },
+    "moscow-city-a": {
+      "screen": "—",
+      "default": "hires/city/city-tower-a@4x.png",
+      "size_px": [
+        90,
+        117
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready: city map skyline at the Moscow stage (behind job-centre and cinema, decoration only)",
+      "source": "ChatGPT upload #28 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    },
+    "moscow-city-b": {
+      "screen": "—",
+      "default": "hires/city/city-tower-b@4x.png",
+      "size_px": [
+        90,
+        124
+      ],
+      "anchor": "bottom-centre of the ground tile",
+      "status": "ready: city map skyline at the Moscow stage (behind job-centre and cinema, decoration only)",
+      "source": "ChatGPT upload #28 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py"
+    }
+  },
+  "pets": {
+    "pet_hamster": {
+      "sheet": "hires/pets/hamster_sheet@8x.png",
+      "data": "hires/pets/hamster_sheet@8x.json",
+      "frame_px": [
+        44,
+        53
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "lowres": {
+        "sheet": "pets/hamster_sheet.png",
+        "data": "pets/hamster_sheet.json",
+        "variant": "pets/hamster_variant.png"
+      },
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, prompt «cute fluffy orange and white hamster sitting, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "pet_kitten": {
+      "sheet": "hires/pets/cat_sheet@8x.png",
+      "data": "hires/pets/cat_sheet@8x.json",
+      "frame_px": [
+        58,
+        54
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "lowres": {
+        "sheet": "pets/cat_sheet.png",
+        "data": "pets/cat_sheet.json",
+        "variant": "pets/cat_variant.png"
+      },
+      "source": "ChatGPT upload #7 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py, sleep = tile 1 + breathing frame, wake = tile 3",
+      "status": "ready"
+    },
+    "pet_dog": {
+      "sheet": "hires/pets/dog_sheet@8x.png",
+      "data": "hires/pets/dog_sheet@8x.json",
+      "frame_px": [
+        50,
+        73
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "lowres": {
+        "sheet": "pets/dog_sheet.png",
+        "data": "pets/dog_sheet.json",
+        "variant": "pets/dog_variant.png"
+      },
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, prompt «cute small corgi puppy sitting, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "pet_fish": {
+      "sheet": "hires/pets/fish_sheet@8x.png",
+      "data": "hires/pets/fish_sheet@8x.json",
+      "frame_px": [
+        44,
+        50
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "lowres": {
+        "sheet": "pets/fish_sheet.png",
+        "data": "pets/fish_sheet.json"
+      },
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, prompt «cute orange goldfish in a small round glass fishbowl, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "pet_turtle": {
+      "sheet": "hires/pets/turtle_sheet@8x.png",
+      "data": "hires/pets/turtle_sheet@8x.json",
+      "frame_px": [
+        52,
+        42
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "lowres": {
+        "sheet": "pets/turtle_sheet.png",
+        "data": "pets/turtle_sheet.json"
+      },
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 42, prompt «cute cartoon baby turtle with big shiny eyes, smiling, round green shell, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "pet_frog": {
+      "sheet": "hires/pets/frog_sheet@8x.png",
+      "data": "hires/pets/frog_sheet@8x.json",
+      "frame_px": [
+        58,
+        48
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "source": "ChatGPT upload #12 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py, sleep = tile 1 + breathing frame, wake = tile 3",
+      "status": "ready"
+    },
+    "pet_snake": {
+      "sheet": "hires/pets/snake_sheet@8x.png",
+      "data": "hires/pets/snake_sheet@8x.json",
+      "frame_px": [
+        46,
+        68
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a cute cartoon green snake with big eyes, coiled, smiling, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "pet_axolotl": {
+      "sheet": "hires/pets/axolotl_sheet@8x.png",
+      "data": "hires/pets/axolotl_sheet@8x.json",
+      "frame_px": [
+        60,
+        56
+      ],
+      "tags": [
+        "sleep",
+        "wake"
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a cute pink axolotl with big eyes, smiling, full body, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    }
+  },
+  "room": {
+    "home": {
+      "screen": "S1",
+      "default": "room/room-s23.png",
+      "variants": {
+        "s7": "room/room-s7.png",
+        "s11": "room/room-s11.png",
+        "s23": "room/room-s23.png",
+        "s42": "room/room-s42.png"
+      },
+      "size_px": [
+        272,
+        168
+      ],
+      "slots": "room/slots.json",
+      "status": "draft: Denis picks the variant"
+    },
+    "village": {
+      "screen": "S1",
+      "stage": "village",
+      "default": "hires/room/room-village@3x.png",
+      "size_px": [
+        209,
+        371
+      ],
+      "slots": "hires/room/slots-village.json",
+      "source": "ChatGPT upload #30 left half of ref/generacii-2026-09-27 (27.09), tools/hires_art.py",
+      "status": "ready",
+      "front": "hires/room/front-village@3x.png"
+    },
+    "town": {
+      "screen": "S1",
+      "stage": "town",
+      "default": "hires/room/room-town@3x.png",
+      "size_px": [
+        209,
+        371
+      ],
+      "slots": "hires/room/slots-town.json",
+      "source": "ChatGPT upload #30 right half of ref/generacii-2026-09-27 (27.09), tools/hires_art.py",
+      "status": "ready",
+      "front": "hires/room/front-town@3x.png"
+    },
+    "moscow": {
+      "screen": "S1",
+      "stage": "moscow",
+      "default": "hires/room/room-moscow@3x.png",
+      "size_px": [
+        209,
+        371
+      ],
+      "slots": "hires/room/slots-moscow.json",
+      "source": "ChatGPT upload #31 right half of ref/generacii-2026-09-27 (27.09), tools/hires_art.py",
+      "status": "ready",
+      "front": "hires/room/front-moscow@3x.png"
+    },
+    "village_room": {
+      "screen": "S1",
+      "stage": "village",
+      "default": "hires/room/shell-village@3x.png",
+      "size_px": [
+        368,
+        368
+      ],
+      "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the village window from room-village@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "town_room": {
+      "screen": "S1",
+      "stage": "town",
+      "default": "hires/room/shell-town@3x.png",
+      "size_px": [
+        368,
+        368
+      ],
+      "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the town window from room-town@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "moscow_room": {
+      "screen": "S1",
+      "stage": "moscow",
+      "default": "hires/room/shell-moscow@3x.png",
+      "size_px": [
+        368,
+        368
+      ],
+      "layout": "content/room_layout.json — раскладка (копия в сборке: assets/content/world/room_layout.json)",
+      "source": "PLACEHOLDER (29.09 day): empty square room for the one-layout room, cut without rescaling from the 27.09 ChatGPT village room (room-village@3x.png: wallpaper, skirting, ceiling, floor strips tiled) with the moscow window from room-moscow@3x.png scaled into the layout window slot (tools/room_shell.py). Denis replaces it with a GPT background (docs/prompty-komnaty-gpt.txt), then background_has_furniture in room_layout.json turns true.",
+      "licence": "derived from the ChatGPT upload of 27.09 (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    }
+  },
+  "finni_code_draft": {
+    "finni-a1": {
+      "sheet": "finni/finni-a1_sheet.png",
+      "data": "finni/finni-a1_sheet.json",
+      "frame_px": [
+        44,
+        64
+      ],
+      "tags": [
+        "idle",
+        "blink",
+        "walk"
+      ],
+      "source": "finni/finni-a1.aseprite",
+      "status": "draft"
+    },
+    "finni-a2": {
+      "sheet": "finni/finni-a2_sheet.png",
+      "data": "finni/finni-a2_sheet.json",
+      "frame_px": [
+        44,
+        64
+      ],
+      "tags": [
+        "idle",
+        "blink",
+        "walk"
+      ],
+      "source": "finni/finni-a2.aseprite",
+      "status": "draft"
+    },
+    "finni-a3": {
+      "sheet": "finni/finni-a3_sheet.png",
+      "data": "finni/finni-a3_sheet.json",
+      "frame_px": [
+        44,
+        64
+      ],
+      "tags": [
+        "idle",
+        "blink",
+        "walk"
+      ],
+      "source": "finni/finni-a3.aseprite",
+      "status": "draft"
+    }
+  },
+  "finni": {
+    "finni-a1": {
+      "looks": [
+        "hires/finni/finni-a1-1@4x.png",
+        "hires/finni/finni-a1-2@4x.png",
+        "hires/finni/finni-a1-3@4x.png",
+        "hires/finni/finni-a1-4@4x.png"
+      ],
+      "sheet": "hires/finni/finni-a1_sheet@4x.png",
+      "data": "hires/finni/finni-a1_sheet@4x.json",
+      "frame_px": [
+        86,
+        117
+      ],
+      "tags": [
+        "idle-1",
+        "idle-2",
+        "idle-3",
+        "idle-4",
+        "walk"
+      ],
+      "lowres": {
+        "looks": [
+          "finni/gpt/finni-a1-1.png",
+          "finni/gpt/finni-a1-2.png",
+          "finni/gpt/finni-a1-3.png",
+          "finni/gpt/finni-a1-4.png"
+        ],
+        "sheet": "finni/gpt/finni-a1_sheet.png",
+        "data": "finni/gpt/finni-a1_sheet.json"
+      },
+      "source": "ChatGPT uploads #22, 24, 19, 25 (looks 1-4: leaf, grey, pink, white), walk from #22 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py",
+      "status": "ready"
+    },
+    "finni-a2": {
+      "looks": [
+        "hires/finni/finni-a2-1@4x.png",
+        "hires/finni/finni-a2-2@4x.png",
+        "hires/finni/finni-a2-3@4x.png",
+        "hires/finni/finni-a2-4@4x.png"
+      ],
+      "sheet": "hires/finni/finni-a2_sheet@4x.png",
+      "data": "hires/finni/finni-a2_sheet@4x.json",
+      "frame_px": [
+        88,
+        117
+      ],
+      "tags": [
+        "idle-1",
+        "idle-2",
+        "idle-3",
+        "idle-4",
+        "wave",
+        "walk",
+        "jump"
+      ],
+      "lowres": {
+        "looks": [
+          "finni/gpt/finni-a2-1.png",
+          "finni/gpt/finni-a2-2.png",
+          "finni/gpt/finni-a2-3.png",
+          "finni/gpt/finni-a2-4.png"
+        ],
+        "sheet": "finni/gpt/finni-a2_sheet.png",
+        "data": "finni/gpt/finni-a2_sheet.json"
+      },
+      "source": "ChatGPT uploads #0-3 (looks 1-4 = idle tile of each), wave/walk/jump from #0 of ref/generacii-2026-09-27 (27.09), tools/hires_art.py",
+      "status": "ready"
+    },
+    "finni-a3": {
+      "looks": [
+        "finni/gpt/finni-a3-1.png",
+        "finni/gpt/finni-a3-2.png",
+        "finni/gpt/finni-a3-3.png",
+        "finni/gpt/finni-a3-4.png"
+      ],
+      "sheet": "finni/gpt/finni-a3_sheet.png",
+      "data": "finni/gpt/finni-a3_sheet.json",
+      "frame_px": [
+        70,
+        101
+      ],
+      "tags": [
+        "idle-1",
+        "idle-2",
+        "idle-3",
+        "idle-4"
+      ],
+      "source": "ChatGPT batch 26.09-2, cleaned by tools/finni_gpt.py",
+      "status": "draft"
+    }
+  },
+  "items": {
+    "_note": "Shop goods and room decor by catalog id (economy.json). One picture each, longest side 64 logical px at @4x. tools/hires_generated.py",
+    "snack": {
+      "image": "hires/items/snack@4x.png",
+      "size_px": [
+        64,
+        42
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a small snack: a bun and a juice box, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "food_simple": {
+      "image": "hires/items/food_simple@4x.png",
+      "size_px": [
+        64,
+        58
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a simple meal: a bowl of buckwheat porridge and a slice of bread, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "food_regular": {
+      "image": "hires/items/food_regular@4x.png",
+      "size_px": [
+        64,
+        58
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a homemade lunch plate: soup bowl, meatballs with potatoes, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "food_tasty": {
+      "image": "hires/items/food_tasty@4x.png",
+      "size_px": [
+        63,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a delicious festive meal: pizza slice, fruit and a cupcake on a tray, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "food_soup": {
+      "image": "hires/night/items/food_soup@4x.png",
+      "size_px": [
+        64,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a bowl of chicken noodle soup with carrot slices and dill, and a slice of bread beside it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_soup.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "status": "placeholder",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)"
+    },
+    "food_syrniki": {
+      "image": "hires/night/items/food_syrniki@4x.png",
+      "size_px": [
+        64,
+        62
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 52, 768x768, prompt «a plate of golden fried cottage cheese pancakes (syrniki) with fresh strawberries and blueberries and a spoon of sour cream, no fork, no cutlery, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_syrniki.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "status": "placeholder",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)"
+    },
+    "food_burger": {
+      "image": "hires/night/items/food_burger@4x.png",
+      "size_px": [
+        64,
+        56
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 52, 768x768, prompt «a cheeseburger with lettuce and tomato, and a pile of french fries next to it, on a small paper tray, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_burger.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "status": "placeholder",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)"
+    },
+    "food_fish": {
+      "image": "hires/night/items/food_fish@4x.png",
+      "size_px": [
+        64,
+        59
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a baked fish fillet on a plate with steamed broccoli, carrots and a lemon slice, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_fish.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "status": "placeholder",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)"
+    },
+    "cloth_cap": {
+      "image": "hires/items/cloth_cap@4x.png",
+      "size_px": [
+        64,
+        62
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a blue baseball cap, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "cloth_scarf": {
+      "image": "hires/items/cloth_scarf@4x.png",
+      "size_px": [
+        61,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 61, prompt «a warm knitted striped scarf lying loosely, red and yellow stripes, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "cloth_hoodie": {
+      "image": "hires/items/cloth_hoodie@4x.png",
+      "size_px": [
+        43,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 62, prompt «a bright royal blue zip hoodie with hood and white drawstrings, front view, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "cloth_sneakers": {
+      "image": "hires/items/cloth_sneakers@4x.png",
+      "size_px": [
+        48,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a pair of white sneakers with blue laces, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "poster_city": {
+      "image": "hires/items/poster_city@4x.png",
+      "size_px": [
+        63,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a framed poster of a night city skyline, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "poster_pets": {
+      "image": "hires/items/poster_pets@4x.png",
+      "size_px": [
+        63,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a framed poster with a cute cat and dog, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "poster_music": {
+      "image": "hires/items/poster_music@4x.png",
+      "size_px": [
+        63,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a framed poster with a guitar and music notes, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "plant_cactus": {
+      "image": "hires/items/plant_cactus@4x.png",
+      "size_px": [
+        45,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a small cactus in a terracotta pot, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "plant_flower": {
+      "image": "hires/items/plant_flower@4x.png",
+      "size_px": [
+        48,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a flowering plant with pink flowers in a pot, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "plant_floor": {
+      "image": "hires/items/plant_floor@4x.png",
+      "size_px": [
+        41,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a tall leafy floor plant in a large pot, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "light_bulb": {
+      "image": "hires/items/light_bulb@4x.png",
+      "size_px": [
+        44,
+        64
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a hanging warm light bulb on a cord, glowing, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "light_garland_short": {
+      "image": "hires/items/light_garland_short@4x.png",
+      "size_px": [
+        64,
+        58
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a short string of warm fairy lights garland, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    },
+    "light_garland_long": {
+      "image": "hires/items/light_garland_long@4x.png",
+      "size_px": [
+        64,
+        61
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, prompt «a long string of colorful fairy lights garland, wavy, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (28.09, tools/hires_generated.py)",
+      "status": "ready"
+    }
+  },
+  "room_objects": {
+    "_note": "Room objects you can tap (designer feedback 28.09, stages 2 and 4). Logical size in size_px, @4x. Where they stand: 'objects' in the stage slots file. tools/hires_generated.py room",
+    "door": {
+      "image": "hires/room/door@4x.png",
+      "size_px": [
+        68,
+        125
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 42, prompt «a closed wooden interior room door with a brass handle, warm brown wood panels, full height, straight front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, front view» (28.09, source assets/gen-sdxl/room/door, tools/hires_generated.py room, mirrored)",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "ready"
+    },
+    "dresser": {
+      "image": "hires/room/dresser@4x.png",
+      "size_px": [
+        47,
+        62
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, prompt «a small wooden chest of drawers with a cute pink piggy bank standing on top, front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, source assets/gen-sdxl/room/dresser, tools/hires_generated.py room)",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "ready"
+    },
+    "fridge": {
+      "image": "hires/room/fridge@4x.png",
+      "size_px": [
+        49,
+        62
+      ],
+      "source": "SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, prompt «a small retro refrigerator with its door wide open, three empty white shelves inside, cool interior light, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (28.09, source assets/gen-sdxl/room/fridge, tools/hires_generated.py room); bottles on the shelves painted out in the source by a hand-coded fill of the shelf colours, so the app puts the week's food there itself",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "ready"
+    }
+  },
+  "night_items": {
+    "_note": "PLACEHOLDER pictures generated the night of 29.09 for proposed content. Not in the game until the rules track adds the id to economy.json. Grid-snapped: 1 source cell = 1 logical px = 4 px at @4x, transparent background, 24 colours. tools/night_art.py",
+    "food_bread_tea": {
+      "image": "hires/night/items/food_bread_tea@4x.png",
+      "size_px": [
+        57,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a sandwich with butter and cheese and a cup of tea, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_bread_tea.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "food_oatmeal": {
+      "image": "hires/night/items/food_oatmeal@4x.png",
+      "size_px": [
+        58,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a bowl of oatmeal porridge with sliced banana and a few raisins, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_oatmeal.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "food_pasta": {
+      "image": "hires/night/items/food_pasta@4x.png",
+      "size_px": [
+        64,
+        61
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a plate of pasta with a sausage cut in slices and a little tomato sauce, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_pasta.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "food_omelet": {
+      "image": "hires/night/items/food_omelet@4x.png",
+      "size_px": [
+        64,
+        60
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a fluffy omelette with tomato and green pepper slices on a plate, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_omelet.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "food_icecream": {
+      "image": "hires/night/items/food_icecream@4x.png",
+      "size_px": [
+        31,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «two scoops of ice cream, one pink and one cream, in a waffle cone, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_icecream.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "food_sushi": {
+      "image": "hires/night/items/food_sushi@4x.png",
+      "size_px": [
+        64,
+        54
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 53, 768x768, prompt «one round plate with six sushi rolls and two salmon nigiri, close up, filling the picture, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no frame, no tray» (tools/night_art.py, source assets/gen-sdxl/night/food_sushi.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "poster_space": {
+      "image": "hires/night/items/poster_space@4x.png",
+      "size_px": [
+        44,
+        38
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a framed poster of a rocket flying among planets and stars, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (tools/night_art.py, source assets/gen-sdxl/night/poster_space.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "poster_sea": {
+      "image": "hires/night/items/poster_sea@4x.png",
+      "size_px": [
+        44,
+        39
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a framed poster of a sailing boat on the sea with a big sun, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (tools/night_art.py, source assets/gen-sdxl/night/poster_sea.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "poster_dino": {
+      "image": "hires/night/items/poster_dino@4x.png",
+      "size_px": [
+        37,
+        44
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 53, 768x768, prompt «a framed poster with a friendly green dinosaur, the frame alone, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, nothing beside the frame» (tools/night_art.py, source assets/gen-sdxl/night/poster_dino.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "plant_lemon": {
+      "image": "hires/night/items/plant_lemon@4x.png",
+      "size_px": [
+        57,
+        80
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 53, 768x768, prompt «a small lemon tree with yellow lemons in a large pot, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no table, no shelf, no floor» (tools/night_art.py, source assets/gen-sdxl/night/plant_lemon.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "plant_fern": {
+      "image": "hires/night/items/plant_fern@4x.png",
+      "size_px": [
+        38,
+        49
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 53, 768x768, prompt «a leafy green fern in a round ceramic pot, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no table, no shelf, no floor» (tools/night_art.py, source assets/gen-sdxl/night/plant_fern.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "light_lava": {
+      "image": "hires/night/items/light_lava@4x.png",
+      "size_px": [
+        20,
+        42
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 92, 768x768, prompt «a purple lava lamp with a tall glass capsule full of glowing orange wax blobs on a wide metal base, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window, no table, no shelf, no floor» (tools/night_art.py, source assets/gen-sdxl/night/light_lava.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "light_star": {
+      "image": "hires/night/items/light_star@4x.png",
+      "size_px": [
+        30,
+        32
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 92, 768x768, prompt «a cute star-shaped night lamp standing on a small round base, glowing warm yellow, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/light_star.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "decor_globe": {
+      "image": "hires/night/items/decor_globe@4x.png",
+      "size_px": [
+        24,
+        34
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 53, 768x768, prompt «a desk globe on a wooden stand, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no table, no shelf, no floor» (tools/night_art.py, source assets/gen-sdxl/night/decor_globe.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "decor_books": {
+      "image": "hires/night/items/decor_books@4x.png",
+      "size_px": [
+        26,
+        24
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a short stack of colourful books with a small mug on top, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window, no table, no shelf, no floor» (tools/night_art.py, source assets/gen-sdxl/night/decor_books.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "decor_rug": {
+      "image": "hires/night/items/decor_rug@4x.png",
+      "size_px": [
+        96,
+        48
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a round colourful braided rug with concentric rings of red, yellow and blue lying on the floor, seen at a slant so it looks like an oval, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/decor_rug.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "decor_bear": {
+      "image": "hires/night/items/decor_bear@4x.png",
+      "size_px": [
+        27,
+        34
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a soft brown teddy bear sitting, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object» (tools/night_art.py, source assets/gen-sdxl/night/decor_bear.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_tree": {
+      "image": "hires/night/city/city_tree@4x.png",
+      "size_px": [
+        35,
+        40
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a round leafy green tree with a brown trunk, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_tree.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_bench": {
+      "image": "hires/night/city/city_bench@4x.png",
+      "size_px": [
+        40,
+        32
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a wooden park bench with a small green bin beside it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_bench.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_fountain": {
+      "image": "hires/night/city/city_fountain@4x.png",
+      "size_px": [
+        55,
+        55
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a small round stone fountain with sparkling water, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_fountain.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_busstop": {
+      "image": "hires/night/city/city_busstop@4x.png",
+      "size_px": [
+        56,
+        51
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a bus stop shelter with a blue sign and a bench, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_busstop.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_kiosk": {
+      "image": "hires/night/city/city_kiosk@4x.png",
+      "size_px": [
+        37,
+        38
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a small ice cream kiosk with a red and white striped awning, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_kiosk.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "city_flowerbed": {
+      "image": "hires/night/city/city_flowerbed@4x.png",
+      "size_px": [
+        44,
+        37
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 74, 768x768, prompt «a square wooden flower bed full of red and yellow tulips, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, isometric three-quarter view, only one single object, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/city_flowerbed.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_desk": {
+      "image": "hires/night/room/room_desk@4x.png",
+      "size_px": [
+        41,
+        47
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 93, 768x768, prompt «a small wooden desk with a laptop and a desk lamp, side view, no wall behind, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_desk.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_bookshelf": {
+      "image": "hires/night/room/room_bookshelf@4x.png",
+      "size_px": [
+        95,
+        96
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 93, 768x768, prompt «a tall wooden bookshelf full of colourful books and a small plant, front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_bookshelf.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_armchair": {
+      "image": "hires/night/room/room_armchair@4x.png",
+      "size_px": [
+        39,
+        49
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 93, 768x768, prompt «a cozy red armchair with a striped blanket, front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_armchair.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_clock": {
+      "image": "hires/night/room/room_clock@4x.png",
+      "size_px": [
+        26,
+        26
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, 768x768, prompt «a round wall clock with a wooden frame, front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (tools/night_art.py, source assets/gen-sdxl/night/room_clock.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_toybox": {
+      "image": "hires/night/room/room_toybox@4x.png",
+      "size_px": [
+        33,
+        32
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 31, 768x768, prompt «an open wooden toy box with a ball, blocks and a toy car, front view, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body» (tools/night_art.py, source assets/gen-sdxl/night/room_toybox.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_receipt_check": {
+      "image": "hires/night/events/event_receipt_check@4x.png",
+      "size_px": [
+        59,
+        80
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 83, 768x768, prompt «a long white shop receipt with printed lines curling down, and a magnifying glass on top of it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_receipt_check.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_lemonade_stand": {
+      "image": "hires/night/events/event_lemonade_stand@4x.png",
+      "size_px": [
+        63,
+        80
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a small wooden lemonade stand with a striped awning, a jug of lemonade, cups and lemons, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_lemonade_stand.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_pizza_split": {
+      "image": "hires/night/events/event_pizza_split@4x.png",
+      "size_px": [
+        80,
+        75
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a whole pizza in an open box with four coins next to it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_pizza_split.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_compare_prices": {
+      "image": "hires/night/events/event_compare_prices@4x.png",
+      "size_px": [
+        67,
+        80
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 83, 768x768, prompt «two paper price tags hanging side by side, one showing a big number and one a smaller number, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_compare_prices.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_free_trial": {
+      "image": "hires/night/events/event_free_trial@4x.png",
+      "size_px": [
+        44,
+        41
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a smartphone showing a gift box and a small calendar with a circled date, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_free_trial.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_spare_change": {
+      "image": "hires/night/events/event_spare_change@4x.png",
+      "size_px": [
+        43,
+        40
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a pink piggy bank with a few coins falling into it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_spare_change.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_rain_umbrella": {
+      "image": "hires/night/events/event_rain_umbrella@4x.png",
+      "size_px": [
+        79,
+        76
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a bright yellow umbrella with rain drops falling on it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_rain_umbrella.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_pet_toy": {
+      "image": "hires/night/events/event_pet_toy@4x.png",
+      "size_px": [
+        61,
+        37
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «a red rubber ball and a rope toy on a small pet bed, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_pet_toy.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_lend_coins": {
+      "image": "hires/night/events/event_lend_coins@4x.png",
+      "size_px": [
+        60,
+        40
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «two hands passing one gold coin to each other, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_lend_coins.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "event_three_for_two": {
+      "image": "hires/night/events/event_three_for_two@4x.png",
+      "size_px": [
+        80,
+        59
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 81, 768x768, prompt «three packs of colourful stickers tied with a sale ribbon, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, only one single object group, nothing else in the picture, no frame» (tools/night_art.py, source assets/gen-sdxl/night/event_three_for_two.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_bed_village": {
+      "image": "hires/night/room/room_bed_village@4x.png",
+      "size_px": [
+        92,
+        98
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 95, 768x768, prompt «a thin old mattress lying directly on the floor with a green plaid blanket and a pillow, no bed frame, seen from the foot end, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_bed_village.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_bed_moscow": {
+      "image": "hires/night/room/room_bed_moscow@4x.png",
+      "size_px": [
+        92,
+        92
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a modern single bed with a soft grey headboard, a green checkered blanket and two pillows, long side facing the viewer, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_bed_moscow.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_desk_village": {
+      "image": "hires/night/room/room_desk_village@4x.png",
+      "size_px": [
+        63,
+        58
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a simple desk made of a wooden board on two wooden crates with a small wooden stool, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_desk_village.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_desk_moscow": {
+      "image": "hires/night/room/room_desk_moscow@4x.png",
+      "size_px": [
+        74,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a modern white desk with a black office chair and a small desk lamp, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_desk_moscow.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis. Second object (lamp on a stool) removed: biggest opaque part kept (tools/art2_fix.py).",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_piggy": {
+      "image": "hires/night/room/room_piggy@4x.png",
+      "size_px": [
+        19,
+        22
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a large pink ceramic piggy bank with a coin slot on its back, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_piggy.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_pet_corner": {
+      "image": "hires/night/room/room_pet_corner@4x.png",
+      "size_px": [
+        60,
+        60
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 95, 768x768, prompt «an empty round soft pet bed cushion and a small food bowl beside it, nothing inside the bed, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_pet_corner.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_cabinet": {
+      "image": "hires/night/room/room_cabinet@4x.png",
+      "size_px": [
+        41,
+        50
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a small wooden bedside cabinet with one drawer and a small door, empty top, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_cabinet.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "tech_laptop": {
+      "image": "hires/night/work/tech_laptop@4x.png",
+      "size_px": [
+        64,
+        54
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a simple grey laptop, open, with a plain blue screen, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/tech_laptop.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "tech_laptop_pro": {
+      "image": "hires/night/work/tech_laptop_pro@4x.png",
+      "size_px": [
+        64,
+        63
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 57, 768x768, prompt «an open dark silver laptop seen from the front at a slight angle, keyboard visible, glowing plain purple screen, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/tech_laptop_pro.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "transport_bike": {
+      "image": "hires/night/work/transport_bike@4x.png",
+      "size_px": [
+        64,
+        57
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a red city bicycle with a basket, side view, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/transport_bike.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "transport_scooter": {
+      "image": "hires/night/work/transport_scooter@4x.png",
+      "size_px": [
+        64,
+        60
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a blue kick scooter, side view, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/transport_scooter.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "transport_skateboard": {
+      "image": "hires/night/work/transport_skateboard@4x.png",
+      "size_px": [
+        64,
+        55
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 55, 768x768, prompt «one single green skateboard with yellow wheels lying flat, three-quarter view, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/transport_skateboard.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_cash_register": {
+      "image": "hires/night/work/work_cash_register@4x.png",
+      "size_px": [
+        64,
+        60
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 55, 768x768, prompt «a shop cash register with an open drawer with coins, blank display, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_cash_register.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_garden_tools": {
+      "image": "hires/night/work/work_garden_tools@4x.png",
+      "size_px": [
+        64,
+        56
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a watering can, a small shovel and a rake leaning together, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_garden_tools.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_courier_bag": {
+      "image": "hires/night/work/work_courier_bag@4x.png",
+      "size_px": [
+        64,
+        61
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a big yellow courier delivery backpack box, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_courier_bag.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_ledger": {
+      "image": "hires/night/work/work_ledger@4x.png",
+      "size_px": [
+        64,
+        63
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «an open ledger notebook with lines and a calculator and a pencil beside it, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_ledger.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_price_tags": {
+      "image": "hires/night/work/work_price_tags@4x.png",
+      "size_px": [
+        62,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 55, 768x768, prompt «two blank paper price tags hanging on strings, and a small shopping basket, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_price_tags.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "work_dog_leash": {
+      "image": "hires/night/work/work_dog_leash@4x.png",
+      "size_px": [
+        46,
+        64
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 51, 768x768, prompt «a red dog leash coiled with a dog treat bag, detailed pixel art icon, cozy modern indie game item sprite, soft shading, warm light, clean outline, plain light beige background, centered, single object, no numbers, no digits, no letters, blank screen» (tools/night_art.py, source assets/gen-sdxl/night/work_dog_leash.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_bed_town": {
+      "image": "hires/night/room/room_bed_town@4x.png",
+      "size_px": [
+        92,
+        92
+      ],
+      "source": "PLACEHOLDER (29.09 day): room_bed_moscow with the green blanket recoloured orange (tools/art2_fix.py); three SDXL tries for a town bed drew it top-down on a floor tile. Moscow source: PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a modern single bed with a soft grey headboard, a green checkered blanket and two pillows, long side facing the viewer, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_bed_moscow.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis.",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    },
+    "room_desk_town": {
+      "image": "hires/night/room/room_desk_town@4x.png",
+      "size_px": [
+        35,
+        62
+      ],
+      "source": "PLACEHOLDER (night 29.09): SDXL base 1.0 + pixel-art-xl LoRA 0.6, seed 91, 768x768, prompt «a wooden desk with a wooden chair and a small desk lamp, detailed pixel art, cozy modern indie game sprite, soft shading, warm light, clean outline, plain light beige background, centered, single subject, full body, three-quarter view from slightly above, only one single object, isolated, no wall, no floor, no window» (tools/night_art.py, source assets/gen-sdxl/night/room_desk_town.png), grid-snapped to 1 cell = 1 logical px, 24 colours, transparent background. Final asset comes from Denis. Second object (lamp on a stool) removed: biggest opaque part kept (tools/art2_fix.py).",
+      "licence": "SDXL base 1.0: CreativeML Open RAIL++-M; Pixel Art XL LoRA: CreativeML Open RAIL-M (docs/sdacha/12-storonnie-komponenty.md)",
+      "status": "placeholder"
+    }
+  },
+  "finni_walk": {
+    "_note": "PLACEHOLDER walk frames per look (night 29.09): tag walk-<look>. Not in `finni` so lists over all species keep working. tools/finni_walk_night.py",
+    "finni-a1": {
+      "sheet": "hires/night/finni/finni-a1_walk@4x.png",
+      "data": "hires/night/finni/finni-a1_walk@4x.json",
+      "frame_px": [
+        86,
+        117
+      ],
+      "tags": [
+        "walk-1",
+        "walk-2",
+        "walk-3",
+        "walk-4"
+      ],
+      "source": "PLACEHOLDER (night 29.09): walk-1 = the real walk of look 1 from the ChatGPT uploads; other looks derived in code from the standing picture (tools/finni_walk_night.py); final walk frames come from Denis",
+      "status": "placeholder"
+    },
+    "finni-a2": {
+      "sheet": "hires/night/finni/finni-a2_walk@4x.png",
+      "data": "hires/night/finni/finni-a2_walk@4x.json",
+      "frame_px": [
+        88,
+        117
+      ],
+      "tags": [
+        "walk-1",
+        "walk-2",
+        "walk-3",
+        "walk-4"
+      ],
+      "source": "PLACEHOLDER (night 29.09): walk-1 = the real walk of look 1 from the ChatGPT uploads; other looks derived in code from the standing picture (tools/finni_walk_night.py); final walk frames come from Denis",
+      "status": "placeholder"
+    },
+    "finni-a3": {
+      "sheet": "hires/night/finni/finni-a3_walk@4x.png",
+      "data": "hires/night/finni/finni-a3_walk@4x.json",
+      "frame_px": [
+        70,
+        101
+      ],
+      "tags": [
+        "walk-1",
+        "walk-2",
+        "walk-3",
+        "walk-4"
+      ],
+      "source": "PLACEHOLDER (night 29.09): other looks derived in code from the standing picture (tools/finni_walk_night.py); final walk frames come from Denis",
+      "status": "placeholder"
+    }
+  },
+  "job_pictures": {
+    "_note": "Картинка работы на доске смен (S6): id работы из economy.json → id предмета в items / night_items. Placeholder SDXL 29.09 (tools/night_art.py, ART2_WORK), финал — от Дениса.",
+    "cashier": "work_cash_register",
+    "consultant": "work_price_tags",
+    "accountant": "work_ledger",
+    "gardener": "work_garden_tools",
+    "programmer": "tech_laptop",
+    "courier": "work_courier_bag",
+    "dog_walker": "work_dog_leash"
+  }
+}

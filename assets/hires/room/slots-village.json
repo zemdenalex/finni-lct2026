@@ -1,0 +1,107 @@
+{
+  "_note": "Logical px of room-village@3x.png (source px / 3). Point = bottom-centre. Upload #30 left half. edge_* = colours of the side margins when the screen is wider than the room.",
+  "size": [
+    209,
+    371
+  ],
+  "floor_y": 226,
+  "edge_wall": "#b08a6a",
+  "edge_floor": "#7a4430",
+  "slots": {
+    "finni": {
+      "x": 100,
+      "y": 300,
+      "note": "feet on the floor"
+    },
+    "pet_bed": {
+      "x": 40,
+      "y": 248,
+      "note": "sleeping pet on the bed / mattress"
+    },
+    "pet_floor": {
+      "x": 28,
+      "y": 300,
+      "note": "pet in the left front corner when awake (stage 4: was 165 by the right wall, where the fridge stands now)"
+    },
+    "item_sill": {
+      "x": 142,
+      "y": 184,
+      "note": "small purchased item on the window sill"
+    },
+    "decor_wall": {
+      "x": 181,
+      "y": 170,
+      "note": "bought poster on the empty right wall"
+    },
+    "decor_floor": {
+      "x": 148,
+      "y": 238,
+      "note": "tall floor plant under the window's right corner, clear of the chest of drawers (stage 2; was 185 in front of the boxes)"
+    },
+    "decor_ceiling": {
+      "x": 100,
+      "y": 172,
+      "note": "fairy lights / bulb hanging over the window glass (the ceiling is cropped on screen)"
+    }
+  },
+  "taps": {
+    "bed": {
+      "x": 0,
+      "y": 206,
+      "w": 80,
+      "h": 64,
+      "note": "mattress"
+    }
+  },
+  "_taps_note": "Tap zones {x,y,w,h} in logical px (designer feedback 28.09, stage 2); the app grows each to at least 48 dp around its centre.",
+  "objects": {
+    "door": {
+      "side": "left",
+      "order": 0,
+      "bottom": 227,
+      "limit": 50,
+      "note": "stands on the floor line at the LEFT edge of the scene: fully in the side margin when the screen is wide, otherwise pushed into the room (behind the 'front' layer) but never right of 'limit' (the window / wall edge). Size: registry room_objects.door"
+    },
+    "dresser": {
+      "side": "right",
+      "order": 1,
+      "bottom": 228,
+      "limit": 161,
+      "note": "village has no piggy bank in the art: chest of drawers with one, against the right wall, between the room and the fridge; behind the moving boxes when pushed in. Never left of 'limit' (the window)."
+    },
+    "fridge": {
+      "side": "right",
+      "order": 0,
+      "bottom": 318,
+      "limit": 146,
+      "note": "Stage 4 (fridge = visible food stock, designer feedback 28.09 p. 7). The village back wall has no room left (window, dresser, Finni), so the fridge stands in the FRONT right corner on the floor (bottom 318, its own row), clear of Finni; the awake pet moved to the left front corner for it. Never left of 'limit' (Finni's frame).",
+      "shelves": [
+        {
+          "x": 10.0,
+          "y": 11.0,
+          "w": 22.5,
+          "h": 10.0
+        },
+        {
+          "x": 10.0,
+          "y": 23.0,
+          "w": 22.5,
+          "h": 10.0
+        },
+        {
+          "x": 10.0,
+          "y": 34.5,
+          "w": 22.5,
+          "h": 9.5
+        },
+        {
+          "x": 10.0,
+          "y": 46.0,
+          "w": 22.5,
+          "h": 8.0
+        }
+      ],
+      "_shelves_note": "Food compartments of the open fridge, {x,y,w,h} in logical px of the sprite (registry room_objects.fridge, 49 x 62), top to bottom; the bottom edge is the shelf the food stands on. From assets/gen-sdxl/room/fridge.png: interior x 322..630, shelves y 400/560/716, floor 852 (source px; the cut starts at 183,111, 1 source px = 62/850)."
+    }
+  }
+}

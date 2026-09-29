@@ -1,0 +1,94 @@
+{
+ "frames": [
+  {
+   "filename": "axolotl_sheet@8x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "sourceSize": {
+    "w": 480,
+    "h": 446
+   },
+   "duration": 700
+  },
+  {
+   "filename": "axolotl_sheet@8x 1",
+   "frame": {
+    "x": 480,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "sourceSize": {
+    "w": 480,
+    "h": 446
+   },
+   "duration": 700
+  },
+  {
+   "filename": "axolotl_sheet@8x 2",
+   "frame": {
+    "x": 960,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 480,
+    "h": 446
+   },
+   "sourceSize": {
+    "w": 480,
+    "h": 446
+   },
+   "duration": 800
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "axolotl_sheet@8x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1440,
+   "h": 446
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wake",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

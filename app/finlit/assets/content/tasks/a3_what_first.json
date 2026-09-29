@@ -1,0 +1,49 @@
+{
+  "id": "a3_what_first",
+  "topic": "budget",
+  "kind": "orderAndBuy",
+  "title": "Что сначала?",
+  "prompt": "У тебя {budget:монетки}, а покупок пять. Расставь их по очереди — что купить сначала.",
+  "reward": 3,
+  "money": [
+    "budget"
+  ],
+  "params": {
+    "budget": 6,
+    "items": [
+      "porridge",
+      "water",
+      "ball",
+      "stickers",
+      "veggies"
+    ]
+  },
+  "explainAny": "Монетки закончились раньше, чем список, — так бывает всегда. Поэтому важно решить, что идёт первым.",
+  "explainBest": "Еда и вода у тебя впереди — Финни сыт, а игрушка подождёт до следующей недели.",
+  "variants": [
+    {
+      "params": {
+        "budget": 5,
+        "items": [
+          "cake",
+          "water",
+          "stickers",
+          "porridge",
+          "bath"
+        ]
+      }
+    },
+    {
+      "params": {
+        "budget": 7,
+        "items": [
+          "hat",
+          "veggies",
+          "ball",
+          "water",
+          "porridge"
+        ]
+      }
+    }
+  ]
+}

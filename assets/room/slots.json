@@ -1,0 +1,28 @@
+{
+  "size": [
+    272,
+    168
+  ],
+  "slots": {
+    "finni": {
+      "x": 138,
+      "y": 160,
+      "note": "stands on the rug"
+    },
+    "pet_bed": {
+      "x": 227,
+      "y": 90,
+      "note": "sleeping pet on the blanket"
+    },
+    "pet_floor": {
+      "x": 85,
+      "y": 156,
+      "note": "pet by the desk when awake"
+    },
+    "item_sill": {
+      "x": 136,
+      "y": 92,
+      "note": "small purchased item on the window sill"
+    }
+  }
+}

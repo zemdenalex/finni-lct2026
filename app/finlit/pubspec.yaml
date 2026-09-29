@@ -1,0 +1,100 @@
+name: finlit
+description: "Финни — игровой сервис финансовой грамотности для детей 7–11 лет."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Русские подписи системных элементов: «Назад», «Закрыть» и прочее, что
+  # TalkBack зачитывает у стрелки в шапке и у листов. Без этого пакета они
+  # звучали по-английски. Часть SDK, внешней зависимости не добавляет.
+  flutter_localizations:
+    sdk: flutter
+  provider: ^6.1.2
+  path_provider: ^2.1.4
+  # Озвучка ключевых объяснений. Использует системный синтезатор Android,
+  # то есть работает офлайн, если в системе стоит русский голос; если не стоит,
+  # приложение просто не предлагает озвучку — см. lib/core/speaker.dart.
+  flutter_tts: ^4.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # Замер кадров и отклика на устройстве (§3.4). Тесты лежат в
+  # integration_test/ и в обычный `flutter test` не попадают — запускаются
+  # только через `flutter drive`, см. docs/proizvoditelnost.md.
+  integration_test:
+    sdk: flutter
+  # Хостовая половина того же замера: сводку кадров умеет считать только
+  # flutter_driver, и запускается он на машине, а не на устройстве.
+  flutter_driver:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/content/
+    - assets/content/tasks/
+    # Арт нового мира: копия assets/ по реестру (tools/sync_app_art.py).
+    - assets/art/
+    - assets/art/city/d045/
+    - assets/art/city/d072/
+    - assets/art/finni/
+    - assets/art/finni/gpt/
+    - assets/art/pets/
+    - assets/art/room/
+    - assets/art/hires/city/
+    - assets/art/hires/finni/
+    - assets/art/hires/items/
+    - assets/art/hires/pets/
+    - assets/art/hires/room/
+    # Временные (placeholder) картинки ночи 29.09: tools/night_art.py, tools/finni_walk_night.py
+    - assets/art/hires/night/items/
+    - assets/art/hires/night/city/
+    - assets/art/hires/night/room/
+    - assets/art/hires/night/finni/
+    - assets/art/hires/night/events/
+    - assets/art/hires/night/work/
+    # Контент нового мира (копия content/*.json из корня репозитория). Папки в
+    # assets не рекурсивны, поэтому world/ указана отдельно. Копию сверяет
+    # test/world_content_test.dart.
+    - assets/content/world/
+    # Тексты OFL едут в сборке, а не только в репозитории: лицензия требует
+    # распространять её вместе со шрифтом. Показываются на экране лицензий.
+    - assets/fonts/OFL-Onest.txt
+    - assets/fonts/OFL-Unbounded.txt
+
+  # Onest, SIL OFL 1.1 — лицензия лежит рядом с файлами (assets/fonts/OFL-Onest.txt).
+  # Выбран по проверке самих глифов, а не по каталогу: у большинства «мягких»
+  # шрифтов либо нет кириллицы вовсе (Baloo, Fredoka, Lexend, Atkinson), либо
+  # нет знака рубля, либо в прямом начертании стоят курсивные «д» и «т» —
+  # ребёнок 7 лет прочитает «дом» как «gом». Здесь 66 из 66 русских букв и ₽.
+  # Начертания статические: вариативную ось пришлось бы задавать в каждом
+  # TextStyle, и первый же забытый — это разнобой на экране.
+  fonts:
+    - family: Onest
+      fonts:
+        - asset: assets/fonts/Onest-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Onest-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Onest-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Onest-ExtraBold.ttf
+          weight: 800
+    # Unbounded, SIL OFL 1.1 (assets/fonts/OFL-Unbounded.txt) — только числа
+    # и короткие заголовки. Проверен так же, как Onest: по cmap все 66 русских
+    # букв и ₽, «д/т/и» в прямом начертании прямые. Вариативный файл разрезан
+    # на два статических начертания и урезан до латиницы, кириллицы, цифр
+    # и пунктуации — 68 КБ на начертание вместо 400.
+    - family: Unbounded
+      fonts:
+        - asset: assets/fonts/Unbounded-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Unbounded-ExtraBold.ttf
+          weight: 800

@@ -1,0 +1,107 @@
+{
+  "_note": "Logical px of room-moscow@3x.png (source px / 3). Point = bottom-centre. Upload #31 right half. edge_* = colours of the side margins when the screen is wider than the room.",
+  "size": [
+    209,
+    371
+  ],
+  "floor_y": 222,
+  "edge_wall": "#a8805f",
+  "edge_floor": "#6e3c30",
+  "slots": {
+    "finni": {
+      "x": 108,
+      "y": 290,
+      "note": "feet on the floor"
+    },
+    "pet_bed": {
+      "x": 32,
+      "y": 212,
+      "note": "sleeping pet on the bed / mattress"
+    },
+    "pet_floor": {
+      "x": 165,
+      "y": 302,
+      "note": "pet by the desk when awake; y 302 (stage 4, was 282) so a tall pet (dog 73) stands in front of the fridge, not over its shelves"
+    },
+    "item_sill": {
+      "x": 136,
+      "y": 182,
+      "note": "small purchased item on the window sill"
+    },
+    "decor_wall": {
+      "x": 37,
+      "y": 164,
+      "note": "bought poster over the painted one"
+    },
+    "decor_floor": {
+      "x": 80,
+      "y": 226,
+      "note": "tall floor plant by the bed foot"
+    },
+    "decor_ceiling": {
+      "x": 102,
+      "y": 172,
+      "note": "fairy lights / bulb hanging over the window glass (the ceiling is cropped on screen)"
+    }
+  },
+  "taps": {
+    "bed": {
+      "x": 0,
+      "y": 174,
+      "w": 65,
+      "h": 86,
+      "note": "bed"
+    },
+    "piggy": {
+      "x": 162,
+      "y": 116,
+      "w": 26,
+      "h": 20,
+      "note": "pink piggy bank on the bookshelf (in the art)"
+    }
+  },
+  "_taps_note": "Tap zones {x,y,w,h} in logical px (designer feedback 28.09, stage 2); the app grows each to at least 48 dp around its centre.",
+  "objects": {
+    "door": {
+      "side": "left",
+      "order": 0,
+      "bottom": 227,
+      "limit": 61,
+      "note": "stands on the floor line at the LEFT edge of the scene: fully in the side margin when the screen is wide, otherwise pushed into the room (behind the 'front' layer) but never right of 'limit' (the window / wall edge). Size: registry room_objects.door"
+    },
+    "fridge": {
+      "side": "right",
+      "order": 0,
+      "bottom": 228,
+      "limit": 154,
+      "note": "Stage 4 (fridge = visible food stock, designer feedback 28.09 p. 7). Against the right wall: in the side margin on wide screens, over the desk on narrow ones; never left of 'limit' (Finni's frame, x 108). The awake pet stands at y 302, in front of it.",
+      "shelves": [
+        {
+          "x": 10.0,
+          "y": 11.0,
+          "w": 22.5,
+          "h": 10.0
+        },
+        {
+          "x": 10.0,
+          "y": 23.0,
+          "w": 22.5,
+          "h": 10.0
+        },
+        {
+          "x": 10.0,
+          "y": 34.5,
+          "w": 22.5,
+          "h": 9.5
+        },
+        {
+          "x": 10.0,
+          "y": 46.0,
+          "w": 22.5,
+          "h": 8.0
+        }
+      ],
+      "_shelves_note": "Food compartments of the open fridge, {x,y,w,h} in logical px of the sprite (registry room_objects.fridge, 49 x 62), top to bottom; the bottom edge is the shelf the food stands on. From assets/gen-sdxl/room/fridge.png: interior x 322..630, shelves y 400/560/716, floor 852 (source px; the cut starts at 183,111, 1 source px = 62/850)."
+    }
+  }
+}

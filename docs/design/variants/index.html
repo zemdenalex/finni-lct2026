@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Финни — три вида</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&family=Unbounded:wght@700&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+:root{--bg:#151833;--panel:#1F2344;--raised:#2B3060;--line:#454B82;--text:#F5F2EA;--soft:#C3C7E4;--gold:#F4C542;--ok:#4FD1A5;--bad:#FF8C7A}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font:17px/1.5 'Onest',system-ui,sans-serif;padding:24px 16px 48px}
+main{max-width:1180px;margin:0 auto}
+h1{font:700 26px/1.2 'Unbounded',sans-serif;margin-bottom:8px}
+h2{font:700 19px/1.3 'Unbounded',sans-serif;margin:0 0 6px}
+p.lead{color:var(--soft);max-width:760px;margin-bottom:24px}
+.v{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:20px}
+.v.pick{border-color:var(--gold)}
+.badge{display:inline-block;font-size:13px;font-weight:800;padding:2px 8px;border-radius:6px;background:#4A4232;color:var(--gold);margin-left:8px;vertical-align:middle}
+.shots{display:flex;gap:14px;align-items:flex-start;margin:12px 0}
+.shots img{border-radius:10px;border:1px solid var(--line);display:block}
+.shots .l{flex:800 1 0;min-width:0}.shots .l img{width:100%}
+.shots .p{flex:170 1 0;min-width:0}.shots .p img{width:100%}
+ul{padding-left:20px;color:var(--soft)}li{margin:2px 0}
+li b.ok{color:var(--ok)}li b.bad{color:var(--bad)}
+a{color:var(--gold)}
+@media (max-width:640px){.shots{flex-direction:column}.shots .p{max-width:220px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Финни — один экран в трёх видах</h1>
+<p class="lead">Комната, ресурсы, конверты и магазин — одни и те же данные, одна раскладка. Меняется только вид мира и интерфейса.
+Альбомная 800×360 — основная, портрет 360×800 обязан работать (ТЗ §3.1). Открыть живой экран:
+<a href="src/screen.html?v=a">A</a> · <a href="src/screen.html?v=b">B</a> · <a href="src/screen.html?v=c">C</a> (размер окна задаёт ориентацию).</p>
+
+<section class="v pick">
+<h2>A — пиксель мира высокого разрешения, гладкий интерфейс <span class="badge">принят</span></h2>
+<div class="shots"><div class="l"><img src="a-land.png" alt="Вариант A, альбомная"></div><div class="p"><img src="a-port.png" alt="Вариант A, портрет"></div></div>
+<ul>
+<li><b class="ok">+</b> Мир «как в современных инди-играх»: пиксель мелкий, глазам не тяжело</li>
+<li><b class="ok">+</b> Текст и числа — гладкие Onest и Unbounded: читаются с первого взгляда, 66/66 русских букв и ₽</li>
+<li><b class="ok">+</b> Тёмная панель отделяет интерфейс от пёстрой сцены — текст никогда не лежит на картинке</li>
+<li><b class="bad">−</b> Два языка графики нужно держать в согласии: правила в <code>docs/design-system.md</code></li>
+</ul>
+</section>
+
+<section class="v">
+<h2>B — всё гладкое</h2>
+<div class="shots"><div class="l"><img src="b-land.png" alt="Вариант B, альбомная"></div><div class="p"><img src="b-port.png" alt="Вариант B, портрет"></div></div>
+<ul>
+<li><b class="ok">+</b> Самый «мультяшный» и мягкий, ближе к макету Алины с объёмным Финни</li>
+<li><b class="bad">−</b> Похож на сотни мобильных игр — теряется характер</li>
+<li><b class="bad">−</b> Каждый предмет и каждая стадия дома нужны в новой отрисовке: готового гладкого арта у команды нет</li>
+</ul>
+</section>
+
+<section class="v">
+<h2>C — всё пиксельное</h2>
+<div class="shots"><div class="l"><img src="c-land.png" alt="Вариант C, альбомная"></div><div class="p"><img src="c-port.png" alt="Вариант C, портрет"></div></div>
+<ul>
+<li><b class="ok">+</b> Цельный ретро-стиль, одна графика на всё</li>
+<li><b class="bad">−</b> Крупный пиксель на телефоне утомляет глаза — то, от чего команда ушла 28.09</li>
+<li><b class="bad">−</b> Пиксельный шрифт мелкий и широкий: фраза рвётся на строки, при ×1,3 не влезает. Первый проверенный шрифт (Pixelify Sans) путал «С» с «О» и «2» с «8» — в игре про деньги это недопустимо; здесь Press Start 2P</li>
+</ul>
+</section>
+
+<p class="lead">Арт: мир и питомцы — генерации команды (ChatGPT, 27.09); гладкие B — локальная SDXL base 1.0 без LoRA. Шрифты — Google Fonts (SIL OFL).
+Демо-экраны собраны HTML-макетом для сравнения; в приложении реализован вариант A.</p>
+</main>
+</body>
+</html>

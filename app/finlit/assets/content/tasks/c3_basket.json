@@ -1,0 +1,49 @@
+{
+  "id": "c3_basket",
+  "topic": "payments",
+  "kind": "orderAndBuy",
+  "title": "Собери корзину",
+  "prompt": "У тебя {budget:монетки}. Расставь покупки по очереди и посмотри, на что хватит.",
+  "reward": 3,
+  "money": [
+    "budget"
+  ],
+  "params": {
+    "budget": 5,
+    "items": [
+      "veggies",
+      "bath",
+      "book",
+      "stickers",
+      "cake"
+    ]
+  },
+  "explainAny": "Монетки потрачены в твоём порядке. То, что осталось внизу списка, можно купить на следующей неделе — это не ошибка.",
+  "explainBest": "Получилось уложиться и ещё оставить монетки — их можно положить в копилку.",
+  "variants": [
+    {
+      "params": {
+        "budget": 6,
+        "items": [
+          "porridge",
+          "hat",
+          "water",
+          "ball",
+          "book"
+        ]
+      }
+    },
+    {
+      "params": {
+        "budget": 4,
+        "items": [
+          "cake",
+          "bath",
+          "stickers",
+          "water",
+          "ball"
+        ]
+      }
+    }
+  ]
+}

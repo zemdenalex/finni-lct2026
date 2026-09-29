@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Заставка до первого кадра Flutter: фон приложения и бельчонок по центру.
+  🔴 Цвет тот же, что у экрана загрузки (AppColors.paper), иначе между
+  заставкой и приложением мигает белый или, в ночном режиме, тёмный кадр.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_paper" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:gravity="center">
+        <bitmap
+            android:gravity="fill"
+            android:src="@mipmap/ic_launcher_foreground" />
+    </item>
+</layer-list>

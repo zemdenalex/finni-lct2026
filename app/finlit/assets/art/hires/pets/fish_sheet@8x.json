@@ -1,0 +1,94 @@
+{
+ "frames": [
+  {
+   "filename": "fish_sheet@8x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 399
+   },
+   "duration": 700
+  },
+  {
+   "filename": "fish_sheet@8x 1",
+   "frame": {
+    "x": 352,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 399
+   },
+   "duration": 700
+  },
+  {
+   "filename": "fish_sheet@8x 2",
+   "frame": {
+    "x": 704,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 399
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 399
+   },
+   "duration": 800
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "fish_sheet@8x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1056,
+   "h": 399
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wake",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

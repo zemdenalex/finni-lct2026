@@ -1,0 +1,94 @@
+{
+ "frames": [
+  {
+   "filename": "hamster_sheet@8x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 421
+   },
+   "duration": 700
+  },
+  {
+   "filename": "hamster_sheet@8x 1",
+   "frame": {
+    "x": 352,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 421
+   },
+   "duration": 700
+  },
+  {
+   "filename": "hamster_sheet@8x 2",
+   "frame": {
+    "x": 704,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 352,
+    "h": 421
+   },
+   "sourceSize": {
+    "w": 352,
+    "h": 421
+   },
+   "duration": 800
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "hamster_sheet@8x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1056,
+   "h": 421
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wake",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

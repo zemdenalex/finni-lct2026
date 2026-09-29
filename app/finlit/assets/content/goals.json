@@ -1,0 +1,35 @@
+{
+  "_": "Цели накопления. Одна из трёх - впечатление, а не вещь: Common Sense Media снизила оценку Star Banks Adventure до 2 из 5 за посыл 'успех это накопить на вещь'.",
+  "goals": [
+    {
+      "id": "zoo",
+      "title": "Поход в зоопарк с Финни",
+      "price": 20,
+      "isExperience": true,
+      "icon": "zoo"
+    },
+    {
+      "id": "house",
+      "title": "Домик для Финни",
+      "price": 30,
+      "isExperience": false,
+      "icon": "house"
+    },
+    {
+      "id": "scooter",
+      "title": "Самокат",
+      "price": 40,
+      "isExperience": false,
+      "icon": "scooter"
+    }
+  ],
+  "customOptions": {
+    "titles": [
+      "Поход в кино с Финни",
+      "Новый мяч",
+      "День рождения Финни",
+      "Набор для рисования"
+    ],
+    "prices": [15, 25, 35]
+  }
+}

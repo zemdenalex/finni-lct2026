@@ -1,0 +1,322 @@
+{
+ "frames": [
+  {
+   "filename": "finni-a2_sheet@4x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 1",
+   "frame": {
+    "x": 354,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 2",
+   "frame": {
+    "x": 708,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 3",
+   "frame": {
+    "x": 1062,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 4",
+   "frame": {
+    "x": 1416,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 5",
+   "frame": {
+    "x": 1770,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 6",
+   "frame": {
+    "x": 0,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 7",
+   "frame": {
+    "x": 354,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 500
+  },
+  {
+   "filename": "finni-a2_sheet@4x 8",
+   "frame": {
+    "x": 708,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 900
+  },
+  {
+   "filename": "finni-a2_sheet@4x 9",
+   "frame": {
+    "x": 1062,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 220
+  },
+  {
+   "filename": "finni-a2_sheet@4x 10",
+   "frame": {
+    "x": 1416,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 220
+  },
+  {
+   "filename": "finni-a2_sheet@4x 11",
+   "frame": {
+    "x": 1770,
+    "y": 468,
+    "w": 354,
+    "h": 468
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 354,
+    "h": 468
+   },
+   "sourceSize": {
+    "w": 354,
+    "h": 468
+   },
+   "duration": 600
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "finni-a2_sheet@4x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 2124,
+   "h": 936
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "idle-1",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "idle-2",
+    "from": 2,
+    "to": 3,
+    "direction": "pingpong"
+   },
+   {
+    "name": "idle-3",
+    "from": 4,
+    "to": 5,
+    "direction": "pingpong"
+   },
+   {
+    "name": "idle-4",
+    "from": 6,
+    "to": 7,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wave",
+    "from": 8,
+    "to": 8,
+    "direction": "forward"
+   },
+   {
+    "name": "walk",
+    "from": 9,
+    "to": 10,
+    "direction": "forward"
+   },
+   {
+    "name": "jump",
+    "from": 11,
+    "to": 11,
+    "direction": "forward"
+   }
+  ]
+ }
+}

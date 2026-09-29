@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Фон адаптивной иконки: небо сцены, как в приложении. Сплошной
+         цвет, а не градиент: под маской градиент всё равно срезается, а
+         сплошной цвет одинаково выглядит на круге, квадрате и squircle. -->
+    <color name="ic_launcher_background">#151833</color>
+    <!-- Фон заставки — AppColors.paper. -->
+    <color name="launch_paper">#EFF4EC</color>
+</resources>

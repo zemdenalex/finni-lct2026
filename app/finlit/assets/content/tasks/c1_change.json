@@ -1,0 +1,39 @@
+{
+  "id": "c1_change",
+  "topic": "payments",
+  "kind": "numericInput",
+  "title": "Сдача",
+  "prompt": "Еда стоит {spent:монетки}, а продавцу ты даёшь {given}. Сколько монеток тебе вернут?",
+  "reward": 2,
+  "_": "Здесь ответ — монетки, поэтому он в money и растёт вместе с ценами.",
+  "money": [
+    "spent",
+    "given",
+    "answer"
+  ],
+  "params": {
+    "spent": 7,
+    "given": 10,
+    "answer": 3,
+    "workings": "{given} − {spent} = {answer:монетки}.",
+    "unit": "монеток"
+  },
+  "explainAny": "Сдача — это то, что возвращают, если дать больше, чем стоит покупка. {given} − {spent} = {answer}.",
+  "explainBest": "Сдачу всегда стоит пересчитать сразу — потом доказать ошибку уже трудно.",
+  "variants": [
+    {
+      "params": {
+        "spent": 6,
+        "given": 10,
+        "answer": 4
+      }
+    },
+    {
+      "params": {
+        "spent": 12,
+        "given": 20,
+        "answer": 8
+      }
+    }
+  ]
+}

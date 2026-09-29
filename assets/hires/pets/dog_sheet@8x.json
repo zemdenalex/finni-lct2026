@@ -1,0 +1,94 @@
+{
+ "frames": [
+  {
+   "filename": "dog_sheet@8x 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "sourceSize": {
+    "w": 400,
+    "h": 585
+   },
+   "duration": 700
+  },
+  {
+   "filename": "dog_sheet@8x 1",
+   "frame": {
+    "x": 400,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "sourceSize": {
+    "w": 400,
+    "h": 585
+   },
+   "duration": 700
+  },
+  {
+   "filename": "dog_sheet@8x 2",
+   "frame": {
+    "x": 800,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 400,
+    "h": 585
+   },
+   "sourceSize": {
+    "w": 400,
+    "h": 585
+   },
+   "duration": 800
+  }
+ ],
+ "meta": {
+  "app": "tools/hires_art.py",
+  "image": "dog_sheet@8x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1200,
+   "h": 585
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "sleep",
+    "from": 0,
+    "to": 1,
+    "direction": "pingpong"
+   },
+   {
+    "name": "wake",
+    "from": 2,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

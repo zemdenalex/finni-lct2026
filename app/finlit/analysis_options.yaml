@@ -1,0 +1,26 @@
+include: package:flutter_lints/flutter.yaml
+
+# Strict language modes — the Dart counterpart of the project-wide "no `any` in
+# TypeScript" rule. Turned on from the first commit on purpose: switching them on
+# on day 10 means a hundred errors in generated code and switching them straight
+# back off.
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    avoid_dynamic_calls: error
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - prefer_final_locals
+    - prefer_single_quotes
+    - unawaited_futures

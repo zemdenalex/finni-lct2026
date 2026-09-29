@@ -1,0 +1,194 @@
+{
+ "_note": "Одна раскладка комнаты на все три стадии (Денис 29.09: комната может стать главным меню — касание предмета открывает его экран, поэтому предметы на одних и тех же местах). Схема команды: камера спереди смотрит на заднюю стену. Кадр — вся картинка фона любого соотношения (сейчас квадрат 1024×1024, решение Дениса 1075): x и w — доли её ширины, y и h — доли высоты; x, y — левый верхний угол. Размер мира — size_px фона в реестре (Финни 114 px ≈ 0,31 высоты). Те же числа — в строке раскладки docs/prompty-komnaty-gpt.txt. Масштаб постоянный: комната по высоте сцены; шире экрана — камера ведёт её за Финни (camera). Читает lib/features/world/home/room_layout.dart; копия — app/finlit/assets/content/world/room_layout.json.",
+ "version": 1,
+ "floor_y": 0.5,
+ "_floor_y_note": "Низ задней стены: пол — нижняя половина кадра (схема вида спереди docs/prompts/refs/raskladka-komnaty-vid-speredi.png в репозитории).",
+ "slots": {
+  "door": {
+   "x": 0.14,
+   "y": 0.14,
+   "w": 0.12,
+   "h": 0.32,
+   "action": "city"
+  },
+  "bedside_cabinet": {
+   "x": 0.31,
+   "y": 0.36,
+   "w": 0.11,
+   "h": 0.14,
+   "action": "piggy",
+   "_note": "Тумба под копилкой: касание — тоже копилка."
+  },
+  "piggy": {
+   "x": 0.33,
+   "y": 0.29,
+   "w": 0.07,
+   "h": 0.07,
+   "action": "piggy",
+   "priority": 1,
+   "overlaps": [
+    "bedside_cabinet"
+   ],
+   "_note": "Копилка на тумбе: её касание главнее тумбы (priority)."
+  },
+  "window": {
+   "x": 0.46,
+   "y": 0.12,
+   "w": 0.26,
+   "h": 0.24
+  },
+  "fridge": {
+   "x": 0.76,
+   "y": 0.14,
+   "w": 0.11,
+   "h": 0.32,
+   "action": "food"
+  },
+  "bed": {
+   "x": 0.0,
+   "y": 0.64,
+   "w": 0.3,
+   "h": 0.3,
+   "action": "sleep",
+   "_note": "Передний план слева, срезан краем кадра (Денис 1050): рисуется поверх Финни, когда он за ней (сортировка по y ног)."
+  },
+  "desk_chair": {
+   "x": 0.7,
+   "y": 0.62,
+   "w": 0.3,
+   "h": 0.32,
+   "action": "jobs",
+   "_note": "Передний план справа, срезан краем кадра (Денис 1050). Стол — работа: доска смен. Рисуется поверх Финни, когда он за ним."
+  },
+  "pet_corner": {
+   "x": 0.08,
+   "y": 0.5,
+   "w": 0.2,
+   "h": 0.1,
+   "_note": "У левой стены между кроватью и дверью (Денис 1050). Касание — по самому питомцу."
+  }
+ },
+ "walk": {
+  "x0": 0.3,
+  "x1": 0.7,
+  "y0": 0.5,
+  "y1": 0.95,
+  "_note": "Где ноги Финни могут стоять (джойстик, подход к предмету)."
+ },
+ "finni": {
+  "x": 0.5,
+  "y": 0.8,
+  "_note": "Ноги Финни на своём месте: середина зоны ходьбы."
+ },
+ "decor": {
+  "_note": "Места купленного декора (ключ — слот; какая вещь куда — decorPlace в room_scene.dart). В долях квадрата, как слоты.",
+  "decor_wall": {
+   "x": 0.29,
+   "y": 0.13,
+   "w": 0.12,
+   "h": 0.13
+  },
+  "decor_floor": {
+   "x": 0.03,
+   "y": 0.28,
+   "w": 0.1,
+   "h": 0.18
+  },
+  "decor_ceiling": {
+   "x": 0.47,
+   "y": 0.0,
+   "w": 0.24,
+   "h": 0.09
+  },
+  "item_sill": {
+   "x": 0.6,
+   "y": 0.3,
+   "w": 0.07,
+   "h": 0.06
+  },
+  "decor_books": {
+   "x": 0.49,
+   "y": 0.31,
+   "w": 0.08,
+   "h": 0.05
+  },
+  "decor_globe": {
+   "x": 0.74,
+   "y": 0.55,
+   "w": 0.07,
+   "h": 0.08
+  },
+  "decor_bear": {
+   "x": 0.17,
+   "y": 0.6,
+   "w": 0.08,
+   "h": 0.09
+  },
+  "decor_rug": {
+   "x": 0.34,
+   "y": 0.7,
+   "w": 0.32,
+   "h": 0.13
+  }
+ },
+ "stages": {
+  "village": {
+   "background": "village_room",
+   "background_has_furniture": false,
+   "furniture": {
+    "door": "door",
+    "bedside_cabinet": "room_cabinet",
+    "piggy": "room_piggy",
+    "fridge": "fridge",
+    "bed": "room_bed_village",
+    "desk_chair": "room_desk_village",
+    "pet_corner": "room_pet_corner"
+   },
+   "edge_wall": "#d9af85",
+   "edge_floor": "#a05d41"
+  },
+  "town": {
+   "background": "town_room",
+   "background_has_furniture": false,
+   "furniture": {
+    "door": "door",
+    "bedside_cabinet": "room_cabinet",
+    "piggy": "room_piggy",
+    "fridge": "fridge",
+    "bed": "room_bed_town",
+    "desk_chair": "room_desk_town",
+    "pet_corner": "room_pet_corner"
+   },
+   "edge_wall": "#eabd8f",
+   "edge_floor": "#ac6446"
+  },
+  "moscow": {
+   "background": "moscow_room",
+   "background_has_furniture": false,
+   "furniture": {
+    "door": "door",
+    "bedside_cabinet": "room_cabinet",
+    "piggy": "room_piggy",
+    "fridge": "fridge",
+    "bed": "room_bed_moscow",
+    "desk_chair": "room_desk_moscow",
+    "pet_corner": "room_pet_corner"
+   },
+   "edge_wall": "#cba47d",
+   "edge_floor": "#96573d"
+  }
+ },
+ "_stages_note": "background — id в группе room реестра (assets/registry.json). background_has_furniture: false — фон пустой, мебель рисуется спрайтами furniture (id в night_items / room_objects) на местах slots; true — мебель уже в фоне (фоны Дениса из GPT): спрайты не рисуются, остаются зоны касания. Холодильник рисуется всегда: на его полках еда недели. edge_wall / edge_floor — цвет полей, когда экран шире или выше квадрата.",
+ "depth_scale": {
+  "y_back": 0.5,
+  "scale_back": 0.75,
+  "y_front": 0.95,
+  "scale_front": 1.0,
+  "_note": "Перспектива (Денис 29.09: «чем дальше в глубине Финни, тем он чуть меньше»): масштаб Финни и питомца по y ног, линейно от линии задней стены (0,75) к переднему краю зоны ходьбы (1,0); за пределами — края."
+ },
+ "camera": {
+  "dead_zone": 0.3,
+  "ease_ms": 250,
+  "_note": "Денис 29.09 (Paper Mario): комната по высоте сцены, камера по горизонтали за Финни. dead_zone — средняя доля ширины экрана, где Финни ходит без сдвига камеры; ease_ms — за сколько камера догоняет (выключены «Анимации» — сразу). Вертикально камера не двигается; в пределах комнаты."
+ }
+}

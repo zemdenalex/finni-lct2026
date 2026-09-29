@@ -1,0 +1,47 @@
+{
+  "id": "b1_how_many_weeks",
+  "topic": "savings",
+  "kind": "numericInput",
+  "title": "Сколько недель копить?",
+  "prompt": "Зоопарк стоит {price:монетки}. У Финни в копилке {saved}. Каждую неделю ты откладываешь по {perWeek}. Сколько недель осталось?",
+  "reward": 2,
+  "_": "Ответ — недели, а не монетки: он от масштаба не зависит и стоит в plain. Цена зоопарка совпадает с целью «zoo» в goals.json в любом масштабе.",
+  "money": [
+    "price",
+    "saved",
+    "perWeek",
+    "rest"
+  ],
+  "plain": [
+    "answer"
+  ],
+  "params": {
+    "price": 20,
+    "saved": 8,
+    "perWeek": 3,
+    "rest": 12,
+    "answer": 4,
+    "workings": "{price} − {saved} = {rest:монетки} осталось. {rest} : {perWeek} = {answer:недели}.",
+    "unit": "недель"
+  },
+  "explainAny": "Чтобы узнать срок, считают так: сколько осталось, делим на то, сколько откладываешь за неделю. {price} − {saved} = {rest}, а {rest} : {perWeek} = {answer}.",
+  "explainBest": "Именно так приложение и считает срок до твоей цели — по средней сумме, которую ты откладываешь.",
+  "variants": [
+    {
+      "params": {
+        "saved": 10,
+        "perWeek": 5,
+        "rest": 10,
+        "answer": 2
+      }
+    },
+    {
+      "params": {
+        "saved": 14,
+        "perWeek": 2,
+        "rest": 6,
+        "answer": 3
+      }
+    }
+  ]
+}

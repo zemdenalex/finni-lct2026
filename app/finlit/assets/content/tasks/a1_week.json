@@ -1,0 +1,51 @@
+{
+  "id": "a1_week",
+  "topic": "budget",
+  "kind": "allocate",
+  "title": "Неделя Финни",
+  "prompt": "Пришли карманные. Разложи монетки по трём конвертам так, чтобы Финни хватило еды.",
+  "reward": 3,
+  "_": "money — параметры в монетках: они умножаются в режиме «числа покрупнее». plain — числа, которые монетками не являются.",
+  "money": [
+    "amount",
+    "mustCover"
+  ],
+  "params": {
+    "amount": 10,
+    "mustCover": {
+      "needs": 3
+    },
+    "hintItems": [
+      "porridge",
+      "water"
+    ]
+  },
+  "explainAny": "Монетки разложены. Сначала — «Нужное»: без еды и чистой воды Финни будет грустно. Потом «Копилка», а «Хочу» — из того, что осталось.",
+  "explainBest": "«Нужное» закрыто — еды и воды Финни хватит на всю неделю.",
+  "variants": [
+    {
+      "params": {
+        "amount": 12,
+        "mustCover": {
+          "needs": 5
+        },
+        "hintItems": [
+          "veggies",
+          "bath"
+        ]
+      }
+    },
+    {
+      "params": {
+        "amount": 9,
+        "mustCover": {
+          "needs": 4
+        },
+        "hintItems": [
+          "porridge",
+          "bath"
+        ]
+      }
+    }
+  ]
+}

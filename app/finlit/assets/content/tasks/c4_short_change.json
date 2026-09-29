@@ -1,0 +1,57 @@
+{
+  "id": "c4_short_change",
+  "topic": "payments",
+  "kind": "numericInput",
+  "title": "Продавец ошибся?",
+  "prompt": "Финни купил кашу за {price1} и воду за {price2}. Он дал продавцу {given}, а ему вернули {returned}. Сколько монеток недодали?",
+  "reward": 3,
+  "_": "Двухшаговая проверка сдачи для 9–11 лет. Цены совпадают с каталогом.",
+  "money": [
+    "price1",
+    "price2",
+    "given",
+    "returned",
+    "total",
+    "change",
+    "answer"
+  ],
+  "params": {
+    "price1": 2,
+    "price2": 1,
+    "given": 5,
+    "returned": 1,
+    "total": 3,
+    "change": 2,
+    "answer": 1,
+    "workings": "{price1} + {price2} = {total}. {given} − {total} = {change:монетки} должны были вернуть. {change} − {returned} = {answer:монетки} недодали.",
+    "unit": "монеток"
+  },
+  "explainAny": "Сдачу проверяют так: сколько дали продавцу минус сколько стоит покупка. {given} − {total} = {change}, а вернули {returned} — значит, недодали {answer}.",
+  "explainBest": "Пересчитать сдачу прямо у кассы — нормально, так делают и взрослые. Ошибиться может любой, и продавец тоже.",
+  "variants": [
+    {
+      "prompt": "Финни купил книжку за {price1} и наклейки за {price2}. Он дал продавцу {given}, а ему вернули {returned}. Сколько монеток недодали?",
+      "params": {
+        "price1": 3,
+        "price2": 1,
+        "given": 10,
+        "returned": 4,
+        "total": 4,
+        "change": 6,
+        "answer": 2
+      }
+    },
+    {
+      "prompt": "Финни купил торт за {price1} и воду за {price2}. Он дал продавцу {given}, а ему вернули {returned}. Сколько монеток недодали?",
+      "params": {
+        "price1": 5,
+        "price2": 1,
+        "given": 10,
+        "returned": 3,
+        "total": 6,
+        "change": 4,
+        "answer": 1
+      }
+    }
+  ]
+}

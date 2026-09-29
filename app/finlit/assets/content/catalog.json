@@ -1,0 +1,109 @@
+{
+  "_": "Каталог покупок. ТЗ 2.6 требует не менее 8 позиций двух типов - здесь 9. В Нужном два уровня: поштучно дешевле разово (каша 2, вода 1), оптом дешевле за неделю (овощи 3 на две недели, купание 2 на две недели). Обе стратегии жизнеспособны, и выбор между ними - это и есть 'выбор между обязательным, желаемым и накоплением' из 8.4, а не нажатие единственной правильной кнопки.",
+  "items": [
+    {
+      "id": "porridge",
+      "title": "Миска каши",
+      "envelope": "needs",
+      "price": 2,
+      "effect": {
+        "fullness": 3
+      },
+      "hint": "Финни поест. Хватит на эту неделю",
+      "icon": "bowl"
+    },
+    {
+      "id": "water",
+      "title": "Вода для умывания",
+      "envelope": "needs",
+      "price": 1,
+      "effect": {
+        "cleanliness": 2
+      },
+      "hint": "Финни умоется — чисто всю неделю",
+      "icon": "drop"
+    },
+    {
+      "id": "veggies",
+      "title": "Овощи и фрукты",
+      "envelope": "needs",
+      "price": 3,
+      "effect": {
+        "fullness": 6
+      },
+      "hint": "Финни наестся на две недели сразу — так выходит дешевле",
+      "icon": "apple"
+    },
+    {
+      "id": "bath",
+      "title": "Купание и уборка",
+      "envelope": "needs",
+      "price": 2,
+      "effect": {
+        "cleanliness": 6
+      },
+      "hint": "Чисто будет целых три недели — так выходит заметно дешевле",
+      "icon": "bath"
+    },
+    {
+      "id": "stickers",
+      "title": "Наклейки",
+      "envelope": "wants",
+      "price": 1,
+      "effect": {
+        "mood": 1
+      },
+      "hint": "Финни украсит свою комнату",
+      "icon": "star",
+      "keeps": true
+    },
+    {
+      "id": "ball",
+      "title": "Мячик",
+      "envelope": "wants",
+      "price": 2,
+      "effect": {
+        "mood": 2
+      },
+      "hint": "Финни будет играть",
+      "icon": "ball",
+      "keeps": true
+    },
+    {
+      "id": "book",
+      "title": "Книжка сказок",
+      "envelope": "wants",
+      "price": 3,
+      "effect": {
+        "mood": 2
+      },
+      "hint": "Финни почитает и узнает новое слово",
+      "icon": "book",
+      "keeps": true
+    },
+    {
+      "id": "hat",
+      "title": "Шапочка",
+      "envelope": "wants",
+      "price": 4,
+      "effect": {
+        "mood": 3
+      },
+      "hint": "Финни наденет шапочку и будет её носить",
+      "icon": "hat",
+      "accessory": "hat",
+      "keeps": true
+    },
+    {
+      "id": "cake",
+      "title": "Праздничный торт",
+      "envelope": "wants",
+      "price": 5,
+      "effect": {
+        "mood": 4
+      },
+      "hint": "У Финни будет настоящий праздник",
+      "icon": "cake"
+    }
+  ]
+}
