@@ -74,6 +74,9 @@ class AssetRegistry {
   String? item(String id) =>
       _path((_entry('items', id) ?? _entry('night_items', id))?['image']);
 
+  /// Пиксельный значок верхней плашки (`hud_coin`, `hud_bolt`, `hud_smile`).
+  String? hudIcon(String id) => _path(_entry('hud_icons', id)?['image']);
+
   /// Картинка работы на доске смен по id работы (`cashier`, `courier`, …):
   /// группа `job_pictures` называет предмет, картинка — как у [item].
   String? jobPicture(String jobId) {

@@ -120,10 +120,12 @@ void main() {
     expect(f.top, 120);
     expect(f.k * 368, closeTo(440, 1e-6));
     // Длинный портрет: масштаб ограничен (кровать и стол на ¾), но комната
-    // всё равно сразу под HUD — пустой полосы над стеной нет.
+    // по центру под HUD — без пустой полосы с одной стороны.
     final RoomFrame tall =
         roomFrame(s, box: const Size(360, 700), hires: true, topInset: 100);
-    expect(tall.top, 100);
+    final double rh = tall.k * 368;
+    expect(tall.top, closeTo(100 + (700 - 100 - rh) / 2, 1e-6),
+        reason: 'по центру под HUD — поровну потолка и пола');
     expect(tall.k * 368, lessThan(600), reason: 'масштаб ограничен');
   });
 

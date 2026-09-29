@@ -340,8 +340,8 @@ RoomFrame roomFrame(RoomSlots slots,
     final double inset = topInset.clamp(0.0, h * 0.5).toDouble();
     // По высоте сцены, но не крупнее, чем нужно, чтобы кровать и стол в
     // покое были видны почти целиком ([RoomSlots.restSpan]); ниже высоты —
-    // комната сразу под HUD ([topInset]), пол продолжается вниз (сцена рисует
-    // зеркальную полосу пола), без пустой полосы над стеной.
+    // комната по центру под HUD ([topInset]); сверху — продолжение потолка,
+    // снизу — зеркальная полоса пола, без пустой полосы.
     final Rect? rest = slots.restSpan;
     final double k = math.min(
         (h - inset) / sh, rest == null ? double.infinity : w / rest.width);
@@ -349,7 +349,10 @@ RoomFrame roomFrame(RoomSlots slots,
     final double left = rw <= w
         ? (w - rw) / 2
         : (w / 2 - sw / 2 * k).clamp(w - rw, 0.0).toDouble();
-    return (k: k, left: left, top: inset);
+    // Ниже сцены — по центру между HUD и низом: сверху потолок, снизу пол
+    // (сцена дорисовывает оба), без мёртвой полосы с одной стороны.
+    final double rh = sh * k;
+    return (k: k, left: left, top: inset + math.max(0.0, (h - inset - rh) / 2));
   }
   // [cover] — фон закрывает сцену целиком, без полей по бокам (сценки
   // знакомства: узкая полоса комнаты над планом не должна быть в швах).

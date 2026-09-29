@@ -16,6 +16,7 @@ import '../world_layout.dart';
 import '../world_state.dart';
 import 'plan_sheet.dart';
 import 'room_scene.dart';
+import 'hud_strip.dart';
 import 'hud_chips.dart';
 import 'world_hud.dart';
 import '../../../core/world_theme.dart';
@@ -553,9 +554,9 @@ class _RoomScreenState extends State<RoomScreen>
             species: profile.species,
             idleTag: profile.idleTag,
             finniName: profile.finniName,
-            // Имя — табличкой в сцене под показателями (строка цели — только
-            // цель, 29.09: «Финни копит: Кв…» не давало прочитать цель).
-            showName: true,
+            // Таблички с именем в комнате нет (решение 29.09): имя слышно в
+            // подписи TalkBack самого Финни.
+            showName: false,
             happiness: snap.happiness,
             petId: snap.activePetId,
             petAwake: _petAwake,
@@ -625,9 +626,10 @@ class _RoomScreenState extends State<RoomScreen>
     // «200/400». Без «Финни копит:» — на 360 dp цель не влезала (29.09);
     // имя — табличкой в сцене.
     // [stacked] — в два ряда (узкий боковой столбец альбомной).
-    Widget goalLineOf({bool stacked = false}) => _GoalLine(
+    Widget goalLineOf({bool stacked = false, bool bare = false}) => _GoalLine(
           key: const ValueKey<String>('room:goal'),
           stacked: stacked,
+          bare: bare,
           name: profile.finniName,
           title: goalId == null ? 'цель не выбрана' : (goal?.title ?? goalId),
           count: goalId == null
@@ -752,15 +754,17 @@ class _RoomScreenState extends State<RoomScreen>
                 left: Gap.sm,
                 right: Gap.sm,
                 top: Gap.xs,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    HudChips(snapshot: snap, trailing: tools),
-                    if (withGoal) ...<Widget>[
-                      const SizedBox(height: Gap.xs),
-                      goalLineOf(),
-                    ],
-                  ],
+                // Одна полупрозрачная плашка (Денис 29.09, варианты 2 + 3):
+                // показатели с полосками, «?» ⋮ и строка цели внутри.
+                child: FutureBuilder<RoomArt>(
+                  future: _art,
+                  builder: (BuildContext context, AsyncSnapshot<RoomArt> a) =>
+                      HudStrip(
+                    snapshot: snap,
+                    registry: a.data?.registry,
+                    tools: tools,
+                    goal: withGoal ? goalLineOf(bare: true) : null,
+                  ),
                 ),
               ),
             ],
@@ -780,19 +784,9 @@ class _RoomScreenState extends State<RoomScreen>
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Expanded(
-                            // Цель — в боковом столбце: над комнатой только
-                            // ряд фишек, иначе на 360 dp высоты комната
-                            // мельчает (Финни уже 48 dp касания).
-                            child: sceneArea(withStick: true, withGoal: false)),
-                        bottomBar(compact: true),
-                      ],
-                    ),
-                  ),
+                  // Сцена — на всю высоту экрана (29.09): разделы, «Сейчас» и
+                  // цель — в боковом столбце, не полосой под комнатой.
+                  Expanded(child: sceneArea(withStick: true, withGoal: false)),
                   Material(
                     key: const ValueKey<String>('room:side'),
                     color: WorldColors.panel,
@@ -807,6 +801,7 @@ class _RoomScreenState extends State<RoomScreen>
                             const SizedBox(height: Gap.sm),
                             goalLineOf(stacked: true),
                             const Spacer(),
+                            bottomBar(compact: true),
                           ],
                         ),
                       ),
@@ -867,10 +862,10 @@ class _RoomScreenState extends State<RoomScreen>
   /// Сколько сверху сцены занимают показатели поверх неё (и плашка цели
   /// в В2): кнопка действия у предмета встаёт ниже.
   static const double hudOverlayHeight =
-      hudChipsHeight + (goalOverScene ? goalLineHeight + Gap.xs : 0);
+      hudChipsHeight + (goalOverScene ? goalLineHeight : 0);
 
   /// Ряд фишек сверху с отступами: отступ · 48 · отступ.
-  static const double hudChipsHeight = Gap.xs + 48 + Gap.xs;
+  static const double hudChipsHeight = Gap.xs + HudStrip.rowHeight + Gap.xs + 3;
 
   /// Строка цели ([_GoalLine]): 5 + строка 16 × 1,1 + 5, с запасом.
   static const double goalLineHeight = 28;
@@ -1298,9 +1293,14 @@ class _GoalLine extends StatelessWidget {
     required this.progress,
     required this.said,
     this.stacked = false,
+    this.bare = false,
   });
 
   final bool stacked;
+
+  /// Внутри верхней плашки ([HudStrip]): без своей подложки, белый текст с
+  /// тенью — на полупрозрачном фоне плашки.
+  final bool bare;
   final String name;
   final String title;
   final String count;
@@ -1309,14 +1309,22 @@ class _GoalLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const TextStyle main =
-        TextStyle(fontSize: 16, height: 1.1, color: WorldColors.text);
+    final TextStyle main = bare
+        ? const TextStyle(
+            fontSize: 16,
+            height: 1.1,
+            color: Colors.white,
+            shadows: HudStrip.textShadow)
+        : const TextStyle(fontSize: 16, height: 1.1, color: WorldColors.text);
+    Widget back(Widget child) => bare ? child : HudBacking(child: child);
     return Semantics(
       label: said,
       excludeSemantics: true,
-      child: HudBacking(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.sm, 3, Gap.sm, 3),
+      child: back(
+        Padding(
+          padding: bare
+              ? const EdgeInsets.fromLTRB(Gap.xs, 3, Gap.xs, 3)
+              : const EdgeInsets.fromLTRB(Gap.sm, 3, Gap.sm, 3),
           child: NoLargerText(
             child: stacked
                 ? Column(
@@ -1369,27 +1377,41 @@ class _GoalLine extends StatelessWidget {
                       const SizedBox(width: Gap.xs),
                       Expanded(
                         child: GoalTitle(title,
-                            style: main.copyWith(fontWeight: FontWeight.w800)),
+                            style: main.copyWith(fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(width: Gap.sm),
-                      if (progress case final double p)
-                        SizedBox(
-                          width: 48,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(WorldRadii.tag),
-                            child: LinearProgressIndicator(
-                              value: p,
-                              minHeight: 6,
-                              color: WorldColors.goal,
-                              backgroundColor: WorldColors.raised,
-                            ),
-                          ),
-                        ),
                       const SizedBox(width: Gap.xs),
-                      Text(count,
-                          maxLines: 1,
-                          softWrap: false,
-                          style: main.copyWith(fontWeight: FontWeight.w800)),
+                      // Числа над короткой полосой — название цели целиком
+                      // помещается в строку на 360 dp (29.09).
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Text(count,
+                              key: const ValueKey<String>('room:goal:count'),
+                              maxLines: 1,
+                              softWrap: false,
+                              style: main.copyWith(
+                                  fontSize: 14,
+                                  height: 1.0,
+                                  fontWeight: FontWeight.w800)),
+                          if (progress case final double p) ...<Widget>[
+                            const SizedBox(height: 2),
+                            SizedBox(
+                              width: 64,
+                              child: ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(WorldRadii.tag),
+                                child: LinearProgressIndicator(
+                                  value: p,
+                                  minHeight: 4,
+                                  color: WorldColors.goal,
+                                  backgroundColor: WorldColors.raised,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
           ),
@@ -1454,12 +1476,17 @@ class GoalTitle extends StatelessWidget {
 
   static const double minSize = 12;
 
+  /// До какого кегля ужимается название, чтобы влезть целиком.
+  static const double fitSize = 14;
+
   @override
   Widget build(BuildContext context) =>
       LayoutBuilder(builder: (BuildContext context, BoxConstraints box) {
         final TextScaler scaler = MediaQuery.textScalerOf(context);
+        // Мерить тем же шрифтом, что нарисует Text: стиль темы + свой.
+        final TextStyle full = DefaultTextStyle.of(context).style.merge(style);
         double width(String t, double size) => (TextPainter(
-              text: TextSpan(text: t, style: style.copyWith(fontSize: size)),
+              text: TextSpan(text: t, style: full.copyWith(fontSize: size)),
               textDirection: TextDirection.ltr,
               textScaler: scaler,
               maxLines: 1,
@@ -1470,8 +1497,12 @@ class GoalTitle extends StatelessWidget {
         final List<String> words = title.split(' ');
         final String head = words.length > 1 ? '${words.first}…' : title;
         double size = base;
-        if (width(title, base) > box.maxWidth &&
-            width(head, base) > box.maxWidth) {
+        // Сначала — всё название чуть мельче (не мельче [fitSize]).
+        final double whole = width(title, base);
+        if (whole > box.maxWidth &&
+            base * box.maxWidth / whole * 0.98 >= fitSize) {
+          size = base * box.maxWidth / whole * 0.98;
+        } else if (whole > box.maxWidth && width(head, base) > box.maxWidth) {
           // С запасом на округление ширины глифов при другом кегле.
           size = (base * box.maxWidth / width(head, base) * 0.98)
               .clamp(minSize, base)

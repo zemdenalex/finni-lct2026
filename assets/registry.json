@@ -1380,5 +1380,38 @@
     "programmer": "tech_laptop",
     "courier": "work_courier_bag",
     "dog_walker": "work_dog_leash"
+  },
+  "hud_icons": {
+    "_note": "Pixel-art HUD icons (top strip of the room): 12x12 art px, file @2x (48 px), shown at 24 logical px with FilterQuality.none. Hand-placed pixels (tools/hud_icons.py), no text or letters.",
+    "hud_coin": {
+      "image": "hires/hud/hud_coin@2x.png",
+      "size_px": [
+        24,
+        24
+      ],
+      "source": "hand-placed pixels, tools/hud_icons.py (29.09)",
+      "licence": "own work of the team",
+      "status": "ready"
+    },
+    "hud_bolt": {
+      "image": "hires/hud/hud_bolt@2x.png",
+      "size_px": [
+        24,
+        24
+      ],
+      "source": "hand-placed pixels, tools/hud_icons.py (29.09)",
+      "licence": "own work of the team",
+      "status": "ready"
+    },
+    "hud_smile": {
+      "image": "hires/hud/hud_smile@2x.png",
+      "size_px": [
+        24,
+        24
+      ],
+      "source": "hand-placed pixels, tools/hud_icons.py (29.09)",
+      "licence": "own work of the team",
+      "status": "ready"
+    }
   }
 }
