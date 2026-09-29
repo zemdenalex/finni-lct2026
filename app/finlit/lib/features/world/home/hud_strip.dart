@@ -20,6 +20,7 @@ class HudStrip extends StatelessWidget {
     super.key,
     required this.snapshot,
     this.registry,
+    this.leading,
     this.tools = const <Widget>[],
     this.goal,
   });
@@ -28,6 +29,9 @@ class HudStrip extends StatelessWidget {
 
   /// Реестр арта — пиксельные значки (`hud_icons`); нет — значки-пиктограммы.
   final AssetRegistry? registry;
+
+  /// Кнопка слева в первом ряду (в городе — «Назад»).
+  final Widget? leading;
 
   /// Кнопки справа в первом ряду («?», ⋮).
   final List<Widget> tools;
@@ -66,7 +70,9 @@ class HudStrip extends StatelessWidget {
           border: Border.all(color: border, width: 1.5),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.xs, 0, Gap.xs, Gap.xs),
+          // Без строки цели снизу отступа нет: одна полоса в 48 dp.
+          padding:
+              EdgeInsets.fromLTRB(Gap.xs, 0, Gap.xs, goal == null ? 0 : Gap.xs),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -75,6 +81,7 @@ class HudStrip extends StatelessWidget {
                 height: rowHeight,
                 child: Row(
                   children: <Widget>[
+                    if (leading case final Widget l) ...<Widget>[l, sep()],
                     Expanded(
                       child: _StripValue(
                         key: const ValueKey<String>('hud:coins'),

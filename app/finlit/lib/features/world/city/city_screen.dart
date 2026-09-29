@@ -18,6 +18,7 @@ import '../world_help.dart';
 import '../world_layout.dart';
 import '../world_routes.dart';
 import '../home/hud_chips.dart';
+import '../home/hud_strip.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
 import 'city_filler.dart';
@@ -230,7 +231,7 @@ class _CityScreenState extends State<CityScreen> {
 
   Widget _backButton() => IconButton(
         key: const ValueKey<String>('city:back'),
-        icon: const Icon(Icons.arrow_back_rounded),
+        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
         tooltip: 'Назад',
         onPressed: _back,
       );
@@ -377,11 +378,14 @@ class _CityScreenState extends State<CityScreen> {
               key: const ValueKey<String>('city:top'),
               padding:
                   const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.xs),
+              // Та же стеклянная полоса, что в комнате (29.09): один ряд —
+              // подсказка остаётся внизу, полосы ≤ 21 % высоты.
               child: switch (maybeWorldState(context)) {
-                final WorldState ws => HudChips(
+                final WorldState ws => HudStrip(
                     snapshot: ws.snapshot,
+                    registry: _reg,
                     leading: _backButton(),
-                    trailing: <Widget>[_helpButton()]),
+                    tools: <Widget>[_helpButton()]),
                 null => Row(children: <Widget>[
                     HudBacking(child: _backButton()),
                     const Spacer(),

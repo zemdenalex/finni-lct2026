@@ -1050,6 +1050,32 @@ class RoomScene extends StatelessWidget {
                     ),
                   ),
                 ),
+              // Потолок читается как потолок, а не пустая полоса: к верху
+              // темнеет (перспектива), у стены — тень карниза (29.09).
+              if (slots.interest != null && top > 0.5)
+                Positioned(
+                  key: const ValueKey<String>('room:ceiling:shade'),
+                  left: left,
+                  top: 0,
+                  width: rw,
+                  height: top,
+                  child: const IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: <double>[0, 0.85, 1],
+                          colors: <Color>[
+                            Color(0x59000000),
+                            Color(0x14000000),
+                            Color(0x40000000),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // Общая раскладка ниже сцены: пол продолжается вниз — нижние
               // ряды фона зеркально (без пустой полосы, 29.09).
               if (slots.interest != null && top + rh < h - 0.5)
