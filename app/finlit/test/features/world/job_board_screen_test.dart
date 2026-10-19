@@ -102,9 +102,15 @@ void main() {
             energyShown(math.max(0, s.energy - o.energyCost)),
             reason: k);
         // Опыт без процентов (Денис 19.10): словами и монетами мира.
-        final String xp =
-            experiencePayText(pay: o.pay, coins: o.experienceCoins);
-        expect(textOf(tester, 'jobs:exp:$k'), xp, reason: k);
+        // Надбавка 0 — строки нет (night4 #2, как на экране смены).
+        if (o.experienceCoins > 0) {
+          final String xp =
+              experiencePayText(pay: o.pay, coins: o.experienceCoins);
+          expect(textOf(tester, 'jobs:exp:$k'), xp, reason: k);
+        } else {
+          expect(find.byKey(ValueKey<String>('jobs:exp:$k')), findsNothing,
+              reason: k);
+        }
         final String good = textOf(tester, 'jobs:bonus:$k');
         expect(good, contains('до +${o.efficiencyBonusMax}'), reason: k);
         expect(good, contains('⚡ ${energyShown(o.goodEnergyExtra)}'),
@@ -145,7 +151,13 @@ void main() {
                 '${pick(o.pay, 'монетку', 'монетки', 'монеток')}[.]')),
             findsWidgets,
             reason: k);
-        expect(find.bySemanticsLabel(xp), findsWidgets, reason: k);
+        if (o.experienceCoins > 0) {
+          expect(
+              find.bySemanticsLabel(
+                  experiencePayText(pay: o.pay, coins: o.experienceCoins)),
+              findsWidgets,
+              reason: k);
+        }
       }
       expect(energyCostText(2.9), '2,9');
       expect(energyCostText(3), '3');

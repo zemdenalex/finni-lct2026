@@ -629,7 +629,8 @@ class _ParentBonus extends StatelessWidget {
         if (coins > 0)
           // ЗАГЛУШКА: текст правила временный.
           PicText(
-              'Раз в неделю вы можете подарить Финни $coins монет — '
+              'Раз в неделю вы можете подарить Финни $coins '
+              '${Phrases.coinsAcc(coins)} — '
               'например, за дела дома.',
               key: const ValueKey<String>('adult:bonus:rule'),
               style: kitText)
@@ -662,7 +663,7 @@ class _ParentBonus extends StatelessWidget {
               coins > 0
                   ? (used
                       ? 'Бонус на этой неделе получен'
-                      : 'Дать $coins монет')
+                      : 'Дать $coins ${Phrases.coinsAcc(coins)}')
                   : used
                       ? 'Дополнительная смена открыта'
                       : 'Открыть дополнительную смену',

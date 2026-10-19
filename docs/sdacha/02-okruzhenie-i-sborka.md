@@ -108,16 +108,16 @@ aapt2 dump badging app-release.apk | head -5        # пакет, версия, 
 
 | Параметр | Значение |
 |---|---|
-| Коммит сборки (строка «Сборка …» в «Настройках», файл `finni.apk.build`) | `6af7ef7` (`6af7ef72b616115acd52250006181c7e3baee7c3`) |
-| Версия (`version:` в `pubspec.yaml` = `versionName+versionCode`) | `0.1.2+3`: `versionName` 0.1.2, `versionCode` 3 |
+| Коммит сборки (строка «Сборка …» в «Настройках», файл `finni.apk.build`) | `9198669` (`919866990cf361898526b8e2927164814f90bcd8`) |
+| Версия (`version:` в `pubspec.yaml` = `versionName+versionCode`) | `0.1.3+4`: `versionName` 0.1.3, `versionCode` 4 |
 | Flutter, на котором прошёл гейт (`flutter analyze` + полный `flutter test`) | 3.41.7, 19.10.2026 |
-| Размер universal APK (`finni.apk`) | **103,9 МБ** (103 913 730 байт) |
-| SHA-256 `finni.apk` | `808fd56bc0b84a38cddc3b028d288fb4f88c903dcd43ec2adff9d8d162c6a7a6` |
+| Размер universal APK (`finni.apk`) | **104,2 МБ** (104 235 202 байт) |
+| SHA-256 `finni.apk` | `0ebbc25620d4bf1e1d27d20150535549fec39f2270de86377bb90213fabe7a2e` |
 | Подпись (`apksigner verify --print-certs`) | `CN=LCT 2026 Team` (ключ команды, не `Android Debug`); `tool/check_manifest.sh` сверяет SHA-256 сертификата |
-| `aapt2 dump badging` | `package: ru.lct2026.finlit`, `versionCode 3`, `versionName 0.1.2`, `minSdkVersion 26`, `targetSdkVersion 36`, `application-label 'Питомец Финни'`, `native-code arm64-v8a armeabi-v7a x86_64` |
+| `aapt2 dump badging` | `package: ru.lct2026.finlit`, `versionCode 4`, `versionName 0.1.3`, `minSdkVersion 26`, `targetSdkVersion 36`, `application-label 'Питомец Финни'`, `native-code arm64-v8a armeabi-v7a x86_64` |
 
 `versionCode` выложенной сборки больше, чем у сданной 29.09 (1), поэтому она ставится обновлением поверх, без удаления
-(`tool/check_manifest.sh` требует `versionCode` ≥ 3). Основной вес APK — пиксель-арт высокого разрешения
+(`tool/check_manifest.sh` требует `versionCode` ≥ 4). Основной вес APK — пиксель-арт высокого разрешения
 (`assets/art/hires/`) и три архитектуры в одном файле: движок Flutter и код игры лежат в трёх копиях.
 
 **Контрольная сумма.** Рядом с APK в https://finni.archifex.space/eksperty/files/ лежит SHA-256 того же файла

@@ -1,3 +1,4 @@
+import '../phrases.dart';
 import 'contract.dart';
 import 'world_config.dart';
 
@@ -50,10 +51,25 @@ LessonMove lessonMove(WorldLessonChoice c,
 /// из 180»): `{goal}` и `{need}` — сколько на самом деле уйдёт в копилку и
 /// в «Нужное» ([lessonMove]: до десятков и не больше заработка), `{pay}` —
 /// оплата этой смены. Число в тексте всегда то, что спишет мир.
-String lessonText(String s, LessonMove m, {required int pay}) => s
-    .replaceAll('{goal}', '${m.toGoal}')
-    .replaceAll('{need}', '${m.toNeed}')
-    .replaceAll('{pay}', '$pay');
+///
+/// «{goal} монет» в тексте согласуется с числом (night4 #1): доля упирается
+/// в кошелёк заработка и бывает любой — «24 монеты», а не «24 монет».
+String lessonText(String s, LessonMove m, {required int pay}) {
+  final Map<String, int> vars = <String, int>{
+    'goal': m.toGoal,
+    'need': m.toNeed,
+    'pay': pay,
+  };
+  return s
+      .replaceAllMapped(RegExp(r'\{(goal|need|pay)\} монет(?![а-яё])'),
+          (Match x) {
+        final int n = vars[x[1]]!;
+        return '$n ${Phrases.coinsNom(n)}';
+      })
+      .replaceAll('{goal}', '${m.toGoal}')
+      .replaceAll('{need}', '${m.toNeed}')
+      .replaceAll('{pay}', '$pay');
+}
 
 /// Итог урока: «Что мы поняли: …» и реплика Финни.
 String lessonReason(WorldLesson l, WorldLessonChoice c, LessonMove m,

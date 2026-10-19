@@ -166,13 +166,14 @@ class JobOfferCard extends StatelessWidget {
                 children: <Widget>[
                   // Без процентов (решение Дениса 19.10, Т6 А): словами
                   // и монетами из мира — [JobOffer.experienceCoins].
-                  _Fact(
-                      key: ValueKey<String>('jobs:exp:$k'),
-                      pic: Pic.chart,
-                      text: experiencePayText(
-                          pay: o.pay, coins: o.experienceCoins),
-                      semantic: experiencePayText(
-                          pay: o.pay, coins: o.experienceCoins)),
+                  if (showExperiencePay(pay: o.pay, coins: o.experienceCoins))
+                    _Fact(
+                        key: ValueKey<String>('jobs:exp:$k'),
+                        pic: Pic.chart,
+                        text: experiencePayText(
+                            pay: o.pay, coins: o.experienceCoins),
+                        semantic: experiencePayText(
+                            pay: o.pay, coins: o.experienceCoins)),
                   if (showStageStep(o.stageStep))
                     _Fact(
                         key: ValueKey<String>('jobs:step:$k'),

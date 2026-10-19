@@ -632,7 +632,7 @@ class WorldGame implements World {
         ok: true,
         reasonCode: parentCoinsCode,
         // ЗАГЛУШКА: текст итога временный.
-        reason: '$parentCoinsReason: +$coins монет.',
+        reason: '$parentCoinsReason: +$coins ${Phrases.coinsNom(coins)}.',
         nextStep: 'Комната (S1)',
       );
     }
@@ -2690,6 +2690,11 @@ class WorldGame implements World {
     };
     final String shortfall =
         steps.isEmpty ? '' : ' Не хватало: ${steps.join(', ')}.';
+    // «Счета недели» — из журнала, как факт «Нужно» в плане против факта
+    // (night4 #4): еда посреди недели + счета в конце. Раньше здесь стоял
+    // только остаток в конце недели — «Счета недели — 670» рядом с «Нужно
+    // → счета 790» на одном экране.
+    final int weekNeed = weekHistory.lastOrNull?.need.actual ?? bills.total;
     const Map<String, String> growthText = <String, String>{
       'income': 'заработано больше',
       'saved': 'отложено на цель',
@@ -2707,7 +2712,7 @@ class WorldGame implements World {
     return WorldResult(
       ok: true,
       reasonCode: bills.familyHelped ? 'bills.family_help' : 'bills.paid',
-      reason: 'Счета недели — ${bills.total}.$shortfall '
+      reason: '${weekBillLine(weekNeed, bills.total)}$shortfall '
           'Звёзды: +$points'
           '${why.isEmpty ? '' : ' (${why.map((String w) => whyText[w]).join(', ')})'}.'
           '$growthLine'

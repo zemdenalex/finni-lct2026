@@ -45,6 +45,23 @@ void main() {
             matching: _text('Еда на $price уже съедена и оплачена. '
                 'Осталось ${planBill - price}')),
         findsOneWidget);
+    // night4 #4 (кадры 0.1.2+3): после оплаты итог «Счета недели — …» —
+    // то же число, что факт «Нужно → счета» (журнал), а не остаток 670
+    // рядом с «счета 790». Заголовок до оплаты остаётся тем же числом.
+    final Finder pay = find.byKey(const ValueKey<String>('review:pay'));
+    await tester.ensureVisible(pay);
+    await tester.tap(pay);
+    await tester.pump();
+    final int fact = w.weekHistory.last.need.actual;
+    expect(fact, planBill, reason: 'факт «Нужно» = еда посреди недели + счёт');
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey<String>('review:bills_result')),
+            matching: _text('Счета недели — $fact')),
+        findsOneWidget);
+    expect(find.descendant(of: box, matching: _text('Счета недели: $fact')),
+        findsOneWidget,
+        reason: 'заголовок до и после оплаты — то же число');
   });
 
   test('«ещё N раз» — по оставшимся дням: день 5 без еды → 3, после — 2', () {

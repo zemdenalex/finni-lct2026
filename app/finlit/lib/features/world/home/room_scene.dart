@@ -1590,7 +1590,8 @@ class RoomScene extends StatelessWidget {
                         id == 'fridge'
                             ? fridgeLabel(fridge)
                             : id == 'piggy' && piggySaved != null
-                                ? 'Копилка: $piggySaved монет'
+                                ? 'Копилка: $piggySaved '
+                                    '${Phrases.coinsNom(piggySaved!)}'
                                 : label,
                         switch (slots.actions[id]) {
                           'city' => onDoorTap,

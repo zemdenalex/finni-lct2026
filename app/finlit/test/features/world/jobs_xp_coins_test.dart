@@ -86,6 +86,52 @@ void main() {
     });
   }
 
+  // night4 #2 (кадры 0.1.2+3): после хорошей смены у консультанта было
+  // «за опыт прибавки пока нет», у кассира «+1 монета», на 2-й день наоборот —
+  // оклады разные, доля опыта одна, округление до монеты даёт 0 или 1.
+  // Правило одно (доска = экран смены): надбавка ≥1 монеты — строка
+  // «(+N монет)», 0 — строки нет. Уронит: доска снова пишет «пока нет» при
+  // нуле или строка не совпадает с начислением.
+  testWidgets(
+      'доска: строка опыта есть ровно тогда, когда опыт реально прибавил '
+      'монеты (сборка ×1,01, разные оклады)', (WidgetTester tester) async {
+    final (WorldGame a, WorldGame b) = twins(1.01, 1);
+    final List<String> ids = <String>[
+      for (final JobOffer o in a.jobBoard)
+        if (o.variant == null && o.blockReason == null) o.jobId,
+    ];
+    int zero = 0, plus = 0;
+    final List<String> seen = <String>[];
+    // Несколько уровней опыта: на каждом — по кругу все открытые работы.
+    for (int level = 1; level <= 3 && (zero == 0 || plus == 0); level++) {
+      if (level > 1) goodShift(a, b);
+      for (final String id in ids) {
+        if (!readyFor(a, b, id)) continue;
+        await pumpWorldScreen(tester, const JobBoardScreen(), world: a);
+        expect(tester.takeException(), isNull);
+        final Finder line = find.byKey(ValueKey<String>('jobs:exp:$id'));
+        final bool shown = line.evaluate().isNotEmpty;
+        final String? t = shown ? picText(tester, 'jobs:exp:$id') : null;
+        final int coins = creditedXpCoins(a, b, id);
+        seen.add('$id:$coins');
+        if (coins > 0) {
+          plus++;
+          expect(t, isNotNull, reason: '$id: +$coins, а строки нет');
+          expect(t, endsWith('(+$coins ${coinsNom(coins)})'),
+              reason: '$id: $t');
+        } else {
+          zero++;
+          expect(shown, isFalse,
+              reason: '$id: опыт не прибавил, а строка «$t»');
+        }
+      }
+    }
+    expect(zero, greaterThan(0),
+        reason: 'нет работы с нулём — не проверено: $seen');
+    expect(plus, greaterThan(0),
+        reason: 'нет работы с +N — не проверено: $seen');
+  });
+
   testWidgets('экран смены: условия без процентов, монеты = начислению',
       (WidgetTester tester) async {
     final (WorldGame a, WorldGame b) = twins(1.2, 3);

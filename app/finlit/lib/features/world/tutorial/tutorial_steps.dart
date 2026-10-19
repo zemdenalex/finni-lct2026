@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../domain/phrases.dart';
 import '../../../domain/world/contract.dart';
 
 /// Предмет комнаты, о котором сейчас шаг обучалки (`door`, `piggy`…):
@@ -111,7 +112,8 @@ final List<TutorialStep> tutorialSteps = <TutorialStep>[
       final int short = s.weeklyBill - _money(s);
       // Коротко: на 360 dp при шрифте ×1,3 карточка под дверью не влезала
       // (обучалка на макете Алины, 18.10). Два предложения, без рода.
-      return 'Тук-тук, это хозяйка! За жильё и еду — ${s.weeklyBill} монет '
+      return 'Тук-тук, это хозяйка! За жильё и еду — ${s.weeklyBill} '
+          '${Phrases.coinsNom(s.weeklyBill)} '
           'в конце недели. '
           '${short > 0 ? 'Не хватает $short — заработаем на смене.' : 'Отложим их первыми.'}';
     },

@@ -2144,7 +2144,8 @@ class FakeWorld implements World {
     return WorldResult(
       ok: true,
       reasonCode: familyHelped ? 'bills.family_help' : 'bills.paid',
-      reason: 'Счета недели — $due.$shortfall Звёзды: +$points'
+      reason: '${weekBillLine(_week?.bills ?? due, due)}$shortfall '
+          'Звёзды: +$points'
           '${why.isEmpty ? '' : ' (${why.join(', ')})'}.'
           '${growth == weekGrowthUp ? ' Неделя роста: +$growthDelta 😊.' : ''}'
           '${growth == weekGrowthFlat ? ' Неделя без роста: $growthDelta 😊.' : ''}'

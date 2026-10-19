@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/feel.dart';
 import '../../../../core/theme.dart';
+import '../../../../domain/phrases.dart';
 import '../../pic_text.dart';
 import '../../world_layout.dart';
 import '../job_games.dart';
@@ -492,7 +493,8 @@ class _ConsultantGameState extends State<ConsultantGame> {
                 ? (_pickedRight ? WorldColors.needsBg : WorldColors.wantsBg)
                 : null,
             onTap: _pickedRight ? null : () => _pick(item),
-            semantic: '${item.name}, ${item.price} монет. Выбрать',
+            semantic: '${item.name}, ${item.price} '
+                '${Phrases.coinsNom(item.price)}. Выбрать',
             child: _ItemHead(item: item, showPrice: true, compact: land),
           ),
         ),

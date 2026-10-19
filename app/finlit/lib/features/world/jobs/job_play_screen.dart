@@ -434,7 +434,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     final Widget terms = PicText(
       'Ставка ${offer.basePay}'
       // Опыт словами и монетами, без процентов (Денис 19.10, Т6 А).
-      '${offer.experienceCoins > 0 ? ', ${experiencePayText(pay: offer.pay, coins: offer.experienceCoins)}' : ''}'
+      '${showExperiencePay(pay: offer.pay, coins: offer.experienceCoins) ? ', ${experiencePayText(pay: offer.pay, coins: offer.experienceCoins)}' : ''}'
       '${showStageStep(offer.stageStep) ? ', ${stageStepText(offer.stageStep)} за город' : ''}. '
       'Ошибки оплату не уменьшают. ${goodShiftText(offer)}.',
       key: const ValueKey<String>('job:offer:terms'),
@@ -710,7 +710,8 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
         if (mood != 0)
           _Row(
               icon: Pic.smile,
-              label: lessonMood != 0 ? 'Настроение (после урока)' : 'Настроение',
+              label:
+                  lessonMood != 0 ? 'Настроение (после урока)' : 'Настроение',
               value: mood > 0 ? '+$mood' : '−${-mood}',
               valueKey: 'job:result:happiness',
               help: moodWhy == null

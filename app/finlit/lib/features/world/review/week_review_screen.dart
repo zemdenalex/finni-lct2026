@@ -103,6 +103,13 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
   /// Итоги открыты, когда счета уже были оплачены: [_before] — снимок после
   /// счетов, «было → стало» и «не хватает» по нему не считаются.
   bool _paidOnOpen = false;
+
+  /// Еда, съеденная посреди недели, — из журнала до оплаты (night4 #4): тот
+  /// же источник, что факт «Нужно» в плане против факта. Раньше — цена
+  /// домашнего меню × приёмы: блюдо дороже домашнего или еда из холодильника
+  /// давали другое число, чем строка «Нужно → счета». Снимается до оплаты:
+  /// после неё в факте уже и счета конца недели.
+  int _eatenBefore = 0;
   WorldResult? _startRefused;
 
   @override
@@ -114,6 +121,8 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     _paidOnOpen =
         ws.phase == WeekPhase.review && (_week(ws.world)?.billsPaid ?? false);
     _paid = _paidOnOpen;
+    final WeekPlanFact? w = _week(ws.world);
+    _eatenBefore = w == null || w.billsPaid ? 0 : w.need.actual;
   }
 
   /// План и факт текущей недели, или null до первой недели.
@@ -507,13 +516,7 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     // «Счета недели = жильё + еда по плану» — то же число, что в плане
     // (finni по проходу демо 17.10): приёмы, которые Финни съел сам, уже
     // оплачены сразу и из остатка счёта выпали; показываем их отдельно.
-    final int homePrice = context
-            .read<WorldState>()
-            .world
-            .catalogItem(_before.foodId ?? '')
-            ?.price ??
-        0;
-    final int eatenAtHomePrice = homePrice * _before.mealsThisWeek;
+    final int eatenAtHomePrice = _eatenBefore;
     final int weekBill = bill + eatenAtHomePrice;
     final int money = WeekReviewScreen.money(_before);
     final int short = _short;
