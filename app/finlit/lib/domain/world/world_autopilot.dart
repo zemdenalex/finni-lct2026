@@ -84,7 +84,10 @@ class AutopilotStep {
 /// Старый `DemoAutopilot` (мир `Game`) не тронут: живёт до переключения
 /// экранов.
 class WorldAutopilot {
-  WorldAutopilot(this.world, {this.maxShifts = 2});
+  WorldAutopilot(this.world, {int? maxShifts})
+      : maxShifts = maxShifts ??
+            // Режим дней: смена в день (неделя 7 дней, DEN-1); неделя — 2.
+            (world.config.daysPerWeek > 1 ? world.config.daysPerWeek : 2);
 
   final WorldGame world;
 
@@ -135,8 +138,10 @@ class WorldAutopilot {
       );
     }
     // Копим на переезд (стадия = аренда, Денис 941 п. 3): накопленное
-    // остаётся в копилке, если цель сменилась.
-    final String? move = _openMove();
+    // остаётся в копилке, если цель сменилась. Сначала — питомец (самая
+    // дешёвая цель): с ценами переездов 5000 / 12000 (18.10) иначе за 5
+    // недель демо не было бы ни одной покупки питомца.
+    final String? move = _ownsPet(s) ? _openMove() : null;
     if (move != null && s.activeGoalId != move) {
       return AutopilotMove(AutopilotAction.chooseGoal, id: move);
     }
@@ -222,8 +227,10 @@ class WorldAutopilot {
   }
 
   /// Играть неделями, пока Финни не дойдёт до [target], но не больше
-  /// [maxWeeks] недель («Дойти до 3-й стадии» на панели демо).
-  List<AutopilotStep> playToStage(WorldStage target, {int maxWeeks = 12}) {
+  /// [maxWeeks] недель («Дойти до 3-й стадии» на панели демо). Предел 24:
+  /// с ценами переездов 5000 / 12000 (18.10) Москва — на 12-й неделе в
+  /// режиме дней и на 21-й в «неделе» (было к 5-й при 1200 / 2000).
+  List<AutopilotStep> playToStage(WorldStage target, {int maxWeeks = 24}) {
     final List<AutopilotStep> steps = <AutopilotStep>[];
     int weeks = 0;
     while (world.snapshot.stage.index < target.index && weeks < maxWeeks) {
@@ -258,6 +265,10 @@ class WorldAutopilot {
     final int spare = s.free < overBill ? s.free : overBill;
     return spare > 0 ? spare : 0;
   }
+
+  /// Есть ли у Финни питомец (любой из каталога).
+  bool _ownsPet(ResourceSnapshot s) => world.catalog.any((WorldCatalogItem i) =>
+      i.category == WorldCatalogCategory.pet && s.owned.contains(i.id));
 
   /// Следующее жильё (переезд — главная цель демо: стадия = аренда): самое
   /// дешёвое из тех, что ещё впереди. Копим на него сразу, даже пока очков
@@ -335,18 +346,30 @@ class WorldAutopilot {
     final double budget = s.energy - _reserve(s);
     JobOffer? best;
     double bestRate = 0;
+    double topRate = 0;
     for (final JobOffer o in world.jobBoard) {
       if (o.blocked) continue;
       final double cost = o.energyCost + o.goodEnergyExtra;
-      if (cost > budget + _eps) continue;
       final double rate = o.pay / cost;
+      if (rate > topRate) topRate = rate;
+      if (cost > budget + _eps) continue;
       if (best == null || rate > bestRate + _eps) {
         best = o;
         bestRate = rate;
       }
     }
+    // День по энергии: до последнего дня недели не размениваться на дешёвую
+    // работу — лучше лечь и взять выгодную смену утром.
+    if (best != null &&
+        s.dayInWeek < s.daysPerWeek &&
+        bestRate + _eps < topRate * dayRateFloor) {
+      return null;
+    }
     return best;
   }
+
+  /// Какая доля лучшей ставки (монет за ⚡) годится до последнего дня недели.
+  static const double dayRateFloor = 0.9;
 
   /// Вариант события: не берёт из копилки, не добавляет к счёту, не тратит
   /// монеты мимо копилки и оставляет ⚡ на досуг и сон. Из подходящих —

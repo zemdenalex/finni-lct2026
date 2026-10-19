@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:finlit/app_state.dart';
@@ -82,8 +83,10 @@ void main() {
     int finni = -1, front = -1;
     for (int i = 0; i < stack.children.length; i++) {
       final Key? k = stack.children[i].key;
-      // Передний план: прежний слой `front` или кровать общей раскладки.
+      // Передний план: прежний слой `front`, кровать общей раскладки
+      // прямоугольником или по форме (`room:front:shape`, 15.10).
       if (k == const ValueKey<String>('room:front') ||
+          k == const ValueKey<String>('room:front:shape') ||
           k == const ValueKey<String>('room:furniture:bed')) {
         front = i;
       }
@@ -136,7 +139,9 @@ void main() {
     await g.up();
     await tester.pump();
     expect(behindFront(tester), isTrue, reason: 'у стены — за кроватью');
-    g = await hold(tester, const Offset(0, 1), 3000);
+    // Прямо вниз от стены — кровать (в неё ноги не заходят, 18.10): к
+    // переднему краю — вправо-вниз, мимо неё.
+    g = await hold(tester, const Offset(1, 1), 3000);
     await g.up();
     await tester.pump();
     expect(behindFront(tester), isFalse, reason: 'у края — перед кроватью');
@@ -207,26 +212,136 @@ void main() {
     expect(pad, findsNothing, reason: 'палец поднят — джойстик пропал');
   });
 
-  testWidgets('«Анимации» выкл. — джойстика нет, ходьбы нет',
-      (WidgetTester tester) async {
-    await pump(tester, animations: false);
-    expect(stick, findsNothing);
-  });
+  // Джойстик — ввод, не анимация (pm 17.10): без анимаций он есть, Финни
+  // идёт шагами раз в 250 мс, без тикера. Уронит: комната снова прячет
+  // джойстик за `motionOn` или ведёт ход тикером.
+  for (final (String name, bool reduce) in <(String, bool)>[
+    ('«Анимации» выкл. в игре', false),
+    ('«Уменьшить движение» в телефоне', true),
+  ]) {
+    testWidgets('$name — джойстик есть, Финни идёт шагами',
+        (WidgetTester tester) async {
+      if (reduce) {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      }
+      await pump(tester, animations: reduce);
+      expect(stick, findsOneWidget);
+      final Offset start = inRoom(tester);
+      final TestGesture g = await hold(tester, const Offset(1, 0), 200);
+      expect((inRoom(tester) - start).distance, lessThan(0.5),
+          reason: 'до первого шага (250 мс) не плавно');
+      // Кадров не просит никто — проверяем только при «Уменьшить движение»:
+      // при «Анимации» выкл. в игре кнопка «Сейчас» (FilledButton
+      // `room:now`, Material, 200 мс) ещё анимирует смену вида, когда
+      // Финни пошёл, — это не ход и не джойстик.
+      if (reduce) {
+        expect(tester.binding.transientCallbackCount, 0,
+            reason: 'ход без анимаций не просит кадров');
+      }
+      for (int t = 0; t < 200; t += 50) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(inRoom(tester).dx, greaterThan(start.dx), reason: 'Финни идёт');
+      await g.up();
+      await tester.pump();
+    });
+  }
+
+  // Ловит (Настя, 18.10, «персонаж проваливается в текстуры»): зона ходьбы —
+  // один прямоугольник, кровать и место питомца стоят в его левом краю, и
+  // джойстик заводил ноги Финни в кровать и на коврик. Уронит: шаг джойстика
+  // (плавный или по 250 мс) снова только зажимает ноги в зону ходьбы.
+  // Ноги — в долях фона по месту кровати на экране (зона `room:bed`).
+  final Map<String, Object?> layout = jsonDecode(
+          File('assets/content/world/room_layout.json').readAsStringSync())
+      as Map<String, Object?>;
+  for (final WorldStage stage in WorldStage.values) {
+    for (final (String mode, bool reduce) in <(String, bool)>[
+      ('плавно', false),
+      ('«Уменьшить движение»', true),
+    ]) {
+      testWidgets(
+          '${stage.name} · $mode: джойстик влево и вниз — ноги не в мебели',
+          (WidgetTester tester) async {
+        if (reduce) {
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+              tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+        }
+        await pump(tester, world: _livingAt(stage));
+        final Map<String, Object?> slots =
+            ((layout['stages']! as Map<String, Object?>)[stage.name]!
+                as Map<String, Object?>)['slots']! as Map<String, Object?>;
+        Rect slot(String id) {
+          final Map<String, Object?> s = slots[id]! as Map<String, Object?>;
+          double v(String k) => (s[k]! as num).toDouble();
+          return Rect.fromLTWH(v('x'), v('y'), v('w'), v('h'));
+        }
+
+        // Место питомца — плоский коврик, по нему ходят (в «городе» — путь
+        // к двери); на нём в кадре Насти Финни стоял внутри кровати.
+        final List<String> furniture = <String>[
+          'bed',
+          'bedside_cabinet',
+          'fridge',
+          'desk_chair',
+        ];
+        final List<String> seen = <String>[];
+        void check() {
+          // Экран ↔ доли фона по месту кровати (камера едет за Финни).
+          final Rect bedOn =
+              tester.getRect(find.byKey(const ValueKey<String>('room:bed')));
+          final Rect bed = slot('bed');
+          final double sx = bedOn.width / bed.width;
+          final double sy = bedOn.height / bed.height;
+          final Offset o =
+              Offset(bedOn.left - bed.left * sx, bedOn.top - bed.top * sy);
+          final Offset f = feet(tester) - o;
+          final Offset at = Offset(f.dx / sx, f.dy / sy);
+          seen.add(
+              '(${at.dx.toStringAsFixed(3)}, ${at.dy.toStringAsFixed(3)})');
+          for (final String id in furniture) {
+            // Полоса у стены (0,03) — за изголовьем, туда можно (глубина).
+            final Rect s = slot(id);
+            final Rect inside =
+                Rect.fromLTRB(s.left, s.top + 0.03, s.right, s.bottom);
+            expect(inside.contains(at), isFalse,
+                reason: 'ноги $at в «$id» $s; путь: '
+                    '${seen.skip(seen.length > 6 ? seen.length - 6 : 0)}');
+          }
+        }
+
+        for (final Offset dir in <Offset>[
+          const Offset(-1, -1),
+          const Offset(0, 1),
+          const Offset(-1, 1),
+          const Offset(-1, 0),
+        ]) {
+          final Offset c = tester.getCenter(stick);
+          final TestGesture g = await tester.startGesture(c);
+          await g.moveBy(dir * 20);
+          await g.moveBy(dir * 28);
+          for (int t = 0; t < 2500; t += 50) {
+            await tester.pump(const Duration(milliseconds: 50));
+            check();
+          }
+          await g.up();
+          await tester.pump();
+        }
+      });
+    }
+  }
 
   // ───────────────────────────── город ─────────────────────────────
 
-  Future<void> pumpCity(WidgetTester tester,
-      {Size size = portrait, bool animations = true}) async {
+  Future<void> pumpCity(WidgetTester tester, {Size size = portrait}) async {
     await tester.runAsync(() async {
-      AppState? app;
-      if (!animations) {
-        app = AppState(MemoryStorage());
-        await app.boot();
-        await app.updateProfile(app.game.profile
-            .copyWith(settings: const GameSettings(animationsOn: false)));
-      }
       await pumpWorldScreen(tester, const CityScreen(),
-          world: livingWorld(worldKinds.last), size: size, app: app);
+          world: livingWorld(worldKinds.last), size: size);
       for (int i = 0; i < 20; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
         await tester.pump();
@@ -322,11 +437,8 @@ void main() {
     expect(find.byType(WorldShopScreen), findsOneWidget);
   });
 
-  testWidgets('город: «Анимации» выкл. — джойстика нет',
-      (WidgetTester tester) async {
-    await pumpCity(tester, animations: false);
-    expect(cityStick, findsNothing);
-  });
+  // «Анимации» выкл. в городе — city_joystick_motion_test.dart: джойстик
+  // виден, ход шагами.
 
   // Ревью 29.09: Финни уходил наполовину за край и прятался под джойстиком.
   for (final MapEntry<String, Size> o in bothOrientations.entries) {
@@ -412,14 +524,27 @@ void main() {
       ]) {
         final Finder label =
             find.descendant(of: near, matching: find.textContaining(word));
-        final Rect thing = tester.getRect(find.byKey(ValueKey<String>(key)));
+        Rect thing = tester.getRect(find.byKey(ValueKey<String>(key)));
         for (int i = 0; i < 60 && label.evaluate().isEmpty; i++) {
+          // Камера идёт за Финни — считать в комнате (от двери), не на экране.
+          thing = tester.getRect(find.byKey(ValueKey<String>(key)));
+          final Offset door = tester
+              .getRect(find.byKey(const ValueKey<String>('room:door')))
+              .topLeft;
           // К месту у предмета — низ по центру, там и стоят.
-          final Offset d = thing.bottomCenter - feet(tester);
+          final Offset d = (thing.bottomCenter - door) - inRoom(tester);
           if (d.distance < 1) break;
+          final Offset was = inRoom(tester);
           final TestGesture g = await hold(tester, d / d.distance, 100);
           await g.up();
           await tester.pump();
+          // Упёрся в мебель (18.10: в кровать ноги не заходят) — обойти:
+          // вправо-вниз, мимо неё, и снова к предмету.
+          if ((inRoom(tester) - was).distance < 1) {
+            final TestGesture r = await hold(tester, const Offset(1, 1), 400);
+            await r.up();
+            await tester.pump();
+          }
         }
         expect(label, findsOneWidget,
             reason: '$key: Финни дошёл; ноги ${feet(tester)}, '

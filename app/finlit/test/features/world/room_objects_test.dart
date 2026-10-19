@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:finlit/core/art/asset_registry.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/fridge_stock.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
@@ -146,27 +146,43 @@ void main() {
       testWidgets(
           '${stage.name} · ${o.key}: кровать → «Лечь спать?», '
           'копилка → S9, дверь → город', (WidgetTester tester) async {
-        Future<Offset> pointFor(String key) async {
+        // Предмет на экране — касание по нему; камера увела за край
+        // (комната по высоте, Денис 15.10) — кнопка у края ведёт к нему.
+        Future<void> goTo(String key) async {
           await _pumpRoom(tester, _livingAt(stage), o.value);
           final Rect scene = tester.getRect(find.byType(RoomScene));
-          final Offset? p = _tapPoint(tester, key, scene);
-          expect(p, isNotNull, reason: '$key: не попасть пальцем');
-          return p!;
+          // За краем — кнопки у края подводят Финни (камера за ним), пока
+          // предмет не окажется под пальцем; за краем может быть и не один.
+          for (int i = 0; i < 4; i++) {
+            final Offset? p = _tapPoint(tester, key, scene);
+            if (p != null) return tester.tapAt(p);
+            // Кнопка у того края, за которым предмет.
+            final bool right =
+                tester.getCenter(find.byKey(ValueKey<String>(key))).dx >
+                    scene.center.dx;
+            final Finder edge = find.byKey(
+                ValueKey<String>('room:edge:${right ? 'right' : 'left'}'));
+            expect(edge, findsWidgets,
+                reason: '$key: не попасть пальцем и нет кнопки у края');
+            await tester.tap(edge.first);
+            await _step(tester);
+          }
+          fail('$key: кнопки у края не довели до предмета');
         }
 
-        await tester.tapAt(await pointFor('room:bed'));
+        await goTo('room:bed');
         await _step(tester);
         expect(find.text('Лечь спать?'), findsOneWidget);
 
-        await tester.tapAt(await pointFor('room:piggy'));
+        await goTo('room:piggy');
         await _step(tester);
         expect(find.byType(PiggyScreen), findsOneWidget);
 
-        await tester.tapAt(await pointFor('room:door'));
+        await goTo('room:door');
         await _step(tester);
         expect(find.byType(CityScreen), findsOneWidget);
 
-        await tester.tapAt(await pointFor('room:fridge'));
+        await goTo('room:fridge');
         await _step(tester);
         _expectShopOnFood(tester);
       });
@@ -188,7 +204,27 @@ void main() {
         final Rect scene = tester.getRect(find.byType(RoomScene));
         final Rect fridge =
             tester.getRect(find.byKey(const ValueKey<String>('room:fridge')));
-        expect(_within(fridge, scene), isTrue, reason: 'срезан: $fridge');
+        // Камера увела холодильник за край — к нему ведёт кнопка у края,
+        // и касание её открывает еду (Денис 15.10: холодильник достижим).
+        // Камера увела холодильник за край — кнопка у правого края подводит
+        // Финни (камера за ним), пока холодильник не встанет на экран
+        // целиком (Денис 15.10: холодильник достижим).
+        if (!_within(fridge, scene)) {
+          final Finder edge =
+              find.byKey(const ValueKey<String>('room:edge:right'));
+          Rect seen = fridge;
+          for (int i = 0; i < 3 && !_within(seen, scene); i++) {
+            expect(edge, findsOneWidget,
+                reason: 'срезан $seen, кнопки у края нет');
+            await tester.tap(edge);
+            await _step(tester);
+            seen = tester
+                .getRect(find.byKey(const ValueKey<String>('room:fridge')));
+          }
+          expect(_within(seen, scene), isTrue,
+              reason: 'кнопки у края не довели: $seen');
+          return;
+        }
         final Finder portions = find.byWidgetPredicate((Widget x) =>
             x.key is ValueKey<String> &&
             (x.key! as ValueKey<String>)
@@ -323,6 +359,20 @@ void main() {
         }
         for (final String k in _zones) {
           final Rect r = tester.getRect(find.byKey(ValueKey<String>(k)));
+          // За краем экрана (камера) — зона не нажимается, ведёт кнопка у
+          // края: её и проверяем.
+          if (r.intersect(scene).width < 48) {
+            // Ведёт кнопка у края (к нему или к ближнему за тем же краем).
+            expect(
+                find.byWidgetPredicate((Widget w) =>
+                    w.key is ValueKey<String> &&
+                    (w.key! as ValueKey<String>)
+                        .value
+                        .startsWith('room:edge:')),
+                findsWidgets,
+                reason: '$k за краем: $r');
+            continue;
+          }
           expect(r.width, greaterThanOrEqualTo(48), reason: '$k $r');
           expect(r.height, greaterThanOrEqualTo(48), reason: '$k $r');
           // Видимая часть — тоже с палец: зона, выросшая до 48 dp полоской
@@ -365,7 +415,7 @@ void main() {
       // Холодильник: число порций — в подписи, касание — магазин с едой.
       await _pumpRoom(tester, _livingAt(stage), landscape);
       final Finder fridge =
-          find.bySemanticsLabel('Холодильник, приёмов пищи осталось: 3');
+          find.bySemanticsLabel('В холодильнике еды на 3 раза');
       expect(fridge, findsOneWidget);
       final SemanticsNode fn = tester.getSemantics(fridge);
       expect(fn.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);

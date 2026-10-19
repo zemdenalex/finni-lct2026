@@ -41,23 +41,36 @@ String _feedback(WidgetTester tester, String key) {
       .join(' ');
 }
 
-/// Кассир, смена 0: 10 − 7 = 3, затем 50 − 12 = 38. Обе с ошибкой.
+/// Кассир, смена 0: 10 − 7 = 3, затем 10 − 9 = 1 (вход — только «до 10»,
+/// эксперт 16.10). Обе с ошибкой; первая сдача — другой верной комбинацией
+/// (1 + 1 + 1 вместо 2 + 1).
+/// Первая смена кассира (C3, от простого к сложному): 9 + 1 = 10, затем
+/// 8 + 2 = 10. Уже первая ошибка показывает, на сколько, и счёт вверх с
+/// суммой ребёнка (NAS-3 A, Настя 19.10).
 Future<void> _playCashierWithMistakes(WidgetTester tester) async {
+  await _coins(tester, <int>[2]);
+  await _tap(tester, 'cashier:give');
+  expect(_feedback(tester, 'cashier:feedback'), contains('лишнее: 1'));
+  expect(_feedback(tester, 'cashier:feedback'), contains('9 + 2 = 11'));
+  await _tap(tester, 'cashier:undo');
   await _coins(tester, <int>[1]);
   await _tap(tester, 'cashier:give');
-  expect(_feedback(tester, 'cashier:feedback'), contains('Не хватает 2'));
-  expect(_feedback(tester, 'cashier:feedback'), contains('10 − 7 = 3'));
-  // Исправляем, не выбрасывая монету: 1 + 1 + 1 — не «жадный» набор.
-  await _coins(tester, <int>[1, 1]);
-  await _tap(tester, 'cashier:give');
   expect(_feedback(tester, 'cashier:feedback'), contains('Сдача верная'));
+  expect(_feedback(tester, 'cashier:feedback'), contains('9 + 1 = 10'));
   await _tap(tester, 'cashier:next');
 
-  await _coins(tester, <int>[10, 10, 10, 10]);
+  await _coins(tester, <int>[1]);
   await _tap(tester, 'cashier:give');
-  expect(_feedback(tester, 'cashier:feedback'), contains('лишнее: 2'));
+  expect(_feedback(tester, 'cashier:feedback'), contains('Не хватает 1'));
+  expect(_feedback(tester, 'cashier:feedback'), contains('8 + 1 = 9'));
+  // Вторая ошибка подряд — другая сумма (1 + 2).
+  await _coins(tester, <int>[2]);
+  await _tap(tester, 'cashier:give');
+  expect(_feedback(tester, 'cashier:feedback'), contains('лишнее: 1'));
+  expect(_feedback(tester, 'cashier:feedback'), contains('8 + 3 = 11'));
+  // Исправляем, не выбрасывая первую монету: 1 + 1 — не «жадный» набор.
   await _tap(tester, 'cashier:undo');
-  await _coins(tester, <int>[5, 1, 1, 1]);
+  await _coins(tester, <int>[1]);
   await _tap(tester, 'cashier:give');
   expect(_feedback(tester, 'cashier:feedback'), contains('Сдача верная'));
   await _tap(tester, 'cashier:next');
@@ -82,7 +95,7 @@ void main() {
         contentJobGames.cashier
             .purchasesFor(0)
             .map((CashierPurchase p) => p.change),
-        <int>[3, 38]);
+        <int>[1, 2]);
     for (final CashierPurchase p in contentJobGames.cashier.purchases) {
       expect(p.change, inInclusiveRange(1, 100));
     }
@@ -106,10 +119,10 @@ void main() {
         tester,
         CashierGame(
             content: contentJobGames.cashier, onDone: (double s) => score = s));
-    await _coins(tester, <int>[2, 1]);
+    await _coins(tester, <int>[1]);
     await _tap(tester, 'cashier:give');
     await _tap(tester, 'cashier:next');
-    await _coins(tester, <int>[10, 10, 10, 5, 2, 1]);
+    await _coins(tester, <int>[2]);
     await _tap(tester, 'cashier:give');
     await _tap(tester, 'cashier:next');
     expect(score, 1);
@@ -158,7 +171,9 @@ void main() {
     expect(_feedback(tester, 'consultant:feedback'),
         contains(set.customer.feedbackFit));
     await _tap(tester, 'consultant:done');
-    expect(score, 0);
+    // Две неверные полки и два разных неверных совета (NAS-7: полка мягче).
+    final ConsultantContent c = contentJobGames.consultant;
+    expect(score, closeTo(1 - 2 * c.shelfPenalty - 2 * c.pickPenalty, 1e-9));
   });
 
   for (final WorldKind kind in worldKinds) {
@@ -212,10 +227,10 @@ void main() {
           tester, const JobPlayScreen(args: JobPlayArgs('cashier')),
           world: world);
       await _tap(tester, 'job:start');
-      await _coins(tester, <int>[2, 1]);
+      await _coins(tester, <int>[1]);
       await _tap(tester, 'cashier:give');
       await _tap(tester, 'cashier:next');
-      await _coins(tester, <int>[10, 10, 10, 5, 2, 1]);
+      await _coins(tester, <int>[2]);
       await _tap(tester, 'cashier:give');
       await _tap(tester, 'cashier:next');
 
@@ -293,7 +308,7 @@ void main() {
     ok(world.demoUnlockAllJobs()); // выгульщик — смена одной кнопкой
     await pumpWorldScreen(
         tester, const JobPlayScreen(args: JobPlayArgs('dog_walker')),
-        world: world, textScale: 1.3);
+        world: world, textScale: 1.3, games: contentJobGamesDogStub);
     await _tap(tester, 'job:start');
     await _tap(tester, 'game:placeholder:do');
     expect(
@@ -307,16 +322,23 @@ void main() {
             .top));
     expect(find.byKey(const ValueKey<String>('job:slider')), findsNothing);
     expect(find.byKey(const ValueKey<String>('job:toPiggy')), findsNothing);
-    // Урок обязателен (Денис 29.09): до ответа уйти нельзя — ни «Назад»,
-    // ни «К доске работ», ни «Домой».
-    for (final String k in <String>['job:back', 'job:toBoard', 'job:toRoom']) {
-      final Widget b = tester.widget(find.byKey(ValueKey<String>(k)));
-      final VoidCallback? on = switch (b) {
-        final IconButton x => x.onPressed,
-        final ButtonStyleButton x => x.onPressed,
-        _ => () {},
-      };
-      expect(on, isNull, reason: '$k до ответа на урок');
+    // Урок обязателен (Денис 29.09): до ответа уйти нельзя. Но кнопки
+    // выхода не гаснут (баг-репорт 15.10: «кнопки не работают, только
+    // перезапуск») — ведут к уроку и говорят, что сделать.
+    expect(
+        find.byKey(const ValueKey<String>('job:lessonFirst')), findsOneWidget);
+    final Size screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    for (final String k in <String>['job:toRoom', 'job:toBoard', 'job:back']) {
+      final Finder b = find.byKey(ValueKey<String>(k));
+      await tester.ensureVisible(b);
+      await tester.pumpAndSettle();
+      await tester.tap(b);
+      await tester.pumpAndSettle();
+      expect(find.byType(JobPlayScreen), findsOneWidget, reason: '$k увёл');
+      final Rect last =
+          tester.getRect(find.byKey(const ValueKey<String>('lesson:treat')));
+      expect(last.top >= 0 && last.bottom <= screen.height, isTrue,
+          reason: '$k: варианты урока не на экране ($last)');
     }
     final Finder choice = find.byKey(const ValueKey<String>('lesson:cushion'));
     await tester.ensureVisible(choice);
@@ -337,6 +359,59 @@ void main() {
     expect((toBoard as ButtonStyleButton).onPressed, isNotNull);
     expect(tester.takeException(), isNull);
   });
+
+  // Баг-репорт из чата задачи (15.10, скриншот садовника): «вернуться с
+  // работы не можешь, кнопки не работают — только перезапуск». Состояние
+  // со скриншота: садовник, хорошая смена, урок ждёт ответа. Уронит: выход
+  // не открывается после любого из трёх ответов, или до ответа кнопка
+  // выхода молчит, а не ведёт к уроку.
+  for (final String answer in <String>['tenth', 'third', 'none']) {
+    testWidgets('садовник: урок «$answer» открывает выход',
+        (WidgetTester tester) async {
+      final World world = _living(worldKinds.last); // мир из content/
+      ok(world.demoUnlockAllJobs());
+      await pumpWorldScreen(
+          tester, const JobPlayScreen(args: JobPlayArgs('gardener')),
+          world: world);
+      await _tap(tester, 'job:start');
+      for (int turn = 0; turn < contentJobGames.gardener.calmTurns; turn++) {
+        for (int i = 0; i < contentJobGames.gardener.beds; i++) {
+          for (final String label in <String>['Полей!', 'Поникла']) {
+            if (find
+                .byKey(ValueKey<String>('gardener:bed:$i:$label'))
+                .evaluate()
+                .isNotEmpty) {
+              await _tap(tester, 'gardener:bed:$i');
+              break;
+            }
+          }
+        }
+        await _tap(tester, 'gardener:next');
+      }
+      await _tap(tester, 'gardener:done');
+      expect(world.pendingLesson?.jobId, 'gardener', reason: 'настройка');
+      // До ответа: «Домой» ведёт к уроку, а не молчит.
+      final Finder home = find.byKey(const ValueKey<String>('job:toRoom'));
+      await tester.ensureVisible(home);
+      await tester.pumpAndSettle();
+      await tester.tap(home);
+      await tester.pumpAndSettle();
+      expect(find.byType(JobPlayScreen), findsOneWidget);
+      final Finder choice = find.byKey(ValueKey<String>('lesson:$answer'));
+      final Rect seen = tester.getRect(choice);
+      final double screenH =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      expect(seen.top >= 0 && seen.bottom <= screenH, isTrue,
+          reason: 'после «Домой» вариант урока целиком на экране: $seen');
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect(world.pendingLesson, isNull);
+      final Widget b = tester.widget(home);
+      expect((b as ButtonStyleButton).onPressed, isNotNull);
+      expect(
+          find.byKey(const ValueKey<String>('job:lessonFirst')), findsNothing);
+    });
+  }
 
   for (final WorldKind kind in worldKinds) {
     // Ловит: ползунок с итога смены убрали, а отложить на цель руками
@@ -417,7 +492,7 @@ void main() {
               find.byKey(const ValueKey<String>('job:result:happiness'));
           await tester.ensureVisible(row);
           expect(tester.widget<Text>(row).data, d > 0 ? '+$d' : '−${-d}');
-          expect(find.text('Настроение (с уроком)'), findsOneWidget);
+          expect(find.text('Настроение (после урока)'), findsOneWidget);
         }
         expect(world.snapshot.free - free, offer.pay);
         final Finder toBoard =

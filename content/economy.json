@@ -73,6 +73,175 @@
       "max_per_week": 2
     }
   },
+  "_achievements_note": "Награды и прогресс (D3, 15.10): metric — что считается (shifts, good_shifts, goals_bought, weeks_no_family_help, no_family_streak, goal_saved_max, lessons_done, pets_owned, stage), target — сколько нужно. Получение — запись журнала achievementEarned, один раз. 12 примеров — по макетам docs/final/achievements, числа не финал.",
+  "achievements": [
+    {"id": "first_shift", "title": "Первая смена", "topic": "work", "hint": "Отработай одну смену", "metric": "shifts", "target": 1},
+    {"id": "good_shifts_5", "title": "Мастер смены", "topic": "work", "hint": "Пять смен на «хорошо»", "metric": "good_shifts", "target": 5},
+    {"id": "first_goal", "title": "Первая цель", "topic": "money", "hint": "Накопи на первую цель и купи её", "metric": "goals_bought", "target": 1},
+    {"id": "three_goals", "title": "Три цели", "topic": "money", "hint": "Купи три цели из копилки", "metric": "goals_bought", "target": 3},
+    {"id": "week_no_family", "title": "Неделя без нехватки", "topic": "money", "hint": "Оплати счета недели без помощи семьи", "metric": "weeks_no_family_help", "target": 1},
+    {"id": "streak_no_family_3", "title": "Без долга", "topic": "money", "hint": "Три недели подряд без помощи семьи", "metric": "no_family_streak", "target": 3},
+    {"id": "piggy_1000", "title": "1000 монет в копилке", "topic": "money", "hint": "Накопи 1000 в копилке", "metric": "goal_saved_max", "target": 1000},
+    {"id": "first_lesson", "title": "Первый урок", "topic": "knowledge", "hint": "Пройди урок после смены", "metric": "lessons_done", "target": 1},
+    {"id": "lessons_5", "title": "Знаток", "topic": "knowledge", "hint": "Пройди пять уроков после смен", "metric": "lessons_done", "target": 5},
+    {"id": "own_pet", "title": "Свой питомец", "topic": "finni", "hint": "Заведи питомца", "metric": "pets_owned", "target": 1},
+    {"id": "move_town", "title": "Переезд", "topic": "finni", "hint": "Переехать в город", "metric": "stage", "target": 1},
+    {"id": "move_moscow", "title": "Москва", "topic": "finni", "hint": "Дорасти до квартиры в Москве", "metric": "stage", "target": 2}
+  ],
+  "_achievements_days_note": "Награды под 7 дней и работы (C7 / DEN-6, finni 17.10), за флагом achievements_days: в режиме дней к achievements добавляются эти. Метрики: distinct_jobs — разных работ со сменой, lucky_shifts — смен с удачей, shift_choices — ответов на вопрос в смене, days_played — прожитых дней, work_days — дней со сменой. Названия без рода (правило 5А).",
+  "achievements_days": true,
+  "_achievements_effect_note": "DEN-32 (Денис 18.10): награды дают баффы — effect. mood: +happiness 😊 сразу и ещё столько же каждое утро, всего days игровых дней (день получения — первый; прибавка после ночного возврата к 50). energy_max: предел ⚡ больше на value навсегда, сон добирает до нового предела (20 → 21). Постоянный бафф — один (days_7), чтобы предел не рос без конца. Границы в загрузчике: 😊 1–10, дней 1–7, ⚡ 1–3.",
+  "achievements_days_items": [
+    {"id": "jobs_3", "title": "Разные работы", "topic": "work", "hint": "Поработай на трёх разных работах", "metric": "distinct_jobs", "target": 3, "effect": {"type": "mood", "happiness": 3, "days": 3}},
+    {"id": "jobs_5", "title": "Пять профессий", "topic": "work", "hint": "Поработай на пяти разных работах", "metric": "distinct_jobs", "target": 5, "effect": {"type": "mood", "happiness": 5, "days": 3}},
+    {"id": "lucky", "title": "Везёт!", "topic": "work", "hint": "Получи удачу на смене", "metric": "lucky_shifts", "target": 1, "effect": {"type": "mood", "happiness": 2, "days": 2}},
+    {"id": "own_choice", "title": "Своё решение", "topic": "knowledge", "hint": "Ответь на вопрос в смене", "metric": "shift_choices", "target": 1, "effect": {"type": "mood", "happiness": 2, "days": 2}},
+    {"id": "days_7", "title": "Семь дней", "topic": "finni", "hint": "Проживи в игре семь дней", "metric": "days_played", "target": 7, "effect": {"type": "energy_max", "value": 1}},
+    {"id": "work_days_5", "title": "Рабочие дни", "topic": "work", "hint": "Поработай в пять разных дней", "metric": "work_days", "target": 5, "effect": {"type": "mood", "happiness": 3, "days": 3}}
+  ],
+  "_balance_note": "Профили баланса 7 дней (finni 17.10, по решению Дениса «продумать экономику заново»): balance_profile выбирает один из balance_profiles; его значения ложатся поверх файла при загрузке (словари сливаются, числа заменяются). Рычаги: карманные, pay_scale (оплата смен × доля, вверх до десятка), satiety_night, home_meal_satiety_share (доля сытости вечерней еды дома). Числа и прогоны — docs/final/ekonomika-7-dnej-varianty.md.",
+  "balance_profile": "mid",
+  "balance_profiles": {
+    "soft": { "pocket_money": { "base": 900 }, "day_cycle": { "pay_scale": 0.5, "satiety_night": 20, "home_meal_satiety_share": 1 } },
+    "mid": { "pocket_money": { "base": 820 }, "day_cycle": { "pay_scale": 0.45, "satiety_night": 20, "home_meal_satiety_share": 0.8 } },
+    "strict": { "pocket_money": { "base": 480 }, "day_cycle": { "pay_scale": 0.45, "satiety_night": 25, "home_meal_satiety_share": 0.5 } }
+  },
+  "day_cycle": {
+    "_note": "День по энергии (решения Дениса D1, D2, D7, 15.10): неделя делится на days_per_week дней; утро — сон «до уровня» sleep_level + перенос остатка не больше carry_max; отдельная сытость 0–100: еда наполняет (meal_base + meal_per_energy × ⚡ блюда), каждое дело и ночь тратят; утром сытость ≥ full_at даёт +⚡, ниже hungry_at — голод (−⚡, −😊). days_per_week = 1 — прежняя неделя без дней (запасной флаг). Числа — вариант A из docs/final/day-energy-model.md, не финал.",
+    "_7d_note": "Неделя 7 дней (Денис, DEN-1, чат 1861, 17.10). ⚡: предел 20, смена 6 (DEN-18) — energy_scale 2 умножает все цены и прибавки ⚡ из economy.json и events.json при загрузке (смена 2 + 1 «на жизнь» = 3 → 6; уровни курьера и программиста сохраняют соотношение). Сон — по таблице sleep_rule (DEN-20, DEN-26 вариант A, подтверждено Денисом, чат 1866): после сна = max(10, x + ⌈(20 − x) / 5⌉), потолок 20 (floor 10, cap 20, fraction 0,2); sleep_level и carry_max при sleep_rule не используются. Еда: 1 приём в день (meals_per_week 7). Смен за неделю — без лимита (см. _shift_caps_note).",
+    "days_per_week": 7,
+    "energy_max": 20,
+    "energy_scale": 2,
+    "sleep_rule": { "floor": 10, "cap": 20, "fraction": 0.2 },
+    "meals_per_week": 7,
+    "_shift_caps_note": "Лимитов смен в неделю нет (finni по DEN-18: смены держат силы и настроение). null — без лимита; нет ключа — недельный лимит week.*. Пример включения, если симулятор найдёт обход экономики одной работой: max_shifts_per_week 14, max_shifts_per_job_per_week 7 — только карточкой Денису.",
+    "max_shifts_per_week": null,
+    "max_shifts_per_job_per_week": null,
+    "max_events_per_day": 1,
+    "_mood_note": "Настроение от типа работы (Денис, DEN-18): Финни нравятся финансы — интересная финансовая работа радует, нудная финансовая огорчает, весёлая без финансов радует чуть меньше, нудная без финансов огорчает сильно. Тип — jobs.<id>.mood_kind (вкус: Насте и Денису). mood_revert — утром 😊 проходит эту долю пути к нейтральным 50: настроение скачет после смен, но не копится. Строки — texty-7-dnej.json → mood_kind.",
+    "_shift_luck_note": "Везение и невезение на смене (Денис, DEN-23, 17.10): ~5 сценариев на работу, тексты — texty-7-dnej.json → shift_luck, id совпадают. Сценарий выпадает с вероятностью chance, среди сценариев работы — по weight; pay_x — оплата × (вверх до монеты), energy_back — ⚡ назад (× energy_scale). Зерно — номер записи журнала: перезапуск даёт тот же итог.",
+    "shift_luck": {
+      "chance": 0.35,
+      "scenarios": [
+        {"id": "consultant_good_sure", "work": "consultant", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Покупатель точно знает, что ищет, и рад совету — смена идёт легко."},
+        {"id": "consultant_good_review", "work": "consultant", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Покупательница оставляет добрый отзыв: совет пригодился."},
+        {"id": "consultant_good_early", "work": "consultant", "kind": "good", "weight": 1, "energy_back": 1, "text": "В магазине тихо, и {name} уходит пораньше."},
+        {"id": "consultant_bad_undecided", "work": "consultant", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Покупатель меряет пятый рюкзак и уходит без покупки."},
+        {"id": "consultant_bad_tags", "work": "consultant", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "На полке перепутаны ценники — всё приходится проверять заново."},
+        {"id": "cashier_good_exact", "work": "cashier", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Все платят без сдачи — очередь идёт быстро."},
+        {"id": "cashier_good_thanks", "work": "cashier", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Постоянная покупательница благодарит за точную сдачу."},
+        {"id": "cashier_good_early", "work": "cashier", "kind": "good", "weight": 1, "energy_back": 1, "text": "К вечеру магазин пустеет, и {name} уходит пораньше."},
+        {"id": "cashier_bad_till", "work": "cashier", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Заедает касса: чек печатается через раз."},
+        {"id": "cashier_bad_coins", "work": "cashier", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "В лотке кончились монеты по 5 — сдачу приходится собирать из мелких."},
+        {"id": "accountant_good_receipts", "work": "accountant", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Все чеки сложены по датам — отчёт сходится с первого раза."},
+        {"id": "accountant_good_praise", "work": "accountant", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Студсовет хвалит аккуратный отчёт."},
+        {"id": "accountant_good_table", "work": "accountant", "kind": "good", "weight": 1, "energy_back": 1, "text": "Старший бухгалтер показывает удобную таблицу, и работа идёт быстрее."},
+        {"id": "accountant_bad_lost_receipt", "work": "accountant", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Одного чека не хватает — его приходится искать по всем папкам."},
+        {"id": "accountant_bad_total", "work": "accountant", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "В таблице лишняя строка, и итог не сходится. Ошибку ищут заново."},
+        {"id": "gardener_good_rain", "work": "gardener", "kind": "good", "weight": 1, "energy_back": 1, "text": "Ночью прошёл дождь — половина грядок уже полита."},
+        {"id": "gardener_good_weather", "work": "gardener", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Солнце не жарит, и полив идёт быстро."},
+        {"id": "gardener_good_apples", "work": "gardener", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Хозяйка сада благодарит за работу и угощает яблоками."},
+        {"id": "gardener_bad_can", "work": "gardener", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Сломалась лейка — воду приходится носить в ведре."},
+        {"id": "gardener_bad_hose", "work": "gardener", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Шланг запутался в кустах, и {name} долго его распутывает."},
+        {"id": "courier_good_near", "work": "courier", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Все адреса рядом — заказы доставлены быстро."},
+        {"id": "courier_good_meet", "work": "courier", "kind": "good", "weight": 1, "energy_back": 1, "text": "Получатель встречает у подъезда, ждать у двери не нужно."},
+        {"id": "courier_good_early", "work": "courier", "kind": "good", "weight": 1, "energy_back": 1, "text": "Последний заказ отменили заранее, и {name} уходит пораньше."},
+        {"id": "courier_bad_lift", "work": "courier", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Лифт не работает — посылку несут на девятый этаж пешком."},
+        {"id": "courier_bad_address", "work": "courier", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Адрес на коробке размыло дождём — приходится звонить и уточнять."},
+        {"id": "programmer_good_first_run", "work": "programmer", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Код запускается с первого раза."},
+        {"id": "programmer_good_hint", "work": "programmer", "kind": "good", "weight": 1, "energy_back": 1, "text": "Другой программист подсказывает, где найти нужную команду."},
+        {"id": "programmer_good_early", "work": "programmer", "kind": "good", "weight": 1, "energy_back": 1, "text": "Задачу закрыли раньше срока, и {name} уходит пораньше."},
+        {"id": "programmer_bad_bug", "work": "programmer", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "В коде прячется ошибка: автополив поливает не ту грядку."},
+        {"id": "programmer_bad_update", "work": "programmer", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Компьютер долго обновляется, и {name} ждёт."},
+        {"id": "dog_walker_good_calm", "work": "dog_walker", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Собака послушная и спокойно идёт рядом."},
+        {"id": "dog_walker_good_owner", "work": "dog_walker", "kind": "good", "weight": 1, "energy_back": 1, "text": "Хозяин собаки возвращается раньше, и прогулка выходит короче."},
+        {"id": "dog_walker_good_tea", "work": "dog_walker", "kind": "good", "weight": 1, "pay_x": 1.1, "text": "Хозяйка собаки благодарит и угощает чаем с печеньем."},
+        {"id": "dog_walker_bad_cat", "work": "dog_walker", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Собака увидела кошку и тянет поводок — прогулка выходит дольше."},
+        {"id": "dog_walker_bad_mud", "work": "dog_walker", "kind": "bad", "weight": 1, "pay_x": 0.9, "text": "Начался дождь, лапы грязные — собаку надо вымыть."}
+      ]
+    },
+    "_shift_choices_note": "Мини-решения внутри смены (17.10): вопрос с 2 вариантами; выпадает с вероятностью chance (режим дней), среди вопросов работы — поровну. pay_x — оплата смены × (вверх до монеты), energy — ⚡ сверх цены смены (× energy_scale, не больше оставшегося), happiness — 😊. Зерно — длина журнала и id работы: тот же путь — тот же вопрос. Тексты — docs/final/texty-vybory-v-smene.json, id вопросов и вариантов прежние; effect_hint — необязательная строка-последствие под вариантом.",
+    "shift_choices": {
+      "chance": 0.5,
+      "items": [
+        {"id": "consultant_gift", "work": "consultant", "question": "Покупатель просит помочь выбрать ещё и подарок.", "options": [{"id": "help", "label": "Помочь с подарком", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.2, "energy": 1, "happiness": 1}, {"id": "skip", "label": "Вежливо отказаться", "effect_hint": "как обычно"}]},
+        {"id": "consultant_window", "work": "consultant", "question": "Смена кончается, а витрина не убрана.", "options": [{"id": "stay", "label": "Остаться и убрать", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.1, "energy": 1}, {"id": "leave", "label": "Уйти вовремя", "effect_hint": "настроение выше", "happiness": 1}]},
+        {"id": "consultant_lunch", "work": "consultant", "question": "Просят постоять на кассе вместо обеда.", "options": [{"id": "agree", "label": "Постоять на кассе", "effect_hint": "больше монет, устанешь сильнее, настроение ниже", "pay_x": 1.15, "energy": 1, "happiness": -1}, {"id": "lunch", "label": "Пойти обедать", "effect_hint": "настроение выше", "happiness": 1}]},
+        {"id": "cashier_second", "work": "cashier", "question": "Очередь длинная. Просят открыть вторую кассу.", "options": [{"id": "open", "label": "Открыть вторую кассу", "effect_hint": "больше монет, устанешь сильнее, настроение ниже", "pay_x": 1.2, "energy": 1, "happiness": -1}, {"id": "calm", "label": "Работать как обычно", "effect_hint": "как обычно"}]},
+        {"id": "cashier_change", "work": "cashier", "question": "Покупатель ушёл и забыл сдачу.", "options": [{"id": "run", "label": "Догнать и отдать", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 2}, {"id": "box", "label": "Отложить сдачу до его возвращения", "effect_hint": "настроение чуть выше", "happiness": 1}]},
+        {"id": "cashier_recount", "work": "cashier", "question": "Можно задержаться и ещё раз пересчитать кассу.", "options": [{"id": "recount", "label": "Пересчитать", "effect_hint": "больше монет, чуть устанешь", "pay_x": 1.1, "energy": 0.5}, {"id": "finish", "label": "Закончить вовремя", "effect_hint": "как обычно"}]},
+        {"id": "accountant_error", "work": "accountant", "question": "В отчёте нашлась старая ошибка.", "options": [{"id": "fix", "label": "Исправить сейчас", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.15, "energy": 1}, {"id": "note", "label": "Записать и сказать начальнику", "effect_hint": "настроение выше", "happiness": 1}]},
+        {"id": "accountant_extra", "work": "accountant", "question": "Предлагают ещё одну смету сегодня.", "options": [{"id": "take", "label": "Взять смету", "effect_hint": "намного больше монет, устанешь намного сильнее, настроение ниже", "pay_x": 1.25, "energy": 1.5, "happiness": -1}, {"id": "no", "label": "Отказаться", "effect_hint": "как обычно"}]},
+        {"id": "accountant_colleague", "work": "accountant", "question": "Коллега просит помочь со своей таблицей.", "options": [{"id": "help", "label": "Помочь коллеге", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 2}, {"id": "own", "label": "Сначала доделать своё", "effect_hint": "чуть больше монет", "pay_x": 1.05}]},
+        {"id": "gardener_bed", "work": "gardener", "question": "Хозяйка просит прополоть ещё и клумбу.", "options": [{"id": "weed", "label": "Прополоть", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.2, "energy": 1}, {"id": "no", "label": "Отказаться", "effect_hint": "как обычно"}]},
+        {"id": "gardener_rain", "work": "gardener", "question": "Пошёл дождь, а работа не закончена.", "options": [{"id": "finish", "label": "Доделать под дождём", "effect_hint": "больше монет, устанешь сильнее, настроение ниже", "pay_x": 1.1, "energy": 1, "happiness": -1}, {"id": "wait", "label": "Переждать дождь", "effect_hint": "монет чуть меньше", "pay_x": 0.95}]},
+        {"id": "gardener_seeds", "work": "gardener", "question": "Остались лишние семена.", "options": [{"id": "plant", "label": "Посадить ещё грядку", "effect_hint": "больше монет, чуть устанешь, настроение выше", "pay_x": 1.1, "energy": 0.5, "happiness": 1}, {"id": "shed", "label": "Убрать в сарай", "effect_hint": "как обычно"}]},
+        {"id": "courier_extra", "work": "courier", "question": "По пути можно взять ещё один заказ.", "options": [{"id": "take", "label": "Взять второй заказ", "effect_hint": "намного больше монет, устанешь намного сильнее", "pay_x": 1.25, "energy": 1.5}, {"id": "one", "label": "Отвезти только этот", "effect_hint": "как обычно"}]},
+        {"id": "courier_road", "work": "courier", "question": "Короткую дорогу закрыли.", "options": [{"id": "around", "label": "Поехать в объезд", "effect_hint": "чуть устанешь", "energy": 0.5}, {"id": "wait", "label": "Подождать, пока откроют", "effect_hint": "опоздание: монет меньше", "pay_x": 0.9}]},
+        {"id": "courier_floor", "work": "courier", "question": "Просят поднять посылку на пятый этаж.", "options": [{"id": "carry", "label": "Поднять посылку", "effect_hint": "больше монет, устанешь сильнее, настроение выше", "pay_x": 1.1, "energy": 1, "happiness": 1}, {"id": "door", "label": "Оставить у подъезда", "effect_hint": "как обычно"}]},
+        {"id": "programmer_bug", "work": "programmer", "question": "В конце смены в коде нашлась странная ошибка.", "options": [{"id": "fix", "label": "Разобраться сейчас", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.15, "energy": 1}, {"id": "later", "label": "Записать на завтра", "effect_hint": "как обычно"}]},
+        {"id": "programmer_tests", "work": "programmer", "question": "Можно написать проверки к своему коду.", "options": [{"id": "write", "label": "Написать проверки", "effect_hint": "больше монет, чуть устанешь, настроение выше", "pay_x": 1.1, "energy": 0.5, "happiness": 1}, {"id": "ship", "label": "Сдать как есть", "effect_hint": "как обычно"}]},
+        {"id": "programmer_call", "work": "programmer", "question": "Команда зовёт обсудить новую задачу.", "options": [{"id": "join", "label": "Пойти на обсуждение", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 1}, {"id": "own", "label": "Доделать своё", "effect_hint": "чуть больше монет", "pay_x": 1.05}]},
+        {"id": "dog_walker_longer", "work": "dog_walker", "question": "Собака хочет гулять ещё.", "options": [{"id": "more", "label": "Погулять подольше", "effect_hint": "больше монет, устанешь сильнее, настроение выше", "pay_x": 1.1, "energy": 1, "happiness": 2}, {"id": "back", "label": "Вернуться вовремя", "effect_hint": "как обычно"}]},
+        {"id": "dog_walker_second", "work": "dog_walker", "question": "Соседка просит выгулять и её собаку.", "options": [{"id": "two", "label": "Взять вторую собаку", "effect_hint": "намного больше монет, устанешь намного сильнее", "pay_x": 1.3, "energy": 1.5}, {"id": "no", "label": "Отказаться", "effect_hint": "как обычно"}]},
+        {"id": "dog_walker_puddle", "work": "dog_walker", "question": "Собака прыгнула в лужу.", "options": [{"id": "wash", "label": "Помыть ей лапы", "effect_hint": "чуть больше монет, чуть устанешь, настроение выше", "pay_x": 1.05, "energy": 0.5, "happiness": 1}, {"id": "as_is", "label": "Вернуть грязной", "effect_hint": "настроение ниже", "happiness": -1}]},
+        {"id": "consultant_return", "work": "consultant", "question": "Покупатель хочет вернуть рюкзак без чека.", "options": [{"id": "help", "label": "Позвать старшего и помочь", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 1}, {"id": "receipt", "label": "Попросить чек", "effect_hint": "как обычно"}]},
+        {"id": "cashier_coins", "work": "cashier", "question": "Покупатель платит горстью мелких монет.", "options": [{"id": "count", "label": "Терпеливо пересчитать", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 1}, {"id": "bill", "label": "Попросить купюру", "effect_hint": "настроение ниже", "happiness": -1}]},
+        {"id": "accountant_receipts", "work": "accountant", "question": "Нашлась коробка чеков, которые никто не записал.", "options": [{"id": "sort", "label": "Разобрать чеки", "effect_hint": "больше монет, но устанешь сильнее", "pay_x": 1.1, "energy": 1}, {"id": "later", "label": "Оставить на завтра", "effect_hint": "как обычно"}]},
+        {"id": "gardener_spade", "work": "gardener", "question": "Лопата треснула посреди работы.", "options": [{"id": "old", "label": "Копать старой", "effect_hint": "чуть больше монет, чуть устанешь", "pay_x": 1.05, "energy": 0.5}, {"id": "borrow", "label": "Попросить лопату у соседа", "effect_hint": "монет чуть меньше", "pay_x": 0.95}]},
+        {"id": "courier_rain", "work": "courier", "question": "Начался дождь, а посылку ждут.", "options": [{"id": "go", "label": "Ехать сразу", "effect_hint": "больше монет, устанешь сильнее, настроение ниже", "pay_x": 1.1, "energy": 1, "happiness": -1}, {"id": "wait", "label": "Переждать под навесом", "effect_hint": "монет чуть меньше", "pay_x": 0.95}]},
+        {"id": "programmer_junior", "work": "programmer", "question": "Новичок в команде не понимает задачу.", "options": [{"id": "explain", "label": "Объяснить ему", "effect_hint": "чуть устанешь, настроение выше", "energy": 0.5, "happiness": 1}, {"id": "own", "label": "Доделать своё", "effect_hint": "чуть больше монет", "pay_x": 1.05}]},
+        {"id": "dog_walker_ball", "work": "dog_walker", "question": "Собака нашла в парке чужой мяч.", "options": [{"id": "owner", "label": "Найти хозяина мяча", "effect_hint": "монет чуть меньше, настроение выше", "pay_x": 0.95, "happiness": 1}, {"id": "leave", "label": "Оставить мяч на месте", "effect_hint": "как обычно"}]}
+      ]
+    },
+    "_shift_choices_ui_note": "Флаг экрана смены (front): true — вопрос мини-решения показывается на карточке смены, ответ уходит в completeJob(choice:); false или нет ключа — экран как раньше, смена без ответа.",
+    "shift_choices_ui": true,
+    "_dog_walk_game_note": "Флаг мини-игры выгульщика (front): true — прогулка по клеткам (jobs.json → jobs.dog_walker); false — прежняя заглушка «Сделать» (оценка 1). Нет ключа — true, как в сборке.",
+    "dog_walk_game": true,
+    "events_per_week": 7,
+    "event_each_morning": true,
+    "_event_money_base_note": "Суммы событий — доли этой базы, а не карманных: профиль баланса меняет карманные, а события остаются такими, как написаны (при 400).",
+    "event_money_base": 400,
+    "mood_revert": 0.2,
+    "mood_kinds": {
+      "fin_fun": { "happiness": 4, "text": "Работа с ценами и монетами — интересно, настроение выше." },
+      "fin_dull": { "happiness": -3, "text": "Одно и то же с монетами весь день — скучновато, настроение ниже." },
+      "fun": { "happiness": 2, "text": "Работа весёлая, но без финансов — настроение чуть выше." },
+      "dull": { "happiness": -6, "text": "Долгая однообразная работа — настроение заметно ниже." }
+    },
+    "sleep_level": 4,
+    "carry_max": 1,
+    "satiety_start": 70,
+    "satiety_per_action": 10,
+    "satiety_night": 20,
+    "satiety_full_at": 60,
+    "satiety_full_bonus": 2,
+    "satiety_hungry_at": 25,
+    "satiety_hungry_malus": 2,
+    "satiety_hungry_happiness": -2,
+    "satiety_meal_base": 30,
+    "satiety_meal_per_energy": 8,
+    "_daily_activities_note": "Ежедневные дела (холодильник, отдохнуть дома) — контракт §4; включаются решением Дениса.",
+    "_home_meal_daily_note": "День без своей еды Финни ест дома меню недели: вечером +сытость блюда, монеты не списываются (домашняя еда уже в счёте недели). Иначе сданный демо-путь голодает к утру 3-го дня.",
+    "home_meal_daily": true,
+    "daily_activities": false,
+    "_explain_ui_note": "Объяснения модели «7 дней» на экранах (front, 17.10): везение на смене в итоге, «?» у настроения, «Как это считается» у опыта, сон в диалоге «Спать». Тексты — content/explain.json. false — экраны как до 7 дней.",
+    "explain_ui": true,
+    "_tutorial_ui_note": "Обучалка первого захода в комнату (C4 / DEN-4, finni 17.10): 6 шагов (tutorial_steps.dart — привет, аренда, магазин, опыт, настроение, «?»), вид T1 (затемнение и карточка с Финни). false — первый заход как сдано. Денис выбрал T1 (18.10, тема 118) — включено.",
+    "tutorial_ui": true,
+    "_mood_pay_daily_note": "C6 / DEN-36 (finni 17.10), вариант A за флагом: true — оплата и ⚡ смены считаются от настроения утра этого дня (после ночного возврата к 50), а не начала недели. false — как было (P7: начало недели). Недельное угасание радости — от начала недели в обоих случаях.",
+    "mood_pay_daily": false,
+    "_mood_pay_live_note": "DEN-36 A (Денис 18.10, включено сразу): mood_pay_live — оплата и ⚡ смены считаются от настроения на момент смены (после события, покупки, прошлой смены — тоже), а не утра или начала недели; сильнее mood_pay_daily. mood_live: оплата × (1 + pay_per_point × (😊 − 50)) в [pay_min, pay_max] — при 😊 20 −18 %, при 80 +18 %; ⚡ целыми: 😊 ≤ sad_at — смена +energy_step ⚡, 😊 ≥ happy_at — −energy_step ⚡ (в показанных ⚡, energy_scale не умножает; не ниже min_job_energy). Пороги ⚡ 40/60 (finni 18.10: при 30/70 боты 36–69 их не достигали, «тратит больше сил» должно быть ощутимо); лицо Финни — по-прежнему 30/70. Досуг считается как раньше.",
+    "mood_pay_live": true,
+    "mood_live": { "pay_per_point": 0.006, "pay_min": 0.8, "pay_max": 1.2, "sad_at": 40, "happy_at": 60, "energy_step": 1, "min_job_energy": 1 },
+    "_xp_stages_note": "C2 / DEN-35 вариант A (finni 17.10), за флагом: xp_stages — ступени сложности кассира, консультанта, бухгалтера и садовника от опыта (хорошие смены). Ступень = сколько порогов xp_stage_min опыт достиг; выбирается сама, наибольшая открытая. Содержание ступеней — jobs.json → jobs.<работа>.stages (ступень 1 — базовое). Пороги 0 / 2 / 5: при одной хорошей смене в день третья ступень — на 6-й день, при двух — на 3–4-й. Оплата и ⚡ от ступени не зависят. Курьер и программист — свои уровни за вещь, как раньше.",
+    "xp_stages": true,
+    "xp_stage_min": [0, 2, 5],
+    "xp_stage_jobs": ["cashier", "consultant", "accountant", "gardener"],
+    "shop_energy": 2,
+    "rest_energy": 2,
+    "rest_happiness": 2
+  },
   "happiness": {
     "_note": "😊 — непрерывная шкала 0–100, старт 50 (Настя v13: в интерфейсе лицо Финни и шкала, число по нажатию). Влияет плавно на цену действий в ⚡ и на оплату смен — по 😊 на НАЧАЛО недели (P7, A15): всю неделю карточки стоят одинаково. P7, Денис 28.09: «happiness gets drained as with energy… if you stay on the same money level happiness usually doesn't increase, actually it decreases if you're not growing» — каждый игровой день тратит 😊 (day_drain), в итогах недели проверка роста (week_growth). Колпаки на эффектах и остывание сверху держат снежный ком.",
     "start": 50,
@@ -108,6 +277,8 @@
     "leisure_weekly_cap": 16,
     "_leisure_weekly_cap_note": "Сколько 😊 за неделю максимум даёт досуг. Пятый поход в кино не радует так же, как первый.",
     "goal_reached_bonus": 10,
+    "_finni_pet_note": "Погладить Финни в комнате (решение команды 16.10): +😊 за первое касание игрового дня; повтор в тот же день — без 😊.",
+    "finni_pet": 1,
     "_goal_reached_note": "Разовая радость, когда цель накопления достигнута и куплена."
   },
   "food": {
@@ -243,6 +414,7 @@
   "homes": {
     "_note": "Жильё — аренда (Денис 29.09, 941 п. 3: «рост = аренда при очках роста И деньгах … и потом ещё раз с Москвой»; критерии ночи §7). Плата каждую неделю (обязательная, НУЖНО). Переезд — выбор ребёнка: снять жильё получше. price — залог и первая неделя, платится из ЦЕЛИ; открывается, когда хватает очков роста для стадии жилья (growth.stages[].min_points). stage — где это жильё: переезд меняет стадию (фон комнаты, город, ступень оплаты). Перед переездом видно новую плату в неделю. Отказаться или подождать можно без наказания.",
     "category": "required",
+    "_prices_18_10_note": "Цены переездов (слово Насти, тема 11; finni 18.10): залог и первая неделя — город 5000, Москва 12000 (было 1200 и 2000); аренда в неделю прежняя (400 и 1000). Переезд — большая цель на несколько недель, дороже собаки (3200).",
     "start": "home_room",
     "options": [
       {
@@ -259,7 +431,7 @@
       {
         "id": "home_flat",
         "name": "Квартира в городе",
-        "price": 1200,
+        "price": 5000,
         "weekly_cost": 400,
         "energy_per_week": 1,
         "happiness_per_week": 4,
@@ -270,7 +442,7 @@
       {
         "id": "home_house",
         "name": "Квартира в Москве",
-        "price": 2000,
+        "price": 12000,
         "weekly_cost": 1000,
         "energy_per_week": 2,
         "happiness_per_week": 8,
@@ -508,11 +680,31 @@
       }
     ]
   },
+  "adult": {
+    "_note": "Бонус взрослого (ТЗ 2.5.12.3, DEN-27 вариант A, finni 17.10): weekly_bonus — флаг; включён — взрослый зашёл в раздел и подтвердил → weekly_bonus_coins монет в кошелёк, раз в игровую неделю (7 дней), запись parentBonus в журнал. Выключен — прежнее правило «+1 смена», в режиме дней оно не действует (лимита смен нет).",
+    "_section_note": "DEN-27 (Денис 18.10, тема 118): «Взрослых мы вообще убираем пока как раздел». section — флаг экрана: false — входа «Взрослым» из комнаты нет, «Начать игру заново» (с подтверждением) и «Режим проверки» (за тем же примером на умножение, ТЗ §2.5 демо-режим) — в «Настройках»; true — как раньше. Код раздела остаётся.",
+    "section": false,
+    "weekly_bonus": false,
+    "weekly_bonus_coins": 20
+  },
+  "room": {
+    "_note": "Кастомизация комнаты на сетке (каркас 17.10): customize — флаг экрана (вкладка «Комната» в магазине и режим «Расставить» в комнате). Вещи и сетка — room_items.json. false — всё как раньше.",
+    "customize": false,
+    "_event_badge_note": "Кнопка «Событие ждёт» в комнате (17.10): пока есть событие без ответа, в комнате видно, что оно ждёт, и одно касание ведёт к нему. false — как раньше (только «!» у здания в городе).",
+    "event_badge": true,
+    "_pet_name_note": "Имя Финни над ним в комнате (DEN-25 вариант A, ТЗ 2.5.2.2; finni 17.10): строка «Имя · состояние»; длинное имя — «…». false — как сдано (имя только в озвучке Финни). Денис выбрал A (18.10, тема 118) — включено.",
+    "pet_name": true
+  },
+  "city": {
+    "_note": "Флаги экрана города. label_scale (DEN-30 вариант A, Денис 18.10, тема 118): подписи зданий — радиус шкалы проекта (Radii.label), не «пилюля». false — как сдано (Radii.chip).",
+    "label_scale": true
+  },
   "decor": {
     "_note": "Декор комнаты (конверт ХОЧУ). Настя v13 — предложение, «цены обсуждаются». Каждый новый предмет даёт +3😊 один раз и остаётся в комнате; повторно тот же предмет не радует.",
     "category": "optional",
     "status": "proposal",
     "happiness_once": 3,
+    "_prices_den32_note": "DEN-32 (Денис 18.10): цены декора от 100 и без верхней границы. Скины дешевле 100 подняты до 100–130 (порядок ступеней тот же), премиум-мебель: стол 15 — 3500, кровать 8 — 4000, кровать 6 — 4500, стол 18 — 5000.",
     "_ids_note": "id предметов — с префиксом группы (poster_ / plant_ / light_ / decor_): по нему экран комнаты ставит вещь на её место (room_layout.json → decor), те же id у домена и фейка. Группа «Вещи» (decor_*) — 29.09: у каждой вещи своё место.",
     "groups": [
       {
@@ -530,6 +722,10 @@
       {
         "id": "things",
         "name": "Вещи"
+      },
+      {
+        "id": "furniture",
+        "name": "Мебель"
       }
     ],
     "items": [
@@ -672,8 +868,744 @@
         "name": "Круглый ковёр",
         "price": 500,
         "group": "things"
+      },
+      {
+        "id": "skin_cabinet__19a",
+        "_note": "Вид тумбочки: код G2-19, цвет а. Цена 50 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка простая",
+        "price": 100,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__19b",
+        "_note": "Вид тумбочки: код G2-19, цвет б. Цена 50 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка простая",
+        "price": 100,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__19v",
+        "_note": "Вид тумбочки: код G2-19, цвет в. Цена 50 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка простая",
+        "price": 100,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__19g",
+        "_note": "Вид тумбочки: код G2-19, цвет г. Цена 50 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка простая",
+        "price": 100,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__20a",
+        "_note": "Вид тумбочки: код G2-20, цвет а. Цена 300 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка с ящиками",
+        "price": 300,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__20b",
+        "_note": "Вид тумбочки: код G2-20, цвет б. Цена 300 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка с ящиками",
+        "price": 300,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__20v",
+        "_note": "Вид тумбочки: код G2-20, цвет в. Цена 300 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка с ящиками",
+        "price": 300,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__20g",
+        "_note": "Вид тумбочки: код G2-20, цвет г. Цена 300 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка с ящиками",
+        "price": 300,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__21a",
+        "_note": "Вид тумбочки: код G2-21, цвет а. Цена 500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка-шкафчик",
+        "price": 500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__21b",
+        "_note": "Вид тумбочки: код G2-21, цвет б. Цена 500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка-шкафчик",
+        "price": 500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__21v",
+        "_note": "Вид тумбочки: код G2-21, цвет в. Цена 500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка-шкафчик",
+        "price": 500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_cabinet__21g",
+        "_note": "Вид тумбочки: код G2-21, цвет г. Цена 500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Тумбочка-шкафчик",
+        "price": 500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__2a",
+        "_note": "Вид кровати: код G2-2, цвет а. Цена 900 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская резная",
+        "price": 900,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__2b",
+        "_note": "Вид кровати: код G2-2, цвет б. Цена 900 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская резная",
+        "price": 900,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__2v",
+        "_note": "Вид кровати: код G2-2, цвет в. Цена 900 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская резная",
+        "price": 900,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__2g",
+        "_note": "Вид кровати: код G2-2, цвет г. Цена 900 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская резная",
+        "price": 900,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__3a",
+        "_note": "Вид кровати: код G2-3, цвет а. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская с узором",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__3b",
+        "_note": "Вид кровати: код G2-3, цвет б. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская с узором",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__3v",
+        "_note": "Вид кровати: код G2-3, цвет в. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская с узором",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__3g",
+        "_note": "Вид кровати: код G2-3, цвет г. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать деревенская с узором",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__4a",
+        "_note": "Вид кровати: код G2-4, цвет а. Цена 250 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская",
+        "price": 250,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__4b",
+        "_note": "Вид кровати: код G2-4, цвет б. Цена 250 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская",
+        "price": 250,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__4v",
+        "_note": "Вид кровати: код G2-4, цвет в. Цена 250 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская",
+        "price": 250,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__4g",
+        "_note": "Вид кровати: код G2-4, цвет г. Цена 250 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская",
+        "price": 250,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__5a",
+        "_note": "Вид кровати: код G2-5, цвет а. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская с ящиками",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__5b",
+        "_note": "Вид кровати: код G2-5, цвет б. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская с ящиками",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__5v",
+        "_note": "Вид кровати: код G2-5, цвет в. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская с ящиками",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__5g",
+        "_note": "Вид кровати: код G2-5, цвет г. Цена 1500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская с ящиками",
+        "price": 1500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__6a",
+        "_note": "Вид кровати: код G2-6, цвет а. Цена 2500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская мягкая",
+        "price": 4500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__6b",
+        "_note": "Вид кровати: код G2-6, цвет б. Цена 2500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская мягкая",
+        "price": 4500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__6v",
+        "_note": "Вид кровати: код G2-6, цвет в. Цена 2500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская мягкая",
+        "price": 4500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__6g",
+        "_note": "Вид кровати: код G2-6, цвет г. Цена 2500 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать городская мягкая",
+        "price": 4500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__7a",
+        "_note": "Вид кровати: код G2-7, цвет а. Цена 400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская",
+        "price": 400,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__7b",
+        "_note": "Вид кровати: код G2-7, цвет б. Цена 400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская",
+        "price": 400,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__7v",
+        "_note": "Вид кровати: код G2-7, цвет в. Цена 400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская",
+        "price": 400,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__7g",
+        "_note": "Вид кровати: код G2-7, цвет г. Цена 400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская",
+        "price": 400,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__8a",
+        "_note": "Вид кровати: код G2-8, цвет а. Цена 2400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская с полкой",
+        "price": 4000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__8b",
+        "_note": "Вид кровати: код G2-8, цвет б. Цена 2400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская с полкой",
+        "price": 4000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__8v",
+        "_note": "Вид кровати: код G2-8, цвет в. Цена 2400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская с полкой",
+        "price": 4000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_bed__8g",
+        "_note": "Вид кровати: код G2-8, цвет г. Цена 2400 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Кровать московская с полкой",
+        "price": 4000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__10a",
+        "_note": "Вид стола со стулом: код G2-10, цвет а. Цена 120 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский",
+        "price": 120,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__10b",
+        "_note": "Вид стола со стулом: код G2-10, цвет б. Цена 120 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский",
+        "price": 120,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__10v",
+        "_note": "Вид стола со стулом: код G2-10, цвет в. Цена 120 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский",
+        "price": 120,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__10g",
+        "_note": "Вид стола со стулом: код G2-10, цвет г. Цена 120 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский",
+        "price": 120,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__11a",
+        "_note": "Вид стола со стулом: код G2-11, цвет а. Цена 720 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский с ящиками",
+        "price": 720,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__11b",
+        "_note": "Вид стола со стулом: код G2-11, цвет б. Цена 720 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский с ящиками",
+        "price": 720,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__11v",
+        "_note": "Вид стола со стулом: код G2-11, цвет в. Цена 720 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский с ящиками",
+        "price": 720,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__11g",
+        "_note": "Вид стола со стулом: код G2-11, цвет г. Цена 720 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол деревенский с ящиками",
+        "price": 720,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__13a",
+        "_note": "Вид стола со стулом: код G2-13, цвет а. Цена 200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской",
+        "price": 200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__13b",
+        "_note": "Вид стола со стулом: код G2-13, цвет б. Цена 200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской",
+        "price": 200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__13v",
+        "_note": "Вид стола со стулом: код G2-13, цвет в. Цена 200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской",
+        "price": 200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__13g",
+        "_note": "Вид стола со стулом: код G2-13, цвет г. Цена 200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской",
+        "price": 200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__14a",
+        "_note": "Вид стола со стулом: код G2-14, цвет а. Цена 1200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской с компьютером",
+        "price": 1200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__14b",
+        "_note": "Вид стола со стулом: код G2-14, цвет б. Цена 1200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской с компьютером",
+        "price": 1200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__14v",
+        "_note": "Вид стола со стулом: код G2-14, цвет в. Цена 1200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской с компьютером",
+        "price": 1200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__14g",
+        "_note": "Вид стола со стулом: код G2-14, цвет г. Цена 1200 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской с компьютером",
+        "price": 1200,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__15a",
+        "_note": "Вид стола со стулом: код G2-15, цвет а. Цена 2000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской угловой",
+        "price": 3500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__15b",
+        "_note": "Вид стола со стулом: код G2-15, цвет б. Цена 2000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской угловой",
+        "price": 3500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__15v",
+        "_note": "Вид стола со стулом: код G2-15, цвет в. Цена 2000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской угловой",
+        "price": 3500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__15g",
+        "_note": "Вид стола со стулом: код G2-15, цвет г. Цена 2000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол городской угловой",
+        "price": 3500,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__17a",
+        "_note": "Вид стола со стулом: код G2-17, цвет а. Цена 1800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский с креслом",
+        "price": 1800,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__17b",
+        "_note": "Вид стола со стулом: код G2-17, цвет б. Цена 1800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский с креслом",
+        "price": 1800,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__17v",
+        "_note": "Вид стола со стулом: код G2-17, цвет в. Цена 1800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский с креслом",
+        "price": 1800,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__17g",
+        "_note": "Вид стола со стулом: код G2-17, цвет г. Цена 1800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский с креслом",
+        "price": 1800,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__18a",
+        "_note": "Вид стола со стулом: код G2-18, цвет а. Цена 3000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский угловой",
+        "price": 5000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__18b",
+        "_note": "Вид стола со стулом: код G2-18, цвет б. Цена 3000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский угловой",
+        "price": 5000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__18v",
+        "_note": "Вид стола со стулом: код G2-18, цвет в. Цена 3000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский угловой",
+        "price": 5000,
+        "group": "furniture"
+      },
+      {
+        "id": "skin_desk__18g",
+        "_note": "Вид стола со стулом: код G2-18, цвет г. Цена 3000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Стол московский угловой",
+        "price": 5000,
+        "group": "furniture"
+      },
+      {
+        "id": "decor_rug__31a",
+        "_note": "Вид ковра: код G2-31, цвет а. Цена 100 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр полосатый",
+        "price": 100,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__31b",
+        "_note": "Вид ковра: код G2-31, цвет б. Цена 100 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр полосатый",
+        "price": 100,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__31v",
+        "_note": "Вид ковра: код G2-31, цвет в. Цена 100 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр полосатый",
+        "price": 100,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__33a",
+        "_note": "Вид ковра: код G2-33, цвет а. Цена 1000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр с узором",
+        "price": 1000,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__33b",
+        "_note": "Вид ковра: код G2-33, цвет б. Цена 1000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр с узором",
+        "price": 1000,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__33v",
+        "_note": "Вид ковра: код G2-33, цвет в. Цена 1000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр с узором",
+        "price": 1000,
+        "group": "things"
+      },
+      {
+        "id": "decor_rug__33g",
+        "_note": "Вид ковра: код G2-33, цвет г. Цена 1000 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Ковёр с узором",
+        "price": 1000,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__34a",
+        "_note": "Вид глобуса: код G2-34, цвет а. Цена 80 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус простой",
+        "price": 130,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__34b",
+        "_note": "Вид глобуса: код G2-34, цвет б. Цена 80 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус простой",
+        "price": 130,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__34v",
+        "_note": "Вид глобуса: код G2-34, цвет в. Цена 80 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус простой",
+        "price": 130,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__34g",
+        "_note": "Вид глобуса: код G2-34, цвет г. Цена 80 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус простой",
+        "price": 130,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__35a",
+        "_note": "Вид глобуса: код G2-35, цвет а. Цена 480 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус на ножке",
+        "price": 480,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__35b",
+        "_note": "Вид глобуса: код G2-35, цвет б. Цена 480 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус на ножке",
+        "price": 480,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__35v",
+        "_note": "Вид глобуса: код G2-35, цвет в. Цена 480 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус на ножке",
+        "price": 480,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__35g",
+        "_note": "Вид глобуса: код G2-35, цвет г. Цена 480 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус на ножке",
+        "price": 480,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__36a",
+        "_note": "Вид глобуса: код G2-36, цвет а. Цена 800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус большой",
+        "price": 800,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__36b",
+        "_note": "Вид глобуса: код G2-36, цвет б. Цена 800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус большой",
+        "price": 800,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__36v",
+        "_note": "Вид глобуса: код G2-36, цвет в. Цена 800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус большой",
+        "price": 800,
+        "group": "things"
+      },
+      {
+        "id": "decor_globe__36g",
+        "_note": "Вид глобуса: код G2-36, цвет г. Цена 800 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Глобус большой",
+        "price": 800,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__37b",
+        "_note": "Вид книг: код G2-37, цвет б. Цена 60 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги с чашкой",
+        "price": 110,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__37v",
+        "_note": "Вид книг: код G2-37, цвет в. Цена 60 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги с чашкой",
+        "price": 110,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__37g",
+        "_note": "Вид книг: код G2-37, цвет г. Цена 60 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги с чашкой",
+        "price": 110,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__38a",
+        "_note": "Вид книг: код G2-38, цвет а. Цена 360 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги на подставке",
+        "price": 360,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__38b",
+        "_note": "Вид книг: код G2-38, цвет б. Цена 360 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги на подставке",
+        "price": 360,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__38v",
+        "_note": "Вид книг: код G2-38, цвет в. Цена 360 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги на подставке",
+        "price": 360,
+        "group": "things"
+      },
+      {
+        "id": "decor_books__38g",
+        "_note": "Вид книг: код G2-38, цвет г. Цена 360 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Книги на подставке",
+        "price": 360,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__40a",
+        "_note": "Вид мишки: код G2-40, цвет а. Цена 70 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка",
+        "price": 120,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__40b",
+        "_note": "Вид мишки: код G2-40, цвет б. Цена 70 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка",
+        "price": 120,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__40g",
+        "_note": "Вид мишки: код G2-40, цвет г. Цена 70 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка",
+        "price": 120,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__41a",
+        "_note": "Вид мишки: код G2-41, цвет а. Цена 420 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка с заплатками",
+        "price": 420,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__41b",
+        "_note": "Вид мишки: код G2-41, цвет б. Цена 420 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка с заплатками",
+        "price": 420,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__41v",
+        "_note": "Вид мишки: код G2-41, цвет в. Цена 420 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка с заплатками",
+        "price": 420,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__41g",
+        "_note": "Вид мишки: код G2-41, цвет г. Цена 420 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка с заплатками",
+        "price": 420,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__42a",
+        "_note": "Вид мишки: код G2-42, цвет а. Цена 700 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка в шарфе",
+        "price": 700,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__42b",
+        "_note": "Вид мишки: код G2-42, цвет б. Цена 700 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка в шарфе",
+        "price": 700,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__42v",
+        "_note": "Вид мишки: код G2-42, цвет в. Цена 700 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка в шарфе",
+        "price": 700,
+        "group": "things"
+      },
+      {
+        "id": "decor_bear__42g",
+        "_note": "Вид мишки: код G2-42, цвет г. Цена 700 — лестница 1 : 6 : 10 от базы типа (как у тумбочки 50 / 300 / 500). +3😊 один раз; в комнате — вид предмета, не новая вещь.",
+        "name": "Мишка в шарфе",
+        "price": 700,
+        "group": "things"
       }
-    ]
+    ],
+    "_skins_note": "Скины (29.09, Денис): у кровати, стола, тумбочки и вещей один предмет в комнате — купленный вариант становится его видом, купленные можно «выбрать» бесплатно. id = <предмет>__<код><плитка>: skin_bed / skin_desk / skin_cabinet — мебель (группа furniture), decor_* — вещь на своём месте. Одна карточка на код, плитки одного кода — цвета по одной цене. Лестница цен как у тумбочки (Денис): 1 : 6 : 10 от базы типа. Таблица — docs/magazin-ceny.md в папке проекта."
   },
   "leisure": {
     "_note": "Досуг: тратит ⚡ (плюс 1⚡ «на жизнь»), даёт 😊. Кино и кафе — из конверта ХОЧУ. Платного автомата-лутбокса нет: ТЗ §3.5 запрещает механики случайной платной награды (решение Дениса 26.09). Вместо него бесплатное задание-симуляция в events.json (slot_machine_sim).",
@@ -716,36 +1648,36 @@
     ]
   },
   "jobs": {
-    "_note": "Оплата и БАЗОВАЯ ⚡ смен — ТОЛЬКО здесь (Настя v13). 🔴 energy — базовая цена работы; +1⚡ «на жизнь» (energy.living_drain_per_action) добавляет домен, не файл: консультант стоит 2 + 1 = 3⚡. content/jobs.json ссылается на эти id и хранит содержание мини-игр. Оплата известна до начала смены; ошибки и скорость её не снижают (P4). Рост оплаты — jobs_pay_growth. Доступ (Денис 29.09, 941 п. 5: «больше работ, но меньше доступов, изначально доступны только базовые работы»): Финни — ребёнок экономистов и учится в вузе на экономиста, поэтому с первого дня ему открыты работы, где считают деньги и цены, — кассир и продавец-консультант, и простая подработка садовником. Остальное открывают вещи: ноутбук — программист (мощный ноутбук — сложные задачи), транспорт — курьер, собака — выгульщик. unlocked_by у уровня (tiers[].unlocked_by) сильнее, чем у работы. Демо «Открыть все профессии» снимает все замки.",
-    "consultant": {
-      "name": "Продавец-консультант",
-      "pay": 300,
-      "energy": 2,
-      "unlocked": true,
-      "_note": "Финансовая работа (цены и сравнение): открыта с первого дня — Финни учится на экономиста."
-    },
-    "cashier": {
-      "name": "Кассир",
-      "pay": 260,
-      "energy": 2,
-      "unlocked": true,
-      "_note": "Финансовая работа (деньги и сдача): открыта с первого дня — Финни учится на экономиста."
-    },
-    "accountant": {
-      "name": "Помощник бухгалтера",
-      "pay": 280,
-      "energy": 2,
-      "unlocked": true,
-      "_note": "Финансовая работа в вузе (Денис 29.09, 941 п. 5: «больше работ … изначально работы он может выбрать финансовые»): студсовет просит сравнить три предложения и выбрать подходящее под задачу и смету. Мини-игра — та же, что у консультанта (сравнить цены → выбрать под бюджет), содержание своё — jobs.json → jobs.accountant. Оплата — между кассиром (260) и консультантом (300): работа сидячая, как у кассира."
-    },
-    "gardener": {
+    "_note": "Оплата и БАЗОВАЯ ⚡ смен — ТОЛЬКО здесь (Настя v13). 🔴 energy — базовая цена работы; +1⚡ «на жизнь» (energy.living_drain_per_action) добавляет домен, не файл: консультант стоит 2 + 1 = 3⚡. content/jobs.json ссылается на эти id и хранит содержание мини-игр. Оплата известна до начала смены; ошибки и скорость её не снижают (P4). Рост оплаты — jobs_pay_growth. Доступ (Денис 29.09, 941 п. 5: «больше работ, но меньше доступов, изначально доступны только базовые работы»): Финни — ребёнок экономистов и учится в вузе на экономиста, поэтому с первого дня ему открыты работы, где считают деньги и цены, — кассир и продавец-консультант, и простая подработка садовником. Остальное открывают вещи: ноутбук — программист (мощный ноутбук — сложные задачи), транспорт — курьер, собака — выгульщик. unlocked_by у уровня (tiers[].unlocked_by) сильнее, чем у работы. Демо «Открыть все профессии» снимает все замки. Порядок ключей здесь — порядок доски работ: садовник первым, вход без арифметики (NAS-4 А, Настя 18.10).",
+    "gardener": { "mood_kind": "dull",
       "name": "Садовник",
       "pay": 180,
       "energy": 1,
       "unlocked": true,
       "_note": "Платят меньше, зато легко: отдых от счёта. Базовая подработка: открыта с первого дня, умений и вещей не нужно."
     },
-    "programmer": {
+    "consultant": { "mood_kind": "fin_fun",
+      "name": "Продавец-консультант",
+      "pay": 300,
+      "energy": 2,
+      "unlocked": true,
+      "_note": "Финансовая работа (цены и сравнение): открыта с первого дня — Финни учится на экономиста."
+    },
+    "cashier": { "mood_kind": "fin_dull",
+      "name": "Кассир",
+      "pay": 260,
+      "energy": 2,
+      "unlocked": true,
+      "_note": "Финансовая работа (деньги и сдача): открыта с первого дня — Финни учится на экономиста."
+    },
+    "accountant": { "mood_kind": "fin_fun",
+      "name": "Помощник бухгалтера",
+      "pay": 280,
+      "energy": 2,
+      "unlocked": true,
+      "_note": "Финансовая работа в вузе (Денис 29.09, 941 п. 5: «больше работ … изначально работы он может выбрать финансовые»): студсовет просит сравнить три предложения и выбрать подходящее под задачу и смету. Мини-игра — та же, что у консультанта (сравнить цены → выбрать под бюджет), содержание своё — jobs.json → jobs.accountant. Оплата — между кассиром (260) и консультантом (300): работа сидячая, как у кассира."
+    },
+    "programmer": { "mood_kind": "fun",
       "name": "Программист",
       "unlocked": false,
       "unlocked_by": "computer",
@@ -775,7 +1707,7 @@
         }
       ]
     },
-    "courier": {
+    "courier": { "mood_kind": "dull",
       "name": "Курьер",
       "unlocked": false,
       "unlocked_by": "transport",
@@ -804,13 +1736,13 @@
         }
       ]
     },
-    "dog_walker": {
+    "dog_walker": { "mood_kind": "fun",
       "name": "Выгульщик собак",
       "pay": 220,
       "energy": 1,
       "unlocked": false,
       "unlocked_by": "pet_dog",
-      "_note": "Открывается собакой. Настя v13: 220 за работу, 1⚡; «к демо под вопросом». Мини-игра — после 29.09."
+      "_note": "Открывается собакой. Настя v13: 220 за работу, 1⚡; «к демо под вопросом». Мини-игра — прогулка по клеткам (jobs.json → jobs.dog_walker, флаг day_cycle.dog_walk_game)."
     }
   },
   "jobs_pay_growth": {
@@ -887,6 +1819,18 @@
     ],
     "stage_by_rent": true,
     "_stage_by_rent_note": "Стадия = жильё, которое Финни снимает (Денис 941 п. 3). Очки роста открывают переезд, а переезжает ребёнок сам — когда накопил на залог. true — так; false — стадия по очкам, как было до 29.09."
+  },
+  "audio": {
+    "_note": "Фоновая мелодия (DEN-34: права на трек не подтверждены). background_music — флаг экрана: true — мелодия как раньше (тумблер «Музыка» в настройках и пункт в меню комнаты); false — плеер не создаётся, «Музыки» нет ни в настройках, ни в меню; щелчок и вибрация («Звуки») не меняются. Нет ключа — true. Убрать сам файл из APK — строка assets/audio/ в pubspec.yaml (коммит music-off).",
+    "background_music": true
+  },
+  "progress": {
+    "_note": "Флаги экрана «Прогресс». share_parent (EXP-9, Денис 18.10: вариант 0 «не делаем»): кнопка «Отправить родителю». false — кнопки нет; true — кнопка (вид — картинка, parent_share.dart). Код остаётся.",
+    "share_parent": false
+  },
+  "bank": {
+    "_note": "Банк (ТЗ Насти «Начальное обучение» 18.10, экраны 10–11; DEN-41 — включать ли в сборку, не решено). transfer — флаг: false — здание «Банк» ведёт в копилку как раньше, нового нет; true — при первом входе в «Банк» карточка «Что такое банк?», на экране копилки кнопка «Перевод монет», перевод между частями «Нужное · Хочу · Копилка» одной записью журнала (не доход и не расход). Нет ключа — false.",
+    "transfer": false
   },
   "purchases_index": {
     "_note": "Сводка для проверки минимума ТЗ §2.6 (≥8 покупок двух типов, ≥3 цели). Симулятор пересчитывает её из разделов выше; этот список — для людей.",

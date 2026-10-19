@@ -44,7 +44,7 @@ class LearnedPanel extends StatelessWidget {
       padding: const EdgeInsets.all(Gap.sm + Gap.xs),
       decoration: BoxDecoration(
         color: WorldColors.panel,
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         border: Border.all(color: WorldColors.line),
       ),
       child: Column(

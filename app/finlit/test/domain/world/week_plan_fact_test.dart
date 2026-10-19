@@ -61,4 +61,28 @@ void main() {
       }
     });
   });
+
+  // Ловит (эксперт 16.10 [03:09–03:28], проход front3 p30–p31): урок
+  // «Не покупать» кладёт деньги в копилку, а итоги недели писали
+  // «ХОЧУ: потратили 110» — перевод в копилку считался тратой. Трата урока —
+  // только покупка («Купить со скидкой за 150»).
+  for (final (String choice, int spent) in <(String, int)>[
+    ('skip', 0),
+    ('buy', 150),
+  ]) {
+    test('урок консультанта «$choice»: на ХОЧУ потрачено $spent', () {
+      final WorldGame w = contentWorld();
+      ok(w.startWeek());
+      ok(w.plan(needs: 0, wants: 0, goal: 0));
+      ok(w.completeJob('consultant', score: 1));
+      final int saved = w.weekHistory.last.goal.actual;
+      ok(w.resolveLesson(choice));
+      final WeekPlanFact f = w.weekHistory.last;
+      expect(f.want.actual, spent, reason: 'перевод в копилку — не трата');
+      if (spent == 0) {
+        expect(f.goal.actual, greaterThan(saved),
+            reason: '«Не покупать» — отложено в копилку');
+      }
+    });
+  }
 }

@@ -10,6 +10,9 @@ import 'package:flutter/widgets.dart';
 /// сценок знакомства и карты города S2 (Денис, 938: «механика хождения
 /// Финни по квартире и по городу»). [builder] получает, идёт ли Финни
 /// сейчас, — чтобы включить кадры ходьбы, где они нарисованы.
+///
+/// [via] — точки поворота по пути к [at] (город, флаг `city.smooth_walk`:
+/// в обход домов). Пусто — прямо, как в комнате.
 class FinniWalker extends StatefulWidget {
   const FinniWalker({
     super.key,
@@ -17,12 +20,14 @@ class FinniWalker extends StatefulWidget {
     required this.duration,
     required this.bob,
     required this.builder,
+    this.via = const <Offset>[],
   });
 
   final Offset at;
   final Duration duration;
   final double bob;
   final Widget Function(bool walking) builder;
+  final List<Offset> via;
 
   @override
   State<FinniWalker> createState() => _FinniWalkerState();
@@ -36,8 +41,30 @@ class _FinniWalkerState extends State<FinniWalker>
   late Offset _to = widget.at;
   bool _faceLeft = false;
 
-  Offset get _now =>
-      Offset.lerp(_from, _to, Curves.easeInOut.transform(_c.value))!;
+  /// Путь с поворотами: от [_from] через [FinniWalker.via] к [_to]; пусто —
+  /// прямо.
+  List<Offset> _path = const <Offset>[];
+  double _pathLen = 0;
+
+  Offset get _now {
+    final double t = Curves.easeInOut.transform(_c.value);
+    if (_path.length < 3 || _pathLen <= 0) return Offset.lerp(_from, _to, t)!;
+    double left = t * _pathLen;
+    for (int i = 0; i + 1 < _path.length; i++) {
+      final double seg = (_path[i + 1] - _path[i]).distance;
+      if (left <= seg || i + 2 == _path.length) {
+        // Лицом по ходу этого отрезка.
+        final double dx = _path[i + 1].dx - _path[i].dx;
+        if (dx.abs() > 0.5) _faceLeft = dx < 0;
+        return seg == 0
+            ? _path[i + 1]
+            : Offset.lerp(
+                _path[i], _path[i + 1], (left / seg).clamp(0.0, 1.0))!;
+      }
+      left -= seg;
+    }
+    return _to;
+  }
 
   @override
   void didUpdateWidget(FinniWalker old) {
@@ -49,6 +76,17 @@ class _FinniWalkerState extends State<FinniWalker>
     }
     _from = now;
     _to = widget.at;
+    _path = widget.via.isEmpty || widget.duration == Duration.zero
+        ? const <Offset>[]
+        : <Offset>[now, ...widget.via, widget.at];
+    _pathLen = 0;
+    for (int i = 0; i + 1 < _path.length; i++) {
+      _pathLen += (_path[i + 1] - _path[i]).distance;
+    }
+    if (_path.length >= 3) {
+      final double dx = _path[1].dx - now.dx;
+      if (dx.abs() > 0.5) _faceLeft = dx < 0;
+    }
     if (widget.duration == Duration.zero) {
       _c.value = 1;
     } else {

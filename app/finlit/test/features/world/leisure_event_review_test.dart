@@ -226,7 +226,7 @@ void main() {
       testWidgets('спать → счета → новая неделя: неделя +1 и план',
           (WidgetTester tester) async {
         final World w = livingWorld();
-        ok(w.sleep());
+        ok(sleepWeek(w));
         expect(w.phase, WeekPhase.review);
         final int week = w.snapshot.weekNo;
         await pumpReview(tester, w);
@@ -253,7 +253,7 @@ void main() {
       testWidgets('после счетов: план против факта по НУЖНО / ХОЧУ / ЦЕЛЬ',
           (WidgetTester tester) async {
         final World w = livingWorld(); // план: 250 / 0 / 0
-        ok(w.sleep());
+        ok(sleepWeek(w));
         await pumpReview(tester, w);
         await tap(tester, 'review:pay');
 
@@ -271,10 +271,10 @@ void main() {
         expect(fact.need.actual, greaterThan(250), reason: 'счёт больше плана');
         expect(
             row('need'),
-            allOf(contains('НУЖНО'), contains('план 250'),
+            allOf(contains('Нужно'), contains('план 250'),
                 contains('счета ${fact.need.actual}')));
-        expect(row('want'), allOf(contains('ХОЧУ'), contains('план 0')));
-        expect(row('goal'), allOf(contains('ЦЕЛЬ'), contains('план 0')));
+        expect(row('want'), allOf(contains('Хочу'), contains('план 0')));
+        expect(row('goal'), allOf(contains('Копилка'), contains('план 0')));
         expect(find.byKey(const ValueKey<String>('review:takeaway')),
             findsOneWidget);
       });
@@ -284,7 +284,7 @@ void main() {
       testWidgets('открыты после оплаты — сразу итог, без кнопок оплаты',
           (WidgetTester tester) async {
         final World w = livingWorld();
-        ok(w.sleep());
+        ok(sleepWeek(w));
         ok(w.payBills());
         await pumpReview(tester, w);
         expect(find.byKey(const ValueKey<String>('review:pay')), findsNothing);
@@ -299,7 +299,7 @@ void main() {
       testWidgets('из копилки — с подтверждением, баланс не в минусе',
           (WidgetTester tester) async {
         final World w = livingWorld();
-        ok(w.sleep());
+        ok(sleepWeek(w));
         final int saved = w.snapshot.goal;
         expect(saved, greaterThan(0));
         await pumpReview(tester, w);
@@ -334,7 +334,7 @@ void main() {
           'альбомная 640 × 360, шрифт 1,3: спать → счета → новая неделя',
           (WidgetTester tester) async {
         final World w = livingWorld();
-        ok(w.sleep());
+        ok(sleepWeek(w));
         final int week = w.snapshot.weekNo;
         await pumpReview(tester, w, size: landscape, textScale: 1.3);
         expect(tester.takeException(), isNull);
@@ -377,10 +377,54 @@ void main() {
         expect(find.text('room probe'), findsOneWidget);
       });
 
+      // Ловит (проход демо 16.10): TalkBack читает «Своих монет было 420
+      // монет» — 💰 и так звучит словом «монет», а слово стояло и в тексте.
+      testWidgets('счёт для TalkBack: «монет» один раз на число',
+          (WidgetTester tester) async {
+        final World w = livingWorld();
+        ok(sleepWeek(w));
+        await pumpReview(tester, w);
+        final String spoken = tester
+            .widget<PicText>(find.descendant(
+                of: find.byKey(const ValueKey<String>('review:bills')),
+                matching: find.byType(PicText)))
+            .spoken;
+        final int money = WeekReviewScreen.money(w.snapshot);
+        expect(spoken, contains('было $money монет'));
+        expect(spoken, isNot(matches(RegExp(r'монет\s+было\s+\d+\s+монет'))));
+      });
+
+      // Ловит (проход демо 16.10): после покупки цели итоги говорят
+      // «Копилка: было 0 → стало 0» — копилку опустошила покупка до итогов,
+      // а экран об этом молчит.
+      testWidgets('цель куплена на неделе: копилка без «0 → 0», с покупкой',
+          (WidgetTester tester) async {
+        final World w = kind.make();
+        ok(w.startWeek());
+        ok(w.chooseGoal('pet_fish'));
+        final int price = w.catalogItem('pet_fish')!.price;
+        final int need = price - w.snapshot.goal;
+        ok(w.plan(needs: w.snapshot.unallocated - need, wants: 0, goal: need));
+        ok(w.buy('pet_fish'));
+        ok(sleepWeek(w));
+        await pumpReview(tester, w);
+        await tap(tester, 'review:pay');
+        final List<String> lines = tester
+            .widgetList<PicText>(find.descendant(
+                of: find.byKey(const ValueKey<String>('review:fact')),
+                matching: find.byType(PicText)))
+            .map((PicText p) => p.text)
+            .toList();
+        final String piggy = lines.firstWhere((String l) => l.startsWith('🐷'));
+        expect(piggy, isNot(contains('было 0 → стало 0')));
+        expect(piggy, contains('Рыбка'));
+        expect(piggy, contains('$price'));
+      });
+
       testWidgets('влезает в 360 × 640 при шрифте 1,3',
           (WidgetTester tester) async {
         final World w = livingWorld();
-        ok(w.sleep());
+        ok(sleepWeek(w));
         await pumpReview(tester, w, textScale: 1.3);
         await tap(tester, 'review:pay');
         await tester.ensureVisible(
@@ -391,8 +435,13 @@ void main() {
     });
 
     group('S10 событие', () {
+      // Тексты результата идут через PicText (значки читаются словами).
       String own(WidgetTester tester, String key) =>
-          tester.widget<Text>(find.byKey(ValueKey<String>(key))).data!;
+          switch (tester.widget(find.byKey(ValueKey<String>(key)))) {
+            final PicText p => p.text,
+            final Text t => t.data!,
+            final Widget w => throw StateError('$key: $w'),
+          };
 
       /// Неделя, когда сломался рюкзак, а в копилке меньше, чем стоит
       /// хороший рюкзак, — вариант «из копилки» погашен (как в
@@ -415,7 +464,7 @@ void main() {
                   x.preview.goal.compareTo(y.preview.goal));
             ok(w.resolveEvent(open.first.id));
           }
-          if (w.phase == WeekPhase.living) ok(w.sleep());
+          if (w.phase == WeekPhase.living) ok(sleepWeek(w));
           w.payBills();
           ok(w.startWeek());
           ok(w.plan(
@@ -524,6 +573,13 @@ void main() {
         expect(outcome, findsOneWidget);
         expect(tester.getTopLeft(outcome).dx, greaterThan(titleX));
         expect(ws.eventBuildingId, isNull);
+        // BG-03 (баг-прогон 18.10): «Дальше» после выбора — на экране, без
+        // прокрутки правой колонки вручную.
+        await tester.pumpAndSettle();
+        final Rect done =
+            tester.getRect(find.byKey(const ValueKey<String>('event:done')));
+        expect(done.bottom, lessThanOrEqualTo(landscape.height),
+            reason: '«Дальше» ниже края экрана: $done');
       });
     });
   });

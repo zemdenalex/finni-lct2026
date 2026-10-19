@@ -36,10 +36,32 @@ void main() {
     await tester.pumpAndSettle();
 
     // Список доступен целиком: и открытые термины, и ещё не встреченные.
-    expect(find.text('Конверт'), findsOneWidget);
+    expect(find.text('Три части'), findsOneWidget);
     expect(find.text('Бюджет'), findsOneWidget);
     expect(find.text('Подушка безопасности'), findsOneWidget);
     expect(find.text('откроется, когда встретится в игре'), findsWidgets);
+  });
+
+  // K5 A (решение pm 19.10: «опыт» оставить и объяснить). Уронит: «опыт»
+  // на доске работ и в итогах смены есть, а в Словарике ребёнок не найдёт,
+  // что он даёт (прибавка к оплате и ступени заданий).
+  testWidgets('K5: в Словарике есть «Опыт» и что он даёт', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final AppState app = AppState(MemoryStorage());
+    await app.boot();
+    await tester.pumpWidget(wrap(app));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Опыт'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('платят чуть больше'), findsOneWidget);
+    expect(find.textContaining('задания становятся сложнее'), findsOneWidget);
   });
 
   testWidgets('текст не встреченного термина всё равно открывается по тапу', (

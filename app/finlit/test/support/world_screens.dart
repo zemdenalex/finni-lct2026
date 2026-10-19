@@ -47,7 +47,7 @@ World scenesWorld(WorldKind kind) {
 
 World reviewWorld(WorldKind kind) {
   final World w = livingWorld(kind);
-  ok(w.sleep());
+  ok(sleepWeek(w));
   return w;
 }
 

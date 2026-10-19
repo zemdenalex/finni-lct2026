@@ -1,7 +1,7 @@
 name: finlit
 description: "Финни — игровой сервис финансовой грамотности для детей 7–11 лет."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.2+3
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -20,6 +20,7 @@ dependencies:
   # то есть работает офлайн, если в системе стоит русский голос; если не стоит,
   # приложение просто не предлагает озвучку — см. lib/core/speaker.dart.
   flutter_tts: ^4.2.0
+  audioplayers: ^6.7.1
 
 dev_dependencies:
   flutter_test:
@@ -55,11 +56,9 @@ flutter:
     - assets/art/hires/room/
     # Временные (placeholder) картинки ночи 29.09: tools/night_art.py, tools/finni_walk_night.py
     - assets/art/hires/night/items/
-    - assets/art/hires/night/city/
     - assets/art/hires/night/room/
     - assets/art/hires/night/finni/
     - assets/art/hires/night/events/
-    - assets/art/hires/night/work/
     - assets/art/hires/gen/city/
     - assets/art/hires/gen/hud/
     - assets/art/hires/gen/items/
@@ -68,6 +67,8 @@ flutter:
     # assets не рекурсивны, поэтому world/ указана отдельно. Копию сверяет
     # test/world_content_test.dart.
     - assets/content/world/
+    # Фоновая мелодия — «Peaceful Days», Juhani Junkala, CC0 1.0 (lib/core/music.dart).
+    - assets/audio/
     # Тексты OFL едут в сборке, а не только в репозитории: лицензия требует
     # распространять её вместе со шрифтом. Показываются на экране лицензий.
     - assets/fonts/OFL-Onest.txt

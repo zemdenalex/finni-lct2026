@@ -12,6 +12,7 @@ import '../shop/shop_kit.dart' show billPartsText;
 import 'plan_fact_view.dart';
 import '../../../core/world_theme.dart';
 import '../pic_text.dart';
+import '../world_dock.dart';
 
 /// S11 · Итоги недели (`docs/game/screens-other.md`, `week-loop.md`).
 ///
@@ -26,6 +27,21 @@ import '../pic_text.dart';
 /// 🟡 Дыра контракта, которую экран обходит: нет причин по каждому очку
 /// роста — показана фраза `payBills().reason` целиком (в ней мир
 /// перечисляет причины).
+/// Неделя кончилась сном (правило 5Б Насти: «выспался / выспалась» в роде
+/// героя; пол не выбран — фраза без рода).
+String sleptText(String hero, FinniGender? gender) => heroGendered(gender,
+    neutral: 'Неделя закончилась. Если силы остались, сон был ещё лучше.',
+    boy: 'Если к ночи оставались силы, $hero выспался ещё лучше.',
+    girl: 'Если к ночи оставались силы, $hero выспалась ещё лучше.');
+
+/// Сколько еды герой уже съел и оплатил сам — начало строки счетов
+/// (правило 5Б: «поел сам / поела сама»; пол не выбран — без рода).
+String eatenAtHomeText(int price, String hero, FinniGender? gender) =>
+    heroGendered(gender,
+        neutral: 'Еда на $price уже съедена и оплачена.',
+        boy: 'Еду на $price $hero поел сам — она уже оплачена.',
+        girl: 'Еду на $price $hero поела сама — она уже оплачена.');
+
 class WeekReviewScreen extends StatefulWidget {
   const WeekReviewScreen({super.key});
 
@@ -53,8 +69,8 @@ class WeekReviewScreen extends StatefulWidget {
       }
       if (home == null || i.price < home.price) home = i;
     }
-    if (home == null) return '➡️ Очков хватает — можно переезжать';
-    return '➡️ Очков хватает — можно переезжать: ${home.title}, залог '
+    if (home == null) return '➡️ Звёзд хватает — можно переезжать';
+    return '➡️ Звёзд хватает — можно переезжать: ${home.title}, цена '
         '${home.price}. '
         '${now.goal >= home.price ? 'В копилке хватает.' : 'В копилке ${now.goal} из ${home.price}.'}';
   }
@@ -119,15 +135,9 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     showHelp(
         context,
         'Что здесь?',
-        'Итоги недели.\n\n'
-            '🧾 Сначала платим обязательные счета: еда, корм питомцам, '
-            'жильё. Если своих монет не хватает, можно взять из копилки — '
-            'или семья поможет, но Финни станет грустнее.\n'
-            '📊 Потом сверяем план с тем, что вышло на деле: сколько '
-            'положили в каждый конверт и сколько потратили или отложили.\n'
-            '⭐ Очки роста дают за счета своими деньгами, неделю без '
-            'нехватки и отложенные монеты. Наберёшь больше — Финни '
-            'переедет дальше.');
+        'Это итоги недели. 🧾 Сначала платим обязательные счета: еда, '
+            'корм питомцам, жильё. 📊 Потом сверяем план с тем, что вышло '
+            'на деле, а ⭐ дают за счета своими монетами и отложенное.');
   }
 
   void _pay({required bool fromGoal}) {
@@ -175,7 +185,16 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      // Портрет без нижнего меню (ratify finni 19.10): итоги — поток до
+      // «Новой недели», вывод недели виден без прокрутки на 360×640 ×1,3.
+      WithDock(
+          current: DockSection.plan,
+          inPortrait: false,
+          child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final WorldState ws = context.watch<WorldState>();
     final ResourceSnapshot now = ws.snapshot;
     final bool review = ws.phase == WeekPhase.review;
@@ -238,7 +257,7 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
             SizedBox(width: Gap.sm),
             Expanded(
               child: Text(
-                  'После счетов здесь будут план против факта и очки роста.',
+                  'После счетов здесь будут план против факта и звёзды.',
                   style: TextStyle(fontSize: 16, color: WorldColors.textSoft)),
             ),
           ],
@@ -248,14 +267,14 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     // «Новая неделя» прибита под списком — не уезжает с прокруткой.
     final Widget? newWeek = _paid
         ? Padding(
+            // Высота 56 и поля 4 и в портрете: вывод недели на 360×640 при
+            // шрифте 1,3 — над кнопкой с запасом (review_fits_test).
             padding: EdgeInsets.fromLTRB(
-                land ? Gap.sm : Gap.md, Gap.sm, Gap.md, Gap.sm),
+                land ? Gap.sm : Gap.md, Gap.xs, Gap.md, Gap.xs),
             child: FilledButton.icon(
               key: const ValueKey<String>('review:new_week'),
-              style: land
-                  ? FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(TapSize.min))
-                  : null,
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(TapSize.min)),
               onPressed: _newWeek,
               icon: const Icon(Icons.wb_sunny_rounded),
               label: const Text('Новая неделя'),
@@ -278,8 +297,8 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
       icon: Icons.event_note_rounded,
       tone: _Tone.info,
       title: 'Итоги пока рано',
-      text: 'Итоги будут, когда неделя кончится: нажми «Спать» дома или '
-          'потрать все ⚡.',
+      text: 'Итоги будут в конце недели — после «Спать» в последний '
+          'её день.',
     );
 
     final Widget content;
@@ -360,7 +379,7 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
                   if (outcome.isNotEmpty) const SizedBox(height: Gap.md),
                   ...outcome,
                 ],
-                const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md)),
+                const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, Gap.md)),
           ),
           if (newWeek != null) newWeek,
         ],
@@ -368,7 +387,6 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     }
 
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         // Альбомная — основная: низкая шапка, высота нужна итогам.
         toolbarHeight: land ? 48 : null,
@@ -420,12 +438,13 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
             title: 'Кончилась ⚡',
             text: 'Сил не осталось ни на одно дело — неделя кончилась сама. '
                 'Это не штраф, просто без бонуса сна.'),
-        WeekEnd.sleep => const _Box(
-            key: ValueKey<String>('review:ended'),
+        WeekEnd.sleep => _Box(
+            key: const ValueKey<String>('review:ended'),
             icon: Icons.bedtime_rounded,
             tone: _Tone.info,
-            title: 'Финни лёг спать',
-            text: 'Ты сам закрыл неделю. Если ⚡ осталось, Финни выспался.'),
+            title: 'Ночь прошла',
+            text: sleptText(context.read<WorldState>().finniName,
+                context.read<WorldState>().profile.gender)),
         null => const _Box(
             key: ValueKey<String>('review:ended'),
             icon: Icons.bedtime_rounded,
@@ -485,11 +504,22 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
   /// Счёт недели, отказ или итог оплаты; в портрете — и кнопки.
   List<Widget> _billsStep(ResourceSnapshot now, {required bool compact}) {
     final int bill = _before.weeklyBill;
+    // «Счета недели = жильё + еда по плану» — то же число, что в плане
+    // (finni по проходу демо 17.10): приёмы, которые Финни съел сам, уже
+    // оплачены сразу и из остатка счёта выпали; показываем их отдельно.
+    final int homePrice = context
+            .read<WorldState>()
+            .world
+            .catalogItem(_before.foodId ?? '')
+            ?.price ??
+        0;
+    final int eatenAtHomePrice = homePrice * _before.mealsThisWeek;
+    final int weekBill = bill + eatenAtHomePrice;
     final int money = WeekReviewScreen.money(_before);
     final int short = _short;
     final WorldResult? r = _bills;
     const Widget familyNote = Text(
-        'Если семья поможет, Финни станет грустнее и без очка роста за '
+        'Если семья поможет, Финни станет грустнее и без звезды за '
         'счета.',
         style: TextStyle(fontSize: 16, color: WorldColors.textSoft));
     if (_paidOnOpen) {
@@ -509,8 +539,11 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
         key: const ValueKey<String>('review:bills'),
         icon: Icons.receipt_long_rounded,
         tone: short > 0 && !_paid ? _Tone.warn : _Tone.info,
-        title: 'Счета недели: $bill 💰',
-        text: 'Из них ${billPartsText(_billParts)}. Своих монет было $money 💰'
+        title: 'Счета недели: $weekBill 💰',
+        text:
+            '${eatenAtHomePrice > 0 ? '${eatenAtHomeText(eatenAtHomePrice, context.read<WorldState>().finniName, context.read<WorldState>().profile.gender)} '
+                'Осталось $bill: ' : 'Из них '}'
+            '${billPartsText(_billParts)}. Своих было $money 💰'
             '${short > 0 ? ' — не хватает $short.' : ' — хватает.'}',
       ),
       const SizedBox(height: Gap.sm),
@@ -553,15 +586,13 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
       tone: _Tone.info,
       title: 'План и на деле',
       lines: <String>[
-        _paidOnOpen
-            ? '🐷 В копилке: ${now.goal}'
-            : '🐷 Копилка: было ${_before.goal} → стало ${now.goal}',
+        _piggyLine(now, w),
         _paidOnOpen
             ? '😊 Настроение: ${now.happiness}'
             : '😊 Настроение: было ${_before.happiness} → '
                 'стало ${now.happiness}',
         // Почему такое настроение — одной фразой от мира (ТЗ 2.5.10.3).
-        '💬 ${now.moodReason.text}',
+        '💬 ${now.moodReason.textFor(world.onboarding.finniName)}',
       ],
       child: w == null
           ? null
@@ -585,6 +616,29 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
     );
   }
 
+  /// Копилка в итогах. «Было → стало» — только когда итоги её изменили
+  /// (взяли на счета); иначе «было 0 → стало 0» ничего не говорит. Цель,
+  /// купленная на неделе, названа с ценой: иначе пустая копилка после
+  /// покупки выглядит как пропажа (проход демо 16.10).
+  String _piggyLine(ResourceSnapshot now, WeekPlanFact? w) {
+    final List<String> bought = <String>[
+      for (final String title in w?.goalsReached ?? const <String>[])
+        _boughtGoal(title, w!.purchases),
+    ];
+    final String tail = bought.isEmpty ? '' : ' — ${bought.join(', ')}';
+    if (_paidOnOpen || _before.goal == now.goal) {
+      return '🐷 В копилке: ${now.goal}$tail';
+    }
+    return '🐷 Копилка: было ${_before.goal} → стало ${now.goal}$tail';
+  }
+
+  static String _boughtGoal(String title, List<WeekItem> purchases) {
+    for (final WeekItem p in purchases) {
+      if (p.title == title) return 'купили цель «$title» за ${p.amount} 💰';
+    }
+    return 'купили цель «$title»';
+  }
+
   Widget _growthBox(ResourceSnapshot now, World world) {
     final int gained = now.growthPoints - _before.growthPoints;
     final String? move = WeekReviewScreen.moveLine(now, world.catalog);
@@ -593,12 +647,13 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
       key: const ValueKey<String>('review:growth'),
       icon: Icons.star_rounded,
       tone: _Tone.ok,
-      title: _paidOnOpen ? 'Очки роста' : 'Очки роста: +$gained за неделю',
+      title: _paidOnOpen ? 'Звёзды' : 'Звёзды: +$gained за неделю',
       lines: <String>[
         '⭐ Всего: ${now.growthPoints}',
-        '🏠 Финни живёт: ${WeekReviewScreen.stageName(now.stage)}'
+        '🏠 ${world.onboarding.finniName} живёт: '
+            '${WeekReviewScreen.stageName(now.stage)}'
             '${moved ? ' — переезд!' : ''}',
-        move ?? '🏁 Это последняя стадия.',
+        move ?? '🏁 Дальше переездов нет.',
       ],
     );
   }
@@ -635,10 +690,10 @@ class _Box extends StatelessWidget {
       _Tone.warn => (WorldColors.wants, WorldColors.wantsBg),
     };
     return Container(
-      padding: const EdgeInsets.all(Gap.sm + Gap.xs),
+      padding: const EdgeInsets.all(Gap.sm),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         border: Border.all(color: fg),
       ),
       child: Column(
@@ -660,7 +715,7 @@ class _Box extends StatelessWidget {
             PicText(text!, style: const TextStyle(fontSize: 16)),
           ],
           if (child != null) ...<Widget>[
-            const SizedBox(height: Gap.sm),
+            const SizedBox(height: Gap.xs),
             child!,
           ],
           for (final String l in lines)

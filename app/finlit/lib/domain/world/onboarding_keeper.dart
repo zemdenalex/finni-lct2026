@@ -21,7 +21,7 @@ class OnboardingKeeper {
     final String nick = raw.trim();
     if (nick.isEmpty) {
       return const WorldResult.refused(
-          'onboarding.nick_empty', 'Придумай ник — хотя бы одну букву.');
+          'onboarding.nick_empty', 'Придумай имя для игры — хотя бы одну букву.');
     }
     if (nick.length > OnboardingProgress.maxNameLength) {
       return const WorldResult.refused('onboarding.nick_long',
@@ -65,6 +65,17 @@ class OnboardingKeeper {
       'onboarding.name',
       'Приятно познакомиться, я $name!',
     );
+  }
+
+  /// Подсказка [id] показана (`bank.intro`). Уже отмечена — ничего не
+  /// сохраняется.
+  Future<WorldResult> markSeen(String id) async {
+    if (_progress.seen.contains(id)) {
+      return const WorldResult(
+          ok: true, reasonCode: 'seen.already', reason: 'Уже показано.');
+    }
+    return _commit(_progress.copyWith(seen: <String>{..._progress.seen, id}),
+        'seen.marked', 'Показано.');
   }
 
   Future<WorldResult> setStep(int step) => _commit(

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_entry.dart';
 import 'package:finlit/domain/world/world_game.dart';
@@ -58,6 +58,23 @@ void main() {
               reason: '${l.jobId}: «${a.id}» строго лучше «${b.id}»');
         }
       }
+      // NAS-5 A (Настя 19.10): долей словами в уроках нет — только монеты.
+      // Уронит: новый урок или правка с «третью», «четвертью», «половиной
+      // смены», «пятой / десятой частью».
+      // Начало слова: «смотреть» не «треть».
+      final RegExp share = RegExp(
+          r'(^|[^а-яё])(трет|четверт|половин)|(десят|пят)[а-яё]* част',
+          caseSensitive: false);
+      for (final String s in <String>[
+        l.situation,
+        l.understood,
+        for (final WorldLessonChoice c in l.choices) ...<String>[
+          c.label,
+          c.finni,
+        ],
+      ]) {
+        expect(share.hasMatch(s), isFalse, reason: '${l.lessonId}: «$s»');
+      }
     }
   });
 
@@ -97,6 +114,36 @@ void main() {
         expect(w.resolveLesson('goal').reasonCode, 'lesson.none');
       });
 
+      // NAS-5 A (Настя 19.10): доля в уроке — числом монет «отложи 50 из 180»,
+      // и это число уходит в копилку / «Нужное». Уронит: на кнопке снова
+      // «десятая часть» / «половину» или число на кнопке не то, что списал
+      // мир (16.10: «треть» на деле была 50 из 180).
+      test('NAS-5: на кнопке урока монеты «N из оплаты», N уходит в мир', () {
+        for (final (String job, String choice, bool toNeed)
+            in <(String, String, bool)>[
+          ('gardener', 'tenth', false),
+          ('gardener', 'third', false),
+          ('accountant', 'goal', false),
+          ('accountant', 'needs', true),
+        ]) {
+          final World w = afterShift(job);
+          final int pay = w.offer(job)!.pay;
+          final String label = w.pendingLesson!.choices
+              .firstWhere((LessonChoiceView c) => c.id == choice)
+              .label;
+          final Match? m = RegExp(r'(\d+) из (\d+)').firstMatch(label);
+          expect(m, isNotNull, reason: '$job.$choice: «$label»');
+          expect(int.parse(m![2]!), pay, reason: '$job.$choice: «$label»');
+          final ResourceSnapshot before = w.snapshot;
+          ok(w.resolveLesson(choice));
+          final int moved = toNeed
+              ? w.snapshot.need - before.need
+              : w.snapshot.goal - before.goal;
+          expect(moved, int.parse(m[1]!), reason: '$job.$choice: «$label»');
+          expect(moved, greaterThan(0), reason: '$job.$choice');
+        }
+      });
+
       // Защищает: ТЗ 2.5.6.4 — вариант с тратой, на которую не хватает,
       // недоступен и ничего не списывает. Уронит: баланс в минус.
       test('трата дороже, чем есть, — вариант недоступен', () {
@@ -134,7 +181,11 @@ void main() {
     expect(r.pendingLesson?.jobId, 'cashier');
     final int len = r.journal.length;
     ok(r.resolveLesson('trust'));
-    final List<WorldEntry> added = r.journal.sublist(len);
+    // Награда «Первый урок» (D3) — отдельная запись следом; здесь — сам урок.
+    final List<WorldEntry> added = r.journal
+        .sublist(len)
+        .where((WorldEntry e) => e.kind != WorldLedgerKind.achievementEarned)
+        .toList();
     expect(added.single.kind, WorldLedgerKind.lessonChoice);
     expect(added.single.reasonCode, 'lesson.choice');
     expect(added.single.args['choiceId'], 'trust');

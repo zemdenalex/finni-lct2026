@@ -23,8 +23,8 @@ void main() {
       final Finder finni = find.byKey(const ValueKey<String>('jobs:finni'));
       expect(finni, findsOneWidget);
       // Первая работа видна без прокрутки и при шрифте 1,3 (ревью 28d9a1f).
-      final Rect first = tester
-          .getRect(find.byKey(const ValueKey<String>('jobs:card:consultant')));
+      final Rect first = tester.getRect(
+          find.byKey(ValueKey<String>('jobs:card:${w.jobBoard.first.jobId}')));
       expect(first.top, lessThan(640));
       expect(
           find.descendant(

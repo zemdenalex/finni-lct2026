@@ -46,9 +46,19 @@ LessonMove lessonMove(WorldLessonChoice c,
   );
 }
 
+/// Доли в уроке — монетами, а не словами (NAS-5 A, Настя 19.10: «отложи 50
+/// из 180»): `{goal}` и `{need}` — сколько на самом деле уйдёт в копилку и
+/// в «Нужное» ([lessonMove]: до десятков и не больше заработка), `{pay}` —
+/// оплата этой смены. Число в тексте всегда то, что спишет мир.
+String lessonText(String s, LessonMove m, {required int pay}) => s
+    .replaceAll('{goal}', '${m.toGoal}')
+    .replaceAll('{need}', '${m.toNeed}')
+    .replaceAll('{pay}', '$pay');
+
 /// Итог урока: «Что мы поняли: …» и реплика Финни.
-String lessonReason(WorldLesson l, WorldLessonChoice c) =>
-    'Что мы поняли: ${l.understood} ${c.finni}';
+String lessonReason(WorldLesson l, WorldLessonChoice c, LessonMove m,
+        {required int pay}) =>
+    'Что мы поняли: ${l.understood} ${lessonText(c.finni, m, pay: pay)}';
 
 /// Что будет — до выбора (монеты, копилка, 😊).
 EffectPreview lessonPreview(LessonMove m, WorldLessonChoice c) => EffectPreview(
@@ -58,13 +68,18 @@ EffectPreview lessonPreview(LessonMove m, WorldLessonChoice c) => EffectPreview(
     );
 
 /// Урок для экрана.
+///
+/// [name] — имя героя: `{name}` в ситуации урока (BG-01, [heroText]).
 LessonOffer lessonOffer(WorldLesson l,
-        {required int pay, required int free, required int want}) =>
+        {required int pay,
+        required int free,
+        required int want,
+        String name = OnboardingProgress.defaultFinniName}) =>
     LessonOffer(
       jobId: l.jobId,
       topic: l.topic,
       title: l.title,
-      situation: l.situation,
+      situation: heroText(l.situation, name),
       wordTerm: l.wordTerm,
       choices: <LessonChoiceView>[
         for (final WorldLessonChoice c in l.choices)
@@ -73,7 +88,7 @@ LessonOffer lessonOffer(WorldLesson l,
                 lessonMove(c, pay: pay, free: free, want: want);
             return LessonChoiceView(
               id: c.id,
-              label: c.label,
+              label: lessonText(c.label, m, pay: pay),
               preview: lessonPreview(m, c),
               blockReason: m.block,
             );

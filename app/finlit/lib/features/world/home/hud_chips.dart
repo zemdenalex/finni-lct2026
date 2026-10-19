@@ -48,7 +48,7 @@ class HudChips extends StatelessWidget {
         icon: Pic.coin,
         iconColor: WorldColors.gold,
         value: '${s.available}',
-        semantic: 'Монет доступно: ${s.available}',
+        semantic: 'Монет можно тратить: ${s.available}',
         onTap: () => WorldHud.hintCoins(context, coins: s.available),
       ),
       // Копилки в ряду нет (Денис 29.09): её сумма — табличкой над копилкой
@@ -58,7 +58,8 @@ class HudChips extends StatelessWidget {
         icon: Pic.bolt,
         iconColor: WorldColors.energy,
         value: energy,
-        semantic: 'Энергия: $energy из 14',
+        semantic:
+            'Сил: $energy из ${WorldHud.energyText(WorldHud.energyMaxIn(context))}',
         onTap: () => WorldHud.hintEnergy(context, energy: s.energy),
       ),
       HudChip(

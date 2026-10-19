@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -141,7 +141,7 @@ void main() {
   test('карточка жилья: что даст переезд и сколько очков нужно', () {
     final WorldCatalogItem flat = contentWorld().catalogItem('home_flat')!;
     expect(flat.perk, contains('Переезд в город'));
-    expect(flat.perk, contains('${contentConfig.stageMinPoints[1]} очках'));
+    expect(flat.perk, contains('звёзд будет ${contentConfig.stageMinPoints[1]}'));
     expect(flat.weeklyCost, contentConfig.home('home_flat')!.weeklyCost);
   });
 }

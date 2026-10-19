@@ -14,6 +14,7 @@ import '../pic_text.dart';
 import '../world_help.dart';
 import '../world_layout.dart';
 import '../world_routes.dart';
+import '../shop/shop_kit.dart' show confirmAction;
 import '../world_state.dart';
 import 'onboarding_script.dart';
 import 'onboarding_steps.dart';
@@ -141,8 +142,15 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   /// Подписи знакомства: из сценария, пока его нет — запасные.
   OnboardingScript get _ui => _loaded ?? OnboardingScript.fallback;
 
+  /// Весь путь знакомства: регистрация и сценки (путь ребёнка 16.10,
+  /// дефект 12: «Шаг 1 из 2» обещал два шага, а впереди было ещё семь).
+  int get _total => _regTotal + _ui.scenes.length;
+
+  /// Номер шага с нуля: регистрация, потом сценка.
+  int get _stepIndex => _inScenes ? _regTotal + _scene : _regStep;
+
   String get _stepOf => _ui.t('step_of',
-      <String, String>{'n': '${_regStep + 1}', 'total': '$_regTotal'});
+      <String, String>{'n': '${_stepIndex + 1}', 'total': '$_total'});
 
   bool get _lastScene =>
       _loaded != null && _scene == _loaded!.scenes.length - 1;
@@ -187,7 +195,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   void _say(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+      ..showSnackBar(SnackBar(content: PicText(text)));
   }
 
   /// Облик сохраняется в мире сразу при выборе — превью и сохранение
@@ -257,6 +265,8 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
         }
       case SceneKind.plan:
         if (ws.phase == WeekPhase.planning) {
+          if (!await _billsFit(ws)) return;
+          if (!mounted) return;
           final WorldResult r = ws.act(
               (World w) => w.plan(needs: _needs, wants: _wants, goal: _goal));
           if (!r.ok) return _say(r.reason);
@@ -270,6 +280,32 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
         break;
     }
     await _toScene(_scene + 1);
+  }
+
+  /// В «Нужном» меньше счетов недели — сказать до «Готово», а не в итогах
+  /// (путь ребёнка 16.10, дефект 4). false — ребёнок решил поправить план.
+  /// Числа экономики не меняются: если карманных меньше счетов, так и
+  /// говорим, что недостающее зарабатывают на сменах.
+  Future<bool> _billsFit(WorldState ws) async {
+    final ResourceSnapshot s = ws.snapshot;
+    final int bill = s.weeklyBill;
+    if (_needs >= bill) return true;
+    final int pool = s.unallocated;
+    return confirmAction(
+      context,
+      title: 'Хватит ли на счета?',
+      lines: <String>[
+        'Счета недели — $bill, а в части «Нужно» — $_needs. '
+            'Не хватит ${bill - _needs}.',
+        pool < bill
+            ? 'Даже если положить в «Нужно» всё, не хватит ${bill - pool}: '
+                'их заработаем на сменах в городе.'
+            : 'Положи в «Нужно» больше — или заработай недостающее на '
+                'сменах в городе.',
+      ],
+      yes: 'Так и оставить',
+      no: 'Изменить план',
+    );
   }
 
   /// Сценка [i]; за последней — комната.
@@ -388,7 +424,8 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   Widget _backButton() => IconButton(
         tooltip: _ui.t('back'),
         iconSize: 28,
-        icon: const Icon(Icons.arrow_back),
+        // Та же стрелка, что на остальных экранах (аудит доступности 16.10).
+        icon: const Icon(Icons.arrow_back_rounded),
         onPressed: _back,
       );
 
@@ -489,8 +526,8 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                         style: AppType.title(18, color: WorldColors.text)),
                     Expanded(
                       child: StepBar(
-                        step: _regStep,
-                        total: _regTotal,
+                        step: _stepIndex,
+                        total: _total,
                         label: _stepOf,
                         padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                       ),
@@ -514,7 +551,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                                 const EdgeInsets.fromLTRB(Gap.md, 0, 0, Gap.md),
                             child: ClipRRect(
                               borderRadius:
-                                  BorderRadius.circular(Radii.envelope),
+                                  BorderRadius.circular(WorldRadii.panel),
                               child: _Stage(
                                   profile: _profile, snapshot: ws.snapshot),
                             ),
@@ -553,7 +590,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
         body: SafeArea(
           child: Column(
             children: <Widget>[
-              StepBar(step: _regStep, total: _regTotal, label: _stepOf),
+              StepBar(step: _stepIndex, total: _total, label: _stepOf),
               Expanded(child: _regSteps()),
               Padding(
                 padding:
@@ -570,7 +607,22 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   /// Шапка сценок: назад · «Знакомство» или «Пропустить» · «?». Пока
   /// можно пропустить, вместо заголовка — кнопка: на 640 × 360 правой
   /// панели не хватает ширины на оба.
-  Widget _scenesBar() => SizedBox(
+  Widget _scenesBar() => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _scenesBarRow(),
+          // Сколько ещё до игры — и в сценках, не только на регистрации.
+          StepBar(
+            key: const ValueKey<String>('onboarding:steps'),
+            step: _stepIndex,
+            total: _total,
+            label: _stepOf,
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.xs),
+          ),
+        ],
+      );
+
+  Widget _scenesBarRow() => SizedBox(
         height: 52,
         child: Row(
           children: <Widget>[
@@ -608,6 +660,10 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
     VoidCallback? on(String object) => sc?.focus == object ? next : null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      // Для TalkBack «Дальше» — кнопка под репликой, Финни и предмет — свои
+      // кнопки; касание всей комнаты — только для пальца. Иначе комната
+      // читалась кнопкой без подписи (аудит доступности 16.10).
+      excludeFromSemantics: true,
       onTap: next,
       child: _SceneRoom(
         profile: _profile.copyWith(finniName: _finniName),
@@ -675,6 +731,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
             needs: _needs,
             wants: _wants,
             goal: _goal,
+            finniName: _finniName,
             onChange: (int n, int w, int g) => setState(() {
               _needs = n;
               _wants = w;
@@ -687,6 +744,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
           GoalPicker(
             ui: s,
             saved: ws.snapshot.goal,
+            history: ws.world.weekHistory,
             goals: onboardingGoals(ws.world.catalog),
             chosen: _goalId,
             reason: _goalReason,
@@ -733,9 +791,14 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                 Expanded(child: _room(ws)),
                 ConstrainedBox(
                   // План и цель выше реплики: три конверта — без прокрутки.
+                  // План ещё выше: над строками — «Как советует Финни».
                   constraints: BoxConstraints(
                       maxHeight: box.maxHeight *
-                          (_current?.kind == SceneKind.talk ? 0.62 : 0.72)),
+                          switch (_current?.kind) {
+                            SceneKind.talk => 0.62,
+                            SceneKind.plan => 0.8,
+                            _ => 0.72,
+                          }),
                   child: _panel(ws, compact: false),
                 ),
               ],

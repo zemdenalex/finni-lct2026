@@ -158,7 +158,10 @@ void main() {
     expect(week.need.actual, greaterThanOrEqualTo(food));
     final String line = foodTakeaway(week)!;
     expect(line, contains('$food'));
-    expect(line, contains('${(price('food_tasty') * 100 / food).round()} %'));
+    // Т6 А (Настя 19.10): доля монетами, без процентов.
+    final int t = price('food_tasty');
+    expect(line, contains('съело $t из $food'));
+    expect(line, isNot(contains('%')));
   });
 
   // Защищает: план против факта — еда посреди недели идёт в факт НУЖНО, как

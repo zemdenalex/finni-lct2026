@@ -25,7 +25,7 @@ void main() {
       ok(world.demoUnlockAllJobs());
       await pumpWorldScreen(
           tester, const JobPlayScreen(args: JobPlayArgs('dog_walker')),
-          world: world, textScale: scale);
+          world: world, textScale: scale, games: contentJobGamesDogStub);
       final Finder start = find.byKey(const ValueKey<String>('job:start'));
       await tester.ensureVisible(start);
       await tester.pumpAndSettle();
@@ -43,7 +43,11 @@ void main() {
           lessThan(320));
       final Rect first = tester.getRect(
           find.byKey(ValueKey<String>('lesson:${lesson.choices.first.id}')));
-      expect(first.bottom, lessThanOrEqualTo(640));
+      // Видимое кончается над нижним меню (стиль Алины), а не у края экрана.
+      expect(
+          first.bottom,
+          lessThanOrEqualTo(
+              tester.getRect(find.byKey(const ValueKey<String>('dock'))).top));
       expect(first.height, greaterThanOrEqualTo(48));
       expect(tester.takeException(), isNull);
     });

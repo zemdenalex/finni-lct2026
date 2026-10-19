@@ -15,7 +15,8 @@ import '../../../../core/world_theme.dart';
 /// ([ConsultantContent]). Порядок полок — по `price`.
 @immutable
 class ConsultantItem {
-  const ConsultantItem(this.id, this.name, this.traits, this.price, this.why);
+  const ConsultantItem(this.id, this.name, this.traits, this.price, this.why,
+      {this.review});
 
   factory ConsultantItem.fromData(JobData d) => ConsultantItem(
         dStr(d, 'id'),
@@ -23,6 +24,7 @@ class ConsultantItem {
         dStrs(d, 'traits'),
         dInt(d, 'price'),
         dStr(d, 'why'),
+        review: dStrOrNull(d, 'review'),
       );
 
   final String id;
@@ -30,6 +32,10 @@ class ConsultantItem {
   final List<String> traits;
   final int price;
   final String why;
+
+  /// Отзыв покупателя на шаге 1 — подсказка «сравни по отзывам» (NAS-6 Б:
+  /// только у первых наборов); null — отзыва нет.
+  final String? review;
 }
 
 @immutable
@@ -127,14 +133,33 @@ class ConsultantContent {
   const ConsultantContent({
     required this.tierLabels,
     required this.sets,
+    required this.anchorShifts,
+    required this.shelfPenalty,
+    required this.pickPenalty,
     this.texts = const ConsultantTexts(),
   });
 
   factory ConsultantContent.fromData(JobData d) => ConsultantContent(
         tierLabels: dStrs(d, 'tier_labels'),
         sets: dObjs(d, 'sets').map(ConsultantSet.fromData).toList(),
+        anchorShifts: dInt(d, 'anchor_shifts'),
+        shelfPenalty: dNum(d, 'shelf_penalty'),
+        pickPenalty: dNum(d, 'pick_penalty'),
         texts: ConsultantTexts.fromData(d['texts'] as JobData?),
       );
+
+  /// Сколько первых смен профессии до сканера виден ценник-якорь (средний
+  /// товар). NAS-1 А (Настя 18.10): только на первой смене — дальше ребёнок
+  /// рассуждает сам.
+  final int anchorShifts;
+
+  /// Минус к оценке за товар, хоть раз найденный сканером не на своей полке
+  /// (шаг 1). NAS-7 А: мягче совета — верная полка и так показана после
+  /// проверки.
+  final double shelfPenalty;
+
+  /// Минус к оценке за каждый разный неверный совет покупателю (шаг 2).
+  final double pickPenalty;
 
   /// Подписи полок: дешевле → дороже.
   final List<String> tierLabels;
@@ -150,7 +175,7 @@ class ConsultantContent {
 const String consultantHelp = 'В магазине перепутались ценники. Сначала '
     'разложи товары по полкам: «Дешевле», «Средняя цена», «Дороже» — и '
     'проверь сканером. Потом покупатель скажет, что ему нужно и сколько у '
-    'него денег: выбери подходящий товар. Дороже — не значит лучше. '
+    'него монет: выбери подходящий товар. Дороже — не значит лучше. '
     'Ошибка не уменьшает оплату.';
 
 /// Порядок показа товаров: не по цене, иначе полки угадываются сами.
@@ -170,7 +195,7 @@ Widget buildConsultantGame(BuildContext context, MiniGameArgs args) =>
 /// Содержание — `jobs.json → jobs.accountant`.
 const String accountantHelp = 'Студсовету нужно выбрать одно из трёх '
     'предложений. Сначала разложи их от дешёвого к дорогому и проверь по '
-    'смете. Потом староста скажет, что нужно и сколько денег в смете: выбери '
+    'смете. Потом староста скажет, что нужно и сколько монет в смете: выбери '
     'подходящее. Дороже — не значит лучше, дешевле — тоже не всегда. '
     'Ошибка не уменьшает оплату.';
 
@@ -207,9 +232,41 @@ class _ConsultantGameState extends State<ConsultantGame> {
   bool _scanned = false;
   bool _sorted = false;
   String? _picked;
-  int _mistakes = 0;
+
+  /// Ошибки шага 1: товары, хоть раз найденные сканером не на своей полке.
+  /// Каждый — одна ошибка за смену, сколько раз ни проверяй (17.10: повторное
+  /// «Проверить» без исправления снова штрафовало, пять нажатий давали 0).
+  final Set<String> _shelfMistakes = <String>{};
+
+  /// Ошибки шага 2: разные неверные советы покупателю.
+  final Set<String> _pickMistakes = <String>{};
 
   bool get _pickedRight => _picked == _set.customer.bestFit;
+
+  /// Ценник виден: после сканера — у всех; до него на первых сменах
+  /// профессии ([ConsultantContent.anchorShifts]) — один якорь у среднего
+  /// товара, чтобы вход был «сравни с ценой», а не угадайка (NAS-1 А).
+  bool _priceShown(ConsultantItem item) =>
+      _scanned ||
+      (widget.round < widget.content.anchorShifts && _set.tierOf(item) == 1);
+
+  /// Вопрос покупателя и ответ на выбор: к ним прокручивается экран смены.
+  /// Путь ребёнка 16.10: после сканера экран оставался внизу и вопроса не
+  /// было видно, а ответ на выбор появлялся ниже края — «нажал, и ничего».
+  final GlobalKey _customerAnchor = GlobalKey();
+  final GlobalKey _outcomeAnchor = GlobalKey();
+
+  void _reveal(GlobalKey key, {required bool top}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final BuildContext? c = key.currentContext;
+      if (c == null || !mounted) return;
+      Scrollable.ensureVisible(c,
+          duration: context.motion(Motion.state),
+          alignmentPolicy: top
+              ? ScrollPositionAlignmentPolicy.explicit
+              : ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    });
+  }
 
   void _put(ConsultantItem item, int tier) => setState(() {
         _shelf[item.id] = tier;
@@ -225,22 +282,29 @@ class _ConsultantGameState extends State<ConsultantGame> {
           for (final ConsultantItem i in _set.items)
             if (_shelf[i.id] != _set.tierOf(i)) i.id,
         ]);
-      _mistakes += _wrong.length;
+      _shelfMistakes.addAll(_wrong);
       if (_wrong.isEmpty) _sorted = true;
     });
-    if (_wrong.isEmpty) context.cue(Cue.done);
+    if (_wrong.isEmpty) {
+      context.cue(Cue.done);
+      _reveal(_customerAnchor, top: true);
+    }
   }
 
   void _pick(ConsultantItem item) {
     if (_pickedRight) return;
     setState(() {
       _picked = item.id;
-      if (!_pickedRight) _mistakes++;
+      if (!_pickedRight) _pickMistakes.add(item.id);
     });
+    _reveal(_outcomeAnchor, top: false);
     if (_pickedRight) context.cue(Cue.done);
   }
 
-  double get _score => (1 - 0.25 * _mistakes).clamp(0.0, 1.0);
+  double get _score => (1 -
+          widget.content.shelfPenalty * _shelfMistakes.length -
+          widget.content.pickPenalty * _pickMistakes.length)
+      .clamp(0.0, 1.0);
 
   String get _pickFeedback {
     final ConsultantCustomer c = _set.customer;
@@ -308,14 +372,21 @@ class _ConsultantGameState extends State<ConsultantGame> {
                     children: <Widget>[
                       Expanded(
                         child: _ItemHead(
-                            item: item, showPrice: _scanned, compact: true),
+                            item: item,
+                            showPrice: _priceShown(item),
+                            showReview: true,
+                            compact: true),
                       ),
                       const SizedBox(width: Gap.sm),
                       shelves(item),
                     ],
                   )
                 else ...<Widget>[
-                  _ItemHead(item: item, showPrice: _scanned, compact: land),
+                  _ItemHead(
+                      item: item,
+                      showPrice: _priceShown(item),
+                      showReview: true,
+                      compact: land),
                   const SizedBox(height: Gap.xs),
                   shelves(item),
                 ],
@@ -393,6 +464,7 @@ class _ConsultantGameState extends State<ConsultantGame> {
       ),
     );
     final Widget customer = _Card(
+      key: _customerAnchor,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -461,6 +533,8 @@ class _ConsultantGameState extends State<ConsultantGame> {
           label: const Text('Закончить смену'),
         ),
       ],
+      // Якорь под ответом и кнопкой: прокрутка к нему показывает их целиком.
+      if (_picked != null) SizedBox(key: _outcomeAnchor, height: 1),
     ];
     if (land) {
       // Альбомная: покупатель и ответ слева, товары справа.
@@ -497,10 +571,16 @@ class _ConsultantGameState extends State<ConsultantGame> {
 
 class _ItemHead extends StatelessWidget {
   const _ItemHead(
-      {required this.item, required this.showPrice, this.compact = false});
+      {required this.item,
+      required this.showPrice,
+      this.showReview = false,
+      this.compact = false});
 
   final ConsultantItem item;
   final bool showPrice;
+
+  /// Шаг 1: под свойствами — отзыв, если он есть у товара.
+  final bool showReview;
 
   /// Альбомная: свойства одной строкой через «·».
   final bool compact;
@@ -525,6 +605,24 @@ class _ItemHead extends StatelessWidget {
         else
           for (final String t in item.traits)
             Text('• $t', style: text.bodyLarge),
+        if (showReview && item.review != null) ...<Widget>[
+          const SizedBox(height: Gap.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Icon(Icons.chat_bubble_outline_rounded,
+                  size: 20, color: WorldColors.text),
+              const SizedBox(width: Gap.xs),
+              Expanded(
+                child: Text(
+                  key: ValueKey<String>('consultant:review:${item.id}'),
+                  'Отзыв: «${item.review}»',
+                  style: gameText(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -546,7 +644,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(Radii.chip);
+    final BorderRadius radius = BorderRadius.circular(WorldRadii.button);
     Widget body = Padding(padding: const EdgeInsets.all(Gap.sm), child: child);
     if (onTap != null) {
       body = InkWell(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -60,7 +61,8 @@ class WorldDemoScreen extends StatefulWidget {
     (WorldRoutes.review, 'S11 · Итоги недели'),
     (WorldRoutes.adult, 'S14 · Взрослым'),
     (WorldRoutes.settings, 'S15 · Настройки'),
-    (WorldRoutes.sprites, 'Спрайты (разработка)'),
+    // Отладочный экран — только в debug-сборке, в релизе его нет.
+    if (kDebugMode) (WorldRoutes.sprites, 'Спрайты (разработка)'),
   ];
 
   @override
@@ -120,6 +122,16 @@ class _WorldDemoScreenState extends State<WorldDemoScreen> {
     setState(() => _last = r);
   }
 
+  void _openCity() {
+    final WorldResult r = _state.act((World w) => w.demoOpenCity());
+    setState(() => _last = r);
+  }
+
+  void _coins(int n) {
+    final WorldResult r = _state.act((World w) => w.demoGiveCoins(n));
+    setState(() => _last = r);
+  }
+
   /// Список всех событий → выбранное становится событием недели → S10.
   Future<void> _pickEvent() async {
     final List<({String id, String title})> all = _state.world.demoEvents;
@@ -158,11 +170,20 @@ class _WorldDemoScreenState extends State<WorldDemoScreen> {
     final WorldResult r = _state.act((World w) => w.demoShowEvent(id));
     setState(() => _last = r);
     // Уже ждёт выбора (отказ `demo.event.pending`) — тоже в S10.
-    if (_state.world.pendingEvent?.id == id) _go(WorldRoutes.event);
+    if (_state.world.pendingEvent?.id == id) await _go(WorldRoutes.event);
   }
 
+  /// «Закончить неделю» — до итогов сразу (ТЗ 2.5.13: этапы подряд без
+  /// ожидания). В режиме дней один `sleep` кончает только день
+  /// (`day.next`), поэтому спим, пока не наступят итоги.
   void _endWeek() {
-    final WorldResult r = _state.act((World w) => w.sleep());
+    final WorldResult r = _state.act((World w) {
+      WorldResult s = w.sleep();
+      while (s.ok && s.reasonCode == 'day.next') {
+        s = w.sleep();
+      }
+      return s;
+    });
     setState(() => _last = r);
   }
 
@@ -216,10 +237,13 @@ class _WorldDemoScreenState extends State<WorldDemoScreen> {
     });
   }
 
-  void _go(String route) {
-    Navigator.of(context).pushNamed(route,
+  Future<void> _go(String route) async {
+    await Navigator.of(context).pushNamed(route,
         arguments:
             route == WorldRoutes.job ? const JobPlayArgs('cashier') : null);
+    // Отметки сеанса (S14 открыт) меняются на чужом экране, мир о них не
+    // сообщает — чек-лист перечитывает их по возвращении.
+    if (mounted) setState(() {});
   }
 
   @override
@@ -229,6 +253,7 @@ class _WorldDemoScreenState extends State<WorldDemoScreen> {
     final World w = st.world;
     final PendingEvent? event = w.pendingEvent;
     final bool engine = w is WorldGame;
+    final bool inCity = s.stage.index >= WorldStage.town.index;
     final Set<String>? kinds = w is WorldGame
         ? w.journal.map((WorldEntry e) => e.kind.name).toSet()
         : null;
@@ -325,6 +350,24 @@ class _WorldDemoScreenState extends State<WorldDemoScreen> {
                     'и 😊 не меняются, покупок нет.',
             onPressed: w.allJobsUnlocked ? null : _unlockJobs,
           ),
+          _Action(
+            id: 'city',
+            icon: Icons.location_city_rounded,
+            title: inCity ? 'Финни уже в городе' : 'Открыть город',
+            text: inCity
+                ? 'Переезд уже был. Снимет только «Начать игру заново».'
+                : 'Переезд в город без монет: стадия, город и аренда — как '
+                    'после покупки жилья.',
+            onPressed: inCity || !engine ? null : _openCity,
+          ),
+          for (final int n in const <int>[1000, 5000])
+            _Action(
+              id: 'coins$n',
+              icon: Icons.savings_rounded,
+              title: 'Дать $n монет',
+              text: 'Свободные монеты сразу, запись в журнале.',
+              onPressed: engine ? () => _coins(n) : null,
+            ),
           _Action(
             id: 'events',
             icon: Icons.priority_high_rounded,

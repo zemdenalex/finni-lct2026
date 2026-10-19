@@ -6,7 +6,7 @@ import '../../core/icons.dart';
 import '../../core/speaker.dart';
 import '../../core/theme.dart';
 import '../../domain/models/profile.dart';
-import '../../routes.dart';
+import '../world/world_routes.dart';
 
 /// Настройки (§3.6).
 ///
@@ -25,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
   /// Версия приложения. Захардкожена сознательно: package_info_plus — это
   /// ещё одна зависимость и плагин с нативной частью ради одной строки,
   /// которую всё равно правит человек при выпуске.
-  static const String version = '0.1.0';
+  static const String version = '0.1.2';
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'Переключает игру на отдельный тестовый профиль '
                       'и открывает экран «Проверка». Игру ребёнка не трогает: '
                       'она ждёт на своём месте.',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.demo),
+                  onTap: () => Navigator.pushNamed(context, WorldRoutes.demo),
                 ),
                 // Экран внутри приложения, а не ссылка наружу, — §3.5 соблюдён.
                 _InfoRow(

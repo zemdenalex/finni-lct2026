@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/art/asset_registry.dart';
 import '../../../core/art/sprite_anim.dart';
+import '../../../core/feel.dart';
 import '../../../core/theme.dart';
 import '../../../domain/world/contract.dart';
 import '../home/world_hud.dart';
@@ -11,6 +12,7 @@ import '../world_layout.dart';
 import '../world_routes.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
+import '../world_dock.dart';
 
 /// S10 · Событие недели (`docs/game/events.md`): ситуация, 2–3 варианта,
 /// после выбора — объяснение Финни и что изменилось.
@@ -51,9 +53,8 @@ class _EventScreenState extends State<EventScreen> {
     showHelp(
         context,
         'Что здесь?',
-        'Это событие недели — случай из жизни Финни.\n\n'
-            'Правильного ответа нет: выбери, как поступил бы ты. После '
-            'выбора Финни расскажет, что из этого вышло.');
+        'Это случай из жизни Финни. Правильного ответа нет: выбирай, '
+            'как кажется лучше. После выбора Финни расскажет, что вышло.');
   }
 
   void _choose(PendingEvent ev, PendingEventChoice c) {
@@ -72,7 +73,11 @@ class _EventScreenState extends State<EventScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      WithDock(current: DockSection.city, child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final WorldState? ws = maybeWorldState(context);
     final PendingEvent? ev = _resolved ?? ws?.world.pendingEvent;
     final String finni = ws?.finniName ?? 'Финни';
@@ -101,7 +106,7 @@ class _EventScreenState extends State<EventScreen> {
             if (refusal != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: Gap.sm),
-                child: Text(
+                child: PicText(
                     refusal.nextStep == null
                         ? refusal.reason
                         : '${refusal.reason} ${refusal.nextStep}',
@@ -121,7 +126,6 @@ class _EventScreenState extends State<EventScreen> {
           ];
 
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         // Альбомная — основная: низкая шапка, высота нужна тексту.
         toolbarHeight: land ? 48 : null,
@@ -329,7 +333,7 @@ class _ChoiceButton extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 15, color: WorldColors.textSoft)),
                 if (block != null)
-                  Text(
+                  PicText(
                       block.nextStep == null
                           ? block.text
                           : '${block.text} ${block.nextStep}',
@@ -366,7 +370,7 @@ class _Empty extends StatelessWidget {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               const SizedBox(height: Gap.sm),
               const Text(
-                  'События приходят, когда неделя идёт. Загляни в город: '
+                  'События случаются в течение недели. Загляни в город: '
                   'где «!» — там что-то ждёт.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16)),
@@ -407,7 +411,7 @@ class _Outcome extends StatelessWidget {
       happiness: result.happiness,
       weeklyBill: choice.preview.weeklyBill,
     );
-    return real.isEmpty ? 'числа не изменились.' : real.text;
+    return real.isEmpty ? 'ничего не изменилось.' : real.text;
   }
 
   @override
@@ -419,7 +423,7 @@ class _Outcome extends StatelessWidget {
             padding: const EdgeInsets.all(Gap.sm + Gap.xs),
             decoration: BoxDecoration(
               color: WorldColors.needsBg,
-              borderRadius: BorderRadius.circular(Radii.chip),
+              borderRadius: BorderRadius.circular(WorldRadii.button),
               border: Border.all(color: WorldColors.needs),
             ),
             child: Column(
@@ -438,17 +442,17 @@ class _Outcome extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: Gap.sm),
-                Text('$finni: «${result.reason}»',
+                PicText('$finni: «${result.reason}»',
                     key: const ValueKey<String>('event:finni'),
                     style: const TextStyle(fontSize: 16)),
                 const SizedBox(height: Gap.sm),
-                Text('Что изменилось: $_changes',
+                PicText('Что изменилось: $_changes',
                     key: const ValueKey<String>('event:changes'),
                     style: const TextStyle(
                         fontSize: 16, color: WorldColors.textSoft)),
                 if (result.nextStep != null) ...<Widget>[
                   const SizedBox(height: Gap.sm),
-                  Text('Что дальше: ${result.nextStep}',
+                  PicText('Что дальше: ${result.nextStep}',
                       key: const ValueKey<String>('event:next'),
                       style: const TextStyle(fontSize: 16)),
                 ],
@@ -456,11 +460,41 @@ class _Outcome extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Gap.md),
-          FilledButton(
-            key: const ValueKey<String>('event:done'),
-            onPressed: onDone,
-            child: const Text('Дальше'),
+          _ShowOnAppear(
+            child: FilledButton(
+              key: const ValueKey<String>('event:done'),
+              onPressed: onDone,
+              child: const Text('Дальше'),
+            ),
           ),
         ],
       );
+}
+
+/// BG-03 (баг-прогон 18.10): в альбомной 640 × 360 итог выбора длиннее
+/// правой колонки, и «Дальше» оставалась под краем экрана без признака
+/// прокрутки. Появилась кнопка — колонка докручивается до неё.
+class _ShowOnAppear extends StatefulWidget {
+  const _ShowOnAppear({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ShowOnAppear> createState() => _ShowOnAppearState();
+}
+
+class _ShowOnAppearState extends State<_ShowOnAppear> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Scrollable.ensureVisible(context,
+          duration: context.motion(Motion.state),
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

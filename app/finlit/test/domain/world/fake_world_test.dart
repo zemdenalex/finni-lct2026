@@ -1,4 +1,4 @@
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 

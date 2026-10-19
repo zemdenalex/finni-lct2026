@@ -11,6 +11,7 @@ import '../world_state.dart';
 import '../pic_text.dart';
 import 'shop_kit.dart';
 import '../../../core/world_theme.dart';
+import '../world_dock.dart';
 
 /// S5 — зоомагазин: питомцы как цели накопления (`docs/game/pets.md`).
 ///
@@ -61,15 +62,14 @@ class _PetShopScreenState extends State<PetShopScreen> {
         pets.isEmpty ? null : w.canDo(WorldAction.buy, id: pets.first.id);
     return WorldPage(
       id: 'pets',
+      dock: DockSection.city,
       title: 'Зоомагазин',
       snapshot: s,
       helpTitle: 'Зоомагазин',
       result: _last,
-      help: 'Питомец — цель: на него копят в копилке (конверт ЦЕЛЬ) и '
-          'покупают целиком, когда накоплено хватает.\n\n'
-          '«Копить» — сделать питомца целью. «Купить» — забрать домой.\n\n'
-          'Питомец радует Финни каждую неделю, но и ест: корм добавится к '
-          'счёту недели со следующей недели. Питомцы не болеют и не уходят.',
+      help: 'Питомец — это цель: на него копят в копилке и покупают '
+          'целиком. «Копить» делает питомца целью, «Купить» забирает домой. '
+          'Питомец радует Финни, но ест: корм добавится к счёту недели.',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.lg),
         children: <Widget>[
@@ -204,7 +204,7 @@ class _PetCard extends StatelessWidget {
                           const MarkLine(Icons.star_rounded, 'Копим на него',
                               color: WorldColors.goal),
                         if (buy == null)
-                          const Text('Накоплено хватает — можно купить',
+                          const Text('Монет хватает — можно купить',
                               style: kitSoft)
                         else if (!isPhaseBlock(buy))
                           BlockNote(buy,

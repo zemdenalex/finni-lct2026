@@ -43,6 +43,9 @@ class WeekTally {
   /// Взрослый открыл дополнительную смену (запись `parentBonus`).
   bool parentBonus = false;
 
+  /// Переводы в банке строками истории (не траты).
+  final List<String> transfers = <String>[];
+
   WeekPlanFact build() => WeekPlanFact(
         weekNo: weekNo,
         planMade: planMade,
@@ -60,6 +63,7 @@ class WeekTally {
         parentBonus: parentBonus,
         food: food,
         treats: treats,
+        transfers: List<String>.unmodifiable(transfers),
       );
 }
 
@@ -123,7 +127,10 @@ List<WeekPlanFact> foldWeekHistory(
       // Урок виден в истории недели (критерии §4 п. 7).
       t.events.add('Урок: ${a['title'] ?? a['jobId']}');
       t.saved += e.goal;
-      t.wantSpent += -(e.free < 0 ? e.free : 0) - (e.want < 0 ? e.want : 0);
+      // Трата урока — только покупка (`spend`). Доли в копилку и в НУЖНО —
+      // перевод между частями, не трата (эксперт 16.10: «Не покупать»
+      // показывалось как «ХОЧУ: потратили 110»).
+      t.wantSpent += math.max<int>(0, out - e.goal - e.need);
     } else if (k == WorldLedgerKind.mealEaten) {
       // Еда посреди недели — обязательная трата: факт НУЖНО, как счёт.
       final int price = a['price'] as int? ?? 0;
@@ -133,7 +140,9 @@ List<WeekPlanFact> foldWeekHistory(
       if (foodId is String && names.treat(foodId)) t.treats += price;
     } else if (k == LedgerKind.periodClosed) {
       t.billsPaid = true;
-    } else if (k == LedgerKind.purchase || k == WorldLedgerKind.itemOwned) {
+    } else if (k == LedgerKind.purchase ||
+        k == WorldLedgerKind.itemOwned ||
+        k == WorldLedgerKind.roomItemBought) {
       t.wantSpent += out;
       final String id = a['itemId']! as String;
       t.purchases.add(WeekItem(
@@ -167,6 +176,16 @@ List<WeekPlanFact> foldWeekHistory(
     } else if (k == WorldLedgerKind.goalSliderDeposit ||
         k == LedgerKind.savingsWithdraw) {
       t.saved += e.goal;
+    } else if (k == WorldLedgerKind.envelopeTransfer) {
+      // Перевод — не доход и не расход (ТЗ Насти, экран 11): ни в bills, ни
+      // в wantSpent, ни в saved (В5 открыт, см. world_fold.dart). Только
+      // строка истории.
+      final MoneyPart? from = MoneyPart.byName(a['from']);
+      final MoneyPart? to = MoneyPart.byName(a['to']);
+      if (from != null && to != null) {
+        t.transfers
+            .add(transferHistoryLine(a['amount'] as int? ?? 0, from, to));
+      }
     } else if (k == WorldLedgerKind.jobPayout) {
       final String job = a['jobId']! as String;
       t.shifts.add(WeekItem(

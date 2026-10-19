@@ -8,10 +8,13 @@ import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../core/widgets.dart';
 import '../../../domain/world/contract.dart';
+import '../../../domain/world/goal_eta.dart';
+import '../goal_eta_text.dart';
 import '../pic_text.dart';
 import '../world_layout.dart';
 import '../world_state.dart';
 import 'onboarding_script.dart';
+import '../home/plan_amount.dart';
 import '../home/plan_pool.dart';
 import '../../../core/world_theme.dart';
 
@@ -162,21 +165,21 @@ class EnvelopeCards extends StatelessWidget {
               key: const ValueKey<String>('envelope:need'),
               color: WorldColors.needs,
               bg: WorldColors.needsBg,
-              title: 'НУЖНО',
+              title: 'Нужно',
               text: need),
           const SizedBox(height: Gap.xs),
           _Decision(
               key: const ValueKey<String>('envelope:want'),
               color: WorldColors.wants,
               bg: WorldColors.wantsBg,
-              title: 'ХОЧУ',
+              title: 'Хочу',
               text: want),
           const SizedBox(height: Gap.xs),
           _Decision(
               key: const ValueKey<String>('envelope:goal'),
               color: WorldColors.goal,
               bg: WorldColors.goalBg,
-              title: 'ЦЕЛЬ',
+              title: 'Копилка',
               text: goal),
         ],
       );
@@ -201,12 +204,23 @@ class _Decision extends StatelessWidget {
         edge: color,
         padding:
             const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
-        child: Text.rich(
-          TextSpan(children: <InlineSpan>[
-            TextSpan(text: '$title  ', style: AppType.title(16, color: color)),
-            TextSpan(text: text),
-          ]),
-          style: _soft.copyWith(color: WorldColors.text),
+        // Правило 1Б Насти (18.10): «конверт» — образ методики, и в
+        // обучении его один раз показывают картинкой — здесь, у трёх частей.
+        child: Row(
+          children: <Widget>[
+            Pictogram(Pic.envelope, size: 28, color: color),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text.rich(
+                TextSpan(children: <InlineSpan>[
+                  TextSpan(
+                      text: '$title  ', style: AppType.title(16, color: color)),
+                  TextSpan(text: text),
+                ]),
+                style: _soft.copyWith(color: WorldColors.text),
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -438,7 +452,7 @@ class _LookTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius r = BorderRadius.circular(Radii.chip);
+    final BorderRadius r = BorderRadius.circular(WorldRadii.button);
     return Semantics(
       button: true,
       selected: selected,
@@ -494,9 +508,13 @@ class PlanEditor extends StatefulWidget {
     required this.wants,
     required this.goal,
     required this.onChange,
+    this.finniName = 'Финни',
   });
 
   final ResourceSnapshot snapshot;
+
+  /// Имя Финни на кнопке совета: «Как советует Бублик».
+  final String finniName;
 
   /// Ждёт ли мир плана. Нет — план уже подтверждён, видно только итог.
   final bool planning;
@@ -550,9 +568,9 @@ class _PlanEditorState extends State<PlanEditor> {
             spacing: Gap.md,
             runSpacing: Gap.xs,
             children: <Widget>[
-              _Sum('НУЖНО', snapshot.need, WorldColors.needs),
-              _Sum('ХОЧУ', snapshot.want, WorldColors.wants),
-              _Sum('ЦЕЛЬ', snapshot.goal, WorldColors.goal),
+              _Sum('Нужно', snapshot.need, WorldColors.needs),
+              _Sum('Хочу', snapshot.want, WorldColors.wants),
+              _Sum('Копилка', snapshot.goal, WorldColors.goal),
             ],
           ),
         ],
@@ -561,13 +579,31 @@ class _PlanEditorState extends State<PlanEditor> {
     final int step = ui.planStep;
     final int pool = snapshot.unallocated;
     final int left = pool - needs - wants - goal;
+    final bool row = WorldLayout.isLandscape(context);
+    final Widget advice = PlanAdviceButton(
+      name: widget.finniName,
+      compact: row,
+      onPressed: left > 0
+          ? () {
+              final ({int need, int want, int goal}) r = advisePlan(
+                pool: pool,
+                bill: snapshot.weeklyBill,
+                step: step,
+                advice: ui.planAdvice,
+                need: needs,
+                want: wants,
+                goal: goal,
+              );
+              onChange(r.need, r.want, r.goal);
+            }
+          : null,
+    );
     // Альбомная: три конверта в ряд — все видны без прокрутки (ревью
     // 29.09). Портрет: три компактные строки.
-    final bool row = WorldLayout.isLandscape(context);
     final List<Widget> steppers = <Widget>[
       _Stepper(
         id: 'need',
-        title: 'НУЖНО',
+        title: 'Нужно',
         // Счета — в реплике Финни («Счета недели — …»): строка конверта
         // короткая, копилке под «На неделю» хватает места на 360 dp.
         hint: ui.envelopesShort.need,
@@ -575,32 +611,35 @@ class _PlanEditorState extends State<PlanEditor> {
         value: needs,
         step: step,
         column: row,
-        canAdd: left >= step,
+        left: left,
         onFull: _onFull,
+        digits: '$pool'.length,
         onSet: (int v) => onChange(v, wants, goal),
       ),
       _Stepper(
         id: 'want',
-        title: 'ХОЧУ',
+        title: 'Хочу',
         hint: ui.envelopesShort.want,
         color: WorldColors.wants,
         value: wants,
         step: step,
         column: row,
-        canAdd: left >= step,
+        left: left,
         onFull: _onFull,
+        digits: '$pool'.length,
         onSet: (int v) => onChange(needs, v, goal),
       ),
       _Stepper(
         id: 'goal',
-        title: 'ЦЕЛЬ',
+        title: 'Копилка',
         hint: ui.envelopesShort.goal,
         color: WorldColors.goal,
         value: goal,
         step: step,
         column: row,
-        canAdd: left >= step,
+        left: left,
         onFull: _onFull,
+        digits: '$pool'.length,
         onSet: (int v) => onChange(needs, wants, v),
       ),
     ];
@@ -616,29 +655,53 @@ class _PlanEditorState extends State<PlanEditor> {
           full: _full,
           compact: row,
         ),
-        const SizedBox(height: Gap.xs),
+        // Альбомная: «На неделю» пустая (кроме «Всё уже разложено») — без
+        // отступа под ней, иначе кнопка совета внизу срезается на 640×360.
+        if (!row || _full) const SizedBox(height: Gap.xs),
+        // Портрет: совет над строками. Альбомная: высоты нет — справа от
+        // «Не разложено» под строками.
+        if (!row) ...<Widget>[
+          Align(alignment: Alignment.centerLeft, child: advice),
+          const SizedBox(height: Gap.xs),
+        ],
         if (row)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              for (int i = 0; i < steppers.length; i++) ...<Widget>[
-                if (i > 0) const SizedBox(width: Gap.xs),
-                Expanded(child: steppers[i]),
+          // Одной высоты (скриншот Саши 15.10: «ЦЕЛЬ» была ниже соседей).
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < steppers.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: Gap.xs),
+                  Expanded(child: steppers[i]),
+                ],
               ],
-            ],
+            ),
           )
         else
           ...steppers,
-        Text(
-          left > 0
-              ? ui.t('unallocated', <String, String>{'left': '$left'})
-              : planAllSpentLine,
-          style: _soft,
-        ),
+        // Альбомная, всё разложено: совету делать нечего — строка
+        // «Переложить…» во всю ширину, а не в три строки рядом с кнопкой.
+        if (row && left > 0)
+          Row(
+            children: <Widget>[
+              Expanded(child: _leftLine(ui, left)),
+              const SizedBox(width: Gap.xs),
+              Flexible(child: advice),
+            ],
+          )
+        else
+          _leftLine(ui, left),
       ],
     );
   }
 }
+
+Widget _leftLine(OnboardingScript ui, int left) => Text(
+      left > 0
+          ? ui.t('unallocated', <String, String>{'left': '$left'})
+          : planAllSpentLine,
+      style: _soft,
+    );
 
 class _Sum extends StatelessWidget {
   const _Sum(this.title, this.amount, this.color);
@@ -671,9 +734,10 @@ class _Stepper extends StatelessWidget {
     required this.value,
     required this.step,
     required this.column,
-    required this.canAdd,
+    required this.left,
     required this.onFull,
     required this.onSet,
+    this.digits = 2,
   });
 
   final String id;
@@ -683,11 +747,17 @@ class _Stepper extends StatelessWidget {
   final int value;
   final int step;
   final bool column;
-  final bool canAdd;
+
+  /// Остаток: «+» и ввод не кладут больше, чем [value] + [left].
+  final int left;
 
   /// «+», когда раскладывать уже нечего.
   final VoidCallback onFull;
   final ValueChanged<int> onSet;
+
+  /// Цифр в самой большой сумме (всё, что пришло): место под число одно на
+  /// все три конверта — «390» не мельче «10» (скриншот Саши 15.10).
+  final int digits;
 
   static const TextStyle _hintStyle =
       TextStyle(fontSize: 14, height: 1.2, color: WorldColors.textSoft);
@@ -705,41 +775,79 @@ class _Stepper extends StatelessWidget {
     final Widget buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _RoundButton(
+        // Касание — шаг, удержание — повтор с разгоном (plan_amount.dart).
+        HoldStepButton(
           key: ValueKey<String>('minus:$id'),
           icon: Icons.remove,
           label: '$title: меньше',
-          onTap: value >= step ? () => onSet(value - step) : null,
+          value: value,
+          max: value + left,
+          step: step,
+          up: false,
+          onChanged: onSet,
         ),
-        SizedBox(
-          width: column ? 34 : 56,
-          // Крупный шрифт: число ужимается, а не ломается на «40 / 0».
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text('$value',
-                maxLines: 1,
-                textAlign: TextAlign.center,
-                style: AppType.number(18, color: WorldColors.text)),
+        // Касание числа — ввод с цифровой клавиатуры. Альбомная: число
+        // узкое (34 dp), цель ввода для TalkBack — заголовок строки.
+        AmountTap(
+          key: column ? null : ValueKey<String>('amount:$id'),
+          semantic: !column,
+          title: title,
+          value: value,
+          max: value + left,
+          onChanged: onSet,
+          child: SizedBox(
+            width: column ? 34 : 56,
+            // Крупный шрифт: число ужимается, а не ломается на «40 / 0».
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text('$value',
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  // Одна сумма шрифта на все три конверта — по самой длинной
+                  // возможной сумме, а не ужатие каждого числа отдельно.
+                  style: AppType.number(column && digits >= 3 ? 13 : 18,
+                          color: WorldColors.text)
+                      .copyWith(
+                          decoration: TextDecoration.underline,
+                          decorationColor: WorldColors.textSoft)),
+            ),
           ),
         ),
-        _RoundButton(
+        HoldStepButton(
           key: ValueKey<String>('plus:$id'),
           icon: Icons.add,
           label: '$title: больше',
-          onTap: canAdd ? () => onSet(value + step) : onFull,
+          value: value,
+          max: value + left,
+          step: step,
+          up: true,
+          onChanged: onSet,
+          onBlocked: onFull,
         ),
       ],
     );
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.xs),
       child: Panel(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.xs, vertical: 2),
+        // Заголовок не на рамке: скругление съедало верхний край «НУЖНО».
+        padding: column
+            ? const EdgeInsets.fromLTRB(Gap.xs, Gap.xs + 2, Gap.xs, Gap.xs)
+            : const EdgeInsets.symmetric(horizontal: Gap.xs, vertical: 2),
         edge: color,
         child: column
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  label,
+                  AmountTap(
+                    key: ValueKey<String>('amount:$id'),
+                    title: title,
+                    value: value,
+                    max: value + left,
+                    onChanged: onSet,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: label,
+                  ),
                   FittedBox(fit: BoxFit.scaleDown, child: buttons),
                 ],
               )
@@ -754,24 +862,6 @@ class _Stepper extends StatelessWidget {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton(
-      {super.key, required this.icon, required this.label, this.onTap});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => IconButton.outlined(
-        tooltip: label,
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-        iconSize: 24,
-        icon: Icon(icon),
-        onPressed: onTap,
-      );
-}
-
 // ──────────────────────────── цель ────────────────────────────
 
 /// Выбор первой цели в сценке: в копилке · цели с ценой · фраза мира.
@@ -784,11 +874,15 @@ class GoalPicker extends StatelessWidget {
     required this.chosen,
     required this.reason,
     required this.onChoose,
+    this.history = const <WeekPlanFact>[],
   });
 
   /// Подписи — из `onboarding.json → ui`.
   final OnboardingScript ui;
   final int saved;
+
+  /// Недели мира ([World.weekHistory]) — для срока до цели ([goalEta]).
+  final List<WeekPlanFact> history;
 
   /// Цели с названием и ценой — из каталога мира ([onboardingGoals]).
   final List<WorldCatalogItem> goals;
@@ -797,39 +891,67 @@ class GoalPicker extends StatelessWidget {
   final ValueChanged<String> onChoose;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Flexible(child: Text(ui.t('in_piggy'), style: _text)),
-              const SizedBox(width: Gap.sm),
-              Coins(saved, size: 22),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.sm,
-            children: <Widget>[
-              // Цена видна до выбора (ТЗ 2.5.7.2).
-              for (final WorldCatalogItem g in goals)
-                ChoiceChip(
-                  key: ValueKey<String>('goal:${g.id}'),
-                  label: PicText('${g.title} · ${g.price} 💰',
-                      style: const TextStyle(fontSize: 18)),
-                  selected: chosen == g.id,
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: Gap.sm, vertical: Gap.sm),
-                  onSelected: (_) => onChoose(g.id),
-                ),
-            ],
-          ),
-          if (reason != null) ...<Widget>[
-            const SizedBox(height: Gap.sm),
-            Text(reason!, style: _text),
+  Widget build(BuildContext context) {
+    // Срок до каждой цели — тем же расчётом, что в копилке (ТЗ 2.5.7.4).
+    final Map<String, String?> eta = <String, String?>{};
+    // Почему срока нет — у всех целей одна история, причина одна.
+    GoalEtaGap gap = GoalEtaGap.noDeposit;
+    for (final WorldCatalogItem g in goals) {
+      final GoalEta? e = goalEta(history, g.price - saved);
+      eta[g.id] = goalEtaShort(e);
+      if (e?.reason case final GoalEtaGap r) gap = r;
+    }
+    final bool noEta = eta.values.every((String? e) => e == null);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Flexible(child: Text(ui.t('in_piggy'), style: _text)),
+            const SizedBox(width: Gap.sm),
+            Coins(saved, size: 22),
           ],
+        ),
+        const SizedBox(height: Gap.sm),
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: <Widget>[
+            // Цена видна до выбора (ТЗ 2.5.7.2).
+            for (final WorldCatalogItem g in goals)
+              ChoiceChip(
+                key: ValueKey<String>('goal:${g.id}'),
+                label: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    PicText('${g.title} · ${g.price} 💰',
+                        style: const TextStyle(fontSize: 18)),
+                    if (eta[g.id] case final String e)
+                      Text(e,
+                          key: ValueKey<String>('goal:eta:${g.id}'),
+                          style: const TextStyle(
+                              fontSize: 14, color: WorldColors.textSoft)),
+                  ],
+                ),
+                selected: chosen == g.id,
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: Gap.sm),
+                onSelected: (_) => onChoose(g.id),
+              ),
+          ],
+        ),
+        if (noEta) ...<Widget>[
+          const SizedBox(height: Gap.sm),
+          Text(goalEtaGapText(gap),
+              key: const ValueKey<String>('goal:eta:none'), style: _text),
         ],
-      );
+        if (reason != null) ...<Widget>[
+          const SizedBox(height: Gap.sm),
+          Text(reason!, style: _text),
+        ],
+      ],
+    );
+  }
 }

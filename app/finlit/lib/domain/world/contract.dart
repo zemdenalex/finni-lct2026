@@ -10,6 +10,13 @@
 /// Чистый Dart — проверяется `test/domain/layering_test.dart`.
 library;
 
+import '../phrases.dart';
+import 'achievements.dart';
+import 'room_grid.dart';
+
+export 'achievements.dart';
+export 'room_grid.dart';
+
 /// Стадия роста = где живёт Финни (open-questions T3: деревня → пригород →
 /// Москва). 🟡 Названия на экране ещё обсуждаются командой — в коде только id.
 ///
@@ -147,7 +154,98 @@ enum WorldLedgerKind {
   /// Финни поел (Денис 29.09, 938): блюдо `args.foodId` за `args.price` из
   /// НУЖНО → заработок → ХОЧУ, ⚡ и 😊 сразу. Не игровой день.
   mealEaten,
+
+  /// День кончился (сон или ⚡ на нуле), но неделя идёт: ночь тратит сытость,
+  /// утро даёт ⚡ «до уровня» (`day_cycle`). `args.dayInWeek` — новый день,
+  /// `args.satiety` — перемена сытости.
+  dayEnded,
+
+  /// Финни погладили в комнате (Денис 16.10): +😊 за первое касание игрового
+  /// дня, повтор в тот же день — без 😊. День берётся из журнала, поэтому
+  /// перезапуск второго начисления не даёт.
+  finniPetted,
+
+  /// Закупка в холодильник (ежедневные дела): `args.foodId`, `args.count`,
+  /// `args.price` за всё. Утром Финни ест оттуда сам (`mealEaten` с
+  /// `args.fromFridge`), денег второй раз не берётся.
+  fridgeStocked,
+
+  /// «Отдохнуть дома» (ежедневные дела): −⚡, +😊, игровой день.
+  restAtHome,
+
+  /// Получена награда (D3): `args.id`, `args.title`. Одна запись на награду —
+  /// повторно не пишется, переживает перезапуск.
+  achievementEarned,
+
+  /// Куплена вещь комнаты (`room_items.json`): из ХОЧУ, потом из заработка,
+  /// как прочие вещи. `args.itemId`, `args.price`.
+  roomItemBought,
+
+  /// Вещь комнаты поставлена (или передвинута) в клетку сетки:
+  /// `args.itemId`, `args.x`, `args.y` — левый верхний угол. Бесплатно.
+  roomItemPlaced,
+
+  /// Вещь комнаты убрана с сетки (остаётся купленной). `args.itemId`.
+  roomItemRemoved,
+
+  /// Перевод монет между частями в банке (ТЗ Насти 18.10, экран 11):
+  /// одна запись со встречными суммами — «Хочу −30, Копилка +30», поэтому
+  /// половины перевода не бывает и сумма трёх частей не меняется. Не доход и
+  /// не расход: статистика трат считает по виду записи и этот вид не знает.
+  /// `args.from`, `args.to` — [MoneyPart.name], `args.amount`, `args.opId`.
+  envelopeTransfer,
 }
+
+/// Часть монет, между которыми переводит банк ([World.transfer]). Названия
+/// — как на экранах плана (правило Насти: «Нужное · Хочу · Копилка»).
+enum MoneyPart {
+  need('Нужно'),
+  want('Хочу'),
+  goal('Копилка');
+
+  const MoneyPart(this.title);
+
+  /// Название части на экране.
+  final String title;
+
+  /// Сколько в этой части сейчас.
+  int of(ResourceSnapshot s) => switch (this) {
+        MoneyPart.need => s.need,
+        MoneyPart.want => s.want,
+        MoneyPart.goal => s.goal,
+      };
+
+  static MoneyPart? byName(Object? name) {
+    for (final MoneyPart p in values) {
+      if (p.name == name) return p;
+    }
+    return null;
+  }
+}
+
+/// Отказ перевода: флаг `bank.transfer` выключен — в сборке перевода нет.
+const BlockReason transferOffBlock =
+    BlockReason('feature.off', 'Скоро: это дело ещё не открыто.');
+
+/// Отказ перевода: в части-источнике меньше суммы. ТЗ Насти, экран 11, по
+/// её правилу Т1 Б: «часть», не «конверт».
+const BlockReason transferTooMuch = BlockReason('transfer.too_much',
+    'В этой части не хватает монет. Выбери сумму поменьше.');
+
+/// Отказ перевода: откуда и куда — одна часть. ТЗ Насти, экран 11 (Т1 Б).
+const BlockReason transferSame =
+    BlockReason('transfer.same', 'Выбери другую часть для перевода.');
+
+/// Итог перевода: ТЗ Насти, экран 11, по Т1 Б и Т5 Б — «часть» и «мы» вместо
+/// «Ты перевёл» (пол ребёнка игра не знает); число согласовано.
+String transferDoneText(int amount, MoneyPart from, MoneyPart to) =>
+    'Готово! Мы перевели $amount ${Phrases.coinsAcc(amount)} из части '
+    '«${from.title}» в «${to.title}».';
+
+/// Строка истории недели: «Перевод: Хочу → Копилка, 30 монет» (ТЗ Насти,
+/// экран 11, пример дословно).
+String transferHistoryLine(int amount, MoneyPart from, MoneyPart to) =>
+    'Перевод: ${from.title} → ${to.title}, $amount ${Phrases.coinsAcc(amount)}';
 
 /// Снимок ресурсов. Не хранится — выводится из журнала (у фейка — из полей).
 ///
@@ -177,8 +275,63 @@ class ResourceSnapshot {
     this.snacksThisWeek = 0,
     this.mealsThisWeek = 0,
     this.mealsPerWeek = 0,
+    this.mealsCanEat,
     this.toolPayback = const <String, int>{},
+    this.roomOwned = const <String>{},
+    this.roomPlaced = const <String, RoomCell>{},
+    this.dayInWeek = 1,
+    this.daysPerWeek = 1,
+    this.satiety,
+    this.satietyHungryAt = 25,
+    this.satietyFullAt = 60,
+    this.fridge = const <String, int>{},
+    this.doneToday = const <String>{},
+    this.shiftsTotal = 0,
+    this.shiftsByJobTotal = const <String, int>{},
+    this.achievements = const <AchievementView>[],
+    this.chosenSkins = const <String, String>{},
   });
+
+  /// Награды: правило, прогресс n/target, статус (D3).
+  final List<AchievementView> achievements;
+
+  /// Холодильник: блюдо → порций (ежедневные дела; иначе пусто).
+  final Map<String, int> fridge;
+
+  /// Что уже сделано за текущий день (режим дней) — для экрана «Сегодня»:
+  /// `meal` (поел, в том числе из холодильника), `pet` (погладили Финни),
+  /// `fridge`, `rest`, `job`. Из журнала; утром нового дня — пусто. Без дней
+  /// «день» = неделя.
+  final Set<String> doneToday;
+
+  /// Смен всего за игру, хороших и нет (награды).
+  final int shiftsTotal;
+
+  /// Смен каждой работы за всю игру, хороших и нет: номер раунда её
+  /// мини-игры. Следующая смена той же работы — всегда следующий набор, даже
+  /// если между ними были другие работы (NAS-7, Настя 18.10); 0 — первая
+  /// смена профессии (ценник-якорь, NAS-1).
+  final Map<String, int> shiftsByJobTotal;
+
+  /// День недели, с 1. В прежней неделе ([daysPerWeek] = 1) всегда 1.
+  final int dayInWeek;
+
+  /// Дней в игровой неделе (`day_cycle.days_per_week`).
+  final int daysPerWeek;
+
+  /// Сытость 0–100; `null` — шкалы нет (прежняя неделя).
+  final int? satiety;
+
+  /// Пороги сытости из `day_cycle` — чтобы экран не копировал числа:
+  /// ниже [satietyHungryAt] утром голод (−⚡, −😊), от [satietyFullAt] — +⚡.
+  final int satietyHungryAt;
+  final int satietyFullAt;
+
+  /// Финни голоден: утром будет −⚡ и −😊, если не поест. `false` без дней.
+  bool get hungry => satiety != null && satiety! < satietyHungryAt;
+
+  /// Финни сыт: утром +⚡. `false` без дней.
+  bool get full => satiety != null && satiety! >= satietyFullAt;
 
   /// Номер игровой недели, с 1. До первой недели — 0.
   final int weekNo;
@@ -260,9 +413,29 @@ class ResourceSnapshot {
   /// цены — вещь окупилась (перепроверка экономики 29.09, Денис 1001).
   final Map<String, int> toolPayback;
 
+  /// Купленные вещи комнаты (`room_items.json`). Старое сохранение без
+  /// записей `roomItemBought` — пусто.
+  final Set<String> roomOwned;
+
+  /// Где стоят вещи комнаты: id → левый верхний угол на сетке. Нет вещи —
+  /// куплена, но не поставлена.
+  final Map<String, RoomCell> roomPlaced;
+
+  /// Вид предмета комнаты, выбранный из купленных вариантов ([World.chooseSkin]):
+  /// предмет (`skin_bed`, `decor_globe`) → id варианта. Из журнала — переживает
+  /// перезапуск. Не выбран — в комнате последний купленный.
+  final Map<String, String> chosenSkins;
+
   /// Приёмов пищи до конца недели: их Финни съест дома, если не выбрать.
   int get mealsLeft =>
       mealsPerWeek > mealsThisWeek ? mealsPerWeek - mealsThisWeek : 0;
+
+  /// Сколько раз ещё можно поесть самому до конца недели — одно правило
+  /// для справки, карточки и итога еды (finni по проходу демо 17.10): в
+  /// режиме дней не больше, чем позволяют оставшиеся дни (сегодня — если
+  /// сегодня ещё не ел); `null` от мира — как [mealsLeft].
+  final int? mealsCanEat;
+  int get mealsAvailable => mealsCanEat ?? mealsLeft;
 
   /// Доступно сейчас (💰 в HUD) = НУЖНО + ХОЧУ + заработок + неразложенное.
   int get available => need + want + free + unallocated;
@@ -340,12 +513,31 @@ class WorldResult {
 /// [efficiencyBonusMax] = 20 % ставки, P6), но стоит сверх карточки
 /// [goodEnergyExtra] ⚡ и [goodHappiness] 😊. **Обычная** — ровно [pay], без
 /// опыта и бонуса, ⚡ ровно [energyCost].
+/// Настроение на момент смены и что оно меняет (DEN-36 A): [payPercent] —
+/// на сколько процентов оплата выше (+) или ниже (−) обычной, [energyDelta] —
+/// сколько ⚡ прибавлено (+) или снято (−) с цены смены, [payCoins] — на
+/// сколько монет оплата отличается от обычной (без настроения).
+class MoodPayNow {
+  const MoodPayNow({
+    required this.mood,
+    required this.payPercent,
+    required this.energyDelta,
+    required this.payCoins,
+  });
+
+  final int mood;
+  final int payPercent;
+  final double energyDelta;
+  final int payCoins;
+}
+
 class JobOffer {
   const JobOffer({
     required this.jobId,
     required this.title,
     required this.basePay,
     required this.experiencePercent,
+    this.experienceCoins = 0,
     required this.stageStep,
     required this.pay,
     required this.efficiencyBonusMax,
@@ -357,10 +549,30 @@ class JobOffer {
     this.variant,
     this.lockedReason,
     this.blockReason,
+    this.choice,
+    this.moodKind,
+    this.moodNow,
   });
+
+  /// Что настроение **сейчас** делает с этой сменой (DEN-36 A,
+  /// `mood_pay_live`): уже учтено в [pay] и [energyCost]; null — флаг
+  /// выключен или режим «неделя».
+  final MoodPayNow? moodNow;
 
   /// id работы из `economy.json → jobs`.
   final String jobId;
+
+  /// Мини-решение этой смены ([ShiftChoice]) или null — вопроса нет.
+  /// Ответ — `completeJob(..., choice: option.id)`. 🔴 Вопрос зависит от
+  /// длины журнала: любое действие, которое пишет в журнал (тап по питомцу,
+  /// еда, взнос), может сменить его — читать `offer(jobId).choice` заново
+  /// прямо перед вопросом, а не из сохранённой доски.
+  final ShiftChoice? choice;
+
+  /// Тип работы для настроения (C5, `jobs.<id>.mood_kind`: `fin_fun`,
+  /// `fin_dull`, `fun`, `dull`) — только в режиме дней, где он меняет 😊;
+  /// иначе null. Доска показывает его до выбора смены.
+  final String? moodKind;
 
   /// Уровень у курьера и программиста (`tiers[].id`), иначе null.
   final String? variant;
@@ -370,8 +582,15 @@ class JobOffer {
   /// Базовая ставка из файла.
   final int basePay;
 
-  /// «Опыт +X %» на доске: (1,02^опыт − 1) × 100, округлено.
+  /// Прибавка за опыт в процентах: (множитель опыта − 1) × 100, округлено.
+  /// 🔴 На детских экранах процентов нет (Т6 А, Денис 19.10) — там
+  /// [experienceCoins] и [experiencePayText]; поле — для взрослого и тестов.
   final int experiencePercent;
+
+  /// Надбавка за опыт в монетах для этой смены: [pay] минус та же оплата без
+  /// опыта, то же округление ([experienceBonusCoins]). Уже учтена в [pay].
+  /// По умолчанию 0 — карточки, собранные в тестах без опыта.
+  final int experienceCoins;
 
   /// Ступень стадии после переезда (`growth.stages[].pay_step`), сейчас
   /// ×1 / ×1,25 / ×1,5. 🔴 Дробная с 27.09 (была `int` при ×1 / ×3 / ×10):
@@ -389,7 +608,12 @@ class JobOffer {
   final double energyCost;
 
   /// Сколько смен этой работы ещё можно взять на этой неделе.
+  /// [kNoShiftLimit] и больше — лимита нет ([shiftsUnlimited]).
   final int shiftsLeft;
+
+  /// Недельного лимита смен нет (режим дней, `day_cycle.max_shifts_*`: null):
+  /// экран не показывает «смен на неделе».
+  bool get shiftsUnlimited => shiftsLeft >= kNoShiftLimit ~/ 2;
 
   /// Порог «хорошо сделано» для оценки 0..1 (`good_score_min`).
   final double goodScoreMin;
@@ -431,10 +655,116 @@ class JobOffer {
   }
 }
 
+/// Вариант ответа в мини-решении смены ([ShiftChoice]): оплата × [payX]
+/// (вверх до монеты), ⚡ [energy] сверх цены смены (не больше, чем осталось;
+/// уже × `energy_scale`), 😊 [happiness].
+class ShiftChoiceOption {
+  const ShiftChoiceOption({
+    required this.id,
+    required this.label,
+    this.payX = 1,
+    this.energy = 0,
+    this.happiness = 0,
+    this.effectHint,
+  });
+
+  final String id;
+  final String label;
+  final double payX;
+  final double energy;
+  final int happiness;
+
+  /// Последствие словами до выбора («больше монет, но меньше сил»):
+  /// строка под кнопкой варианта. null — подсказки нет.
+  final String? effectHint;
+}
+
+/// Мини-решение внутри смены (finni 17.10): вопрос и 2–3 варианта
+/// (`economy.json → day_cycle.shift_choices`). Выпадает с вероятностью
+/// [DayCycle.shiftChoiceChance] в режиме дней; тексты — из контента.
+class ShiftChoice {
+  const ShiftChoice({
+    required this.id,
+    required this.work,
+    required this.question,
+    required this.options,
+  });
+
+  final String id;
+
+  /// id работы (`economy.json → jobs`).
+  final String work;
+  final String question;
+  final List<ShiftChoiceOption> options;
+
+  /// Вариант по id или null.
+  ShiftChoiceOption? option(String id) {
+    for (final ShiftChoiceOption o in options) {
+      if (o.id == id) return o;
+    }
+    return null;
+  }
+}
+
 /// Монеты, которые ребёнок видит за смену (ставка, бонус), — круглые, до
 /// десятков (ревью df2164a §1.9: «Заплатят 303», «+61» читались как ошибка).
 /// Половина — от нуля, как `num.round()` и `dround` симулятора.
 int roundTens(num x) => (x / 10).round() * 10;
+
+/// Доля без суммы — словами (правило Насти Т6 А, 19.10: «всё дешевле на
+/// пятую часть»): `acc` — «на десятую часть», `gen` — «не меньше десятой
+/// части». Доля, у которой нет простого слова, — монетами: «10 из каждых
+/// 100» (без знака %).
+({String acc, String gen}) shareWords(int percent) {
+  const Map<int, ({String acc, String gen})> words =
+      <int, ({String acc, String gen})>{
+    50: (acc: 'половину', gen: 'половины'),
+    25: (acc: 'четверть', gen: 'четверти'),
+    20: (acc: 'пятую часть', gen: 'пятой части'),
+    10: (acc: 'десятую часть', gen: 'десятой части'),
+    5: (acc: 'двадцатую часть', gen: 'двадцатой части'),
+  };
+  final ({String acc, String gen})? w = words[percent];
+  if (w != null) return w;
+  final String s = '$percent из каждых 100';
+  return (acc: s, gen: s);
+}
+
+/// Прибавка за опыт на детском экране — словами и монетами (решение Дениса
+/// 19.10 «1 + 2», Т6 А Насти): «за опыт оплата больше на пятую часть
+/// (+28 монет)». [pay] — оплата смены с опытом, [coins] — сколько в ней
+/// монет за опыт ([JobOffer.experienceCoins]). Доля — от оплаты без опыта
+/// (`pay − coins`), словом ближайшей простой доли: десятая, пятая, четверть,
+/// треть, «в полтора раза», «вдвое»; до 7,5 % — «чуть больше». Если доля не
+/// ровная (дальше 0,5 % от слова), перед словом «примерно»: точное число —
+/// в скобках. Монет за опыт нет — «прибавки пока нет».
+String experiencePayText({required int pay, required int coins}) {
+  if (coins <= 0 || pay <= coins) return 'за опыт прибавки пока нет';
+  final String tail = ' (+$coins ${Phrases.coinsNom(coins)})';
+  // Доля в тысячных от оплаты без опыта — целыми числами: в double 29/100
+  // даёт 28,999…, и граница «29 %» уезжала бы в соседнее слово.
+  final int part = coins * 1000;
+  final int base = pay - coins;
+  bool below(int permille) => part < base * permille;
+  String about(double permille) =>
+      (part - base * permille).abs() < base * 5 ? '' : 'примерно ';
+  if (below(75)) return 'за опыт оплата чуть больше$tail';
+  if (!below(1500)) return 'за опыт оплата больше чем вдвое$tail';
+  const List<(int, double, String)> shares = <(int, double, String)>[
+    (150, 100, 'на десятую часть'),
+    (225, 200, 'на пятую часть'),
+    (290, 250, 'на четверть'),
+    (415, 1000 / 3, 'на треть'),
+  ];
+  for (final (int upTo, double exact, String words) in shares) {
+    if (below(upTo)) {
+      return 'за опыт оплата больше ${about(exact)}$words$tail';
+    }
+  }
+  final (double exact, String words) =
+      below(750) ? (500, 'в полтора раза') : (1000, 'вдвое');
+  return 'за опыт оплата ${about(exact)}$words больше$tail';
+}
 
 // ═══════════════ C2 (27.09): дыры, найденные потоком B — A10–A14 ═══════════════
 //
@@ -449,12 +779,16 @@ class MoodReason {
   /// Ключ текста в `copy.json`: `mood.leisure`, `mood.family_help`, …
   final String code;
 
-  /// Одна фраза для ребёнка: тап по Финни, итоги недели.
+  /// Одна фраза для ребёнка: тап по Финни, итоги недели. Может содержать
+  /// `{name}` — экран подставляет имя героя ([textFor]).
   final String text;
+
+  /// [text] с именем героя ([heroText]).
+  String textFor(String name) => heroText(text, name);
 
   /// Причины нет — обычное настроение.
   static const MoodReason neutral =
-      MoodReason('mood.neutral', 'У Финни обычное настроение.');
+      MoodReason('mood.neutral', '{name} в обычном настроении.');
 
   @override
   String toString() => 'MoodReason($code: $text)';
@@ -471,7 +805,7 @@ const String planAllSpentHint =
 
 /// Строка под конвертами, когда всё разложено: сразу подсказывает, как переложить.
 const String planAllSpentLine =
-    'Всё разложено. Переложить: «−» в одном конверте, «+» в другом.';
+    'Всё разделено. Переложить: «−» в одной части, «+» в другой.';
 
 String energyShown(double e) {
   final double r = (e * 2).round() / 2;
@@ -514,6 +848,10 @@ class BlockReason {
 }
 
 /// Что проверяет [World.canDo]. Аргумент `id` — у каждого свой.
+/// «Лимита смен нет»: так в конфиге записан `null` у `day_cycle.max_shifts_*`
+/// (Денис, DEN-18: смены держат силы и настроение, а не счётчик).
+const int kNoShiftLimit = 1 << 20;
+
 enum WorldAction {
   /// [World.startWeek].
   startWeek,
@@ -551,6 +889,19 @@ enum WorldAction {
 
   /// [World.parentExtraShift] — бонус взрослого на S14.
   parentBonus,
+
+  /// [World.stockFridge], `id` — блюдо, `variant` — сколько порций (нет — 1).
+  stockFridge,
+
+  /// [World.restAtHome].
+  restAtHome,
+
+  /// [World.buyRoomItem], `id` — вещь комнаты. Коды отказа — как у [buy].
+  buyRoomItem,
+
+  /// [World.transfer]: флаг `bank.transfer` и фаза. Суммы и части — в
+  /// самом действии.
+  transfer,
 }
 
 /// Раздел каталога (карточка A11).
@@ -768,8 +1119,15 @@ class EffectPreview {
       return '${v > 0 ? '+' : '−'}$n';
     }
 
+    // Перевод в копилку — не трата: «−60 💰 · +60 в копилку» читалось как
+    // «отдал 60 и ещё 60 отложил» (путь ребёнка rc-7d, D8). Монеты, ушедшие
+    // в копилку, — одной частью «+60 в копилку»; минус остаётся только у
+    // потраченного сверх перевода.
+    final int moved =
+        coins < 0 && goal > 0 ? (-coins < goal ? -coins : goal) : 0;
+    final int spent = coins + moved;
     return <String>[
-      if (coins != 0) '${signed(coins)} 💰',
+      if (spent != 0) '${signed(spent)} 💰',
       if (goal > 0) '+$goal в копилку',
       if (goal < 0) '−${-goal} из копилки',
       if (weeklyBill != 0) '${signed(weeklyBill)} к счёту недели',
@@ -845,6 +1203,32 @@ enum FinniGender { boy, girl }
 /// над `Storage` — `lib/data/onboarding_store.dart`.
 typedef OnboardingSave = Future<void> Function(Map<String, Object?> json);
 
+/// Имя героя в тексте игры (баг-прогон 18.10, BG-01): `{name}` → имя, которое
+/// ребёнок дал Финни при знакомстве ([OnboardingProgress.finniName]); пустое —
+/// «Финни». Тот же ключ `{name}`, что в репликах знакомства (`fillLine`) и
+/// событий (`finniLine`).
+///
+/// Правило текстов: «Финни» о герое (о том, кого ребёнок назвал) — `{name}`,
+/// и только в именительном падеже: своё имя («Пушистик») склоняется, «Финни»
+/// — нет. Косвенный падеж («радуют Финни», «у Финни») — фраза без имени.
+/// «Финни» остаётся в названии игры и приложения и в подсказке про имя по
+/// умолчанию. `{nick}` — ник самого ребёнка, к герою не относится.
+String heroText(String text, String name) => text.replaceAll(
+    '{name}', name.trim().isEmpty ? OnboardingProgress.defaultFinniName : name);
+
+/// Фраза о герое в его роде (правило 5Б Насти, 18.10: «подставлять род из
+/// знакомства, две версии каждой такой строки»): [boy] — Финни-мальчик,
+/// [girl] — девочка. Пол в знакомстве не выбран — [neutral], фраза без рода
+/// (как по правилу 5А). Род — героя: пол самого ребёнка игра не спрашивает,
+/// поэтому фразы о ребёнке («ты …») остаются без рода.
+String heroGendered(FinniGender? gender,
+        {required String neutral, required String boy, required String girl}) =>
+    switch (gender) {
+      FinniGender.boy => boy,
+      FinniGender.girl => girl,
+      null => neutral,
+    };
+
 /// Прогресс онбординга S0 (карточка A14): что ребёнок уже выбрал и с какого
 /// шага продолжить после перезапуска.
 ///
@@ -862,6 +1246,7 @@ class OnboardingProgress {
     this.finniGender,
     this.finniLook,
     this.finniName = defaultFinniName,
+    this.seen = const <String>{},
   });
 
   static const int stepIntro = 0;
@@ -891,6 +1276,9 @@ class OnboardingProgress {
   final int? finniLook;
 
   final String finniName;
+
+  /// Показанные один раз подсказки ([World.seen]): `bank.intro`.
+  final Set<String> seen;
 
   bool get done => step >= stepDone;
 
@@ -931,6 +1319,7 @@ class OnboardingProgress {
     FinniGender? finniGender,
     int? finniLook,
     String? finniName,
+    Set<String>? seen,
   }) =>
       OnboardingProgress(
         step: step ?? this.step,
@@ -939,6 +1328,7 @@ class OnboardingProgress {
         finniGender: finniGender ?? this.finniGender,
         finniLook: finniLook ?? this.finniLook,
         finniName: finniName ?? this.finniName,
+        seen: seen ?? this.seen,
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -948,6 +1338,7 @@ class OnboardingProgress {
         if (finniGender != null) 'finniGender': finniGender!.name,
         if (finniLook != null) 'finniLook': finniLook,
         'finniName': finniName,
+        if (seen.isNotEmpty) 'seen': (seen.toList()..sort()),
       };
 
   /// Из сохранённого. null или битые поля — значения по умолчанию, а не
@@ -960,6 +1351,7 @@ class OnboardingProgress {
     final Object? gender = json['finniGender'];
     final Object? look = json['finniLook'];
     final Object? name = json['finniName'];
+    final Object? seen = json['seen'];
     FinniGender? g;
     for (final FinniGender v in FinniGender.values) {
       if (v.name == gender) g = v;
@@ -971,6 +1363,9 @@ class OnboardingProgress {
       finniGender: g,
       finniLook: look is int ? look : null,
       finniName: name is String && name.isNotEmpty ? name : defaultFinniName,
+      seen: seen is List
+          ? <String>{...seen.whereType<String>()}
+          : const <String>{},
     );
   }
 
@@ -1033,9 +1428,14 @@ class WeekPlanFact {
     this.parentBonus = false,
     this.food = 0,
     this.treats = 0,
+    this.transfers = const <String>[],
   });
 
   final int weekNo;
+
+  /// Переводы в банке за неделю строками истории ([transferHistoryLine]).
+  /// Не траты: в план-факт и итоги не входят.
+  final List<String> transfers;
 
   /// План недели подтверждён. Нет — плановые числа нули, а не «положил 0».
   final bool planMade;
@@ -1086,6 +1486,12 @@ const String parentBonusCode = 'parent.extra_shift';
 const String parentBonusReason =
     'Взрослый открыл дополнительную смену на эту неделю';
 
+/// Код итога и записи `parentBonus`, когда бонус — монеты (DEN-27, A).
+const String parentCoinsCode = 'parent.weekly_coins';
+
+/// Причина в записи журнала бонуса монетами. ЗАГЛУШКА: строка временная.
+const String parentCoinsReason = 'Бонус от взрослого на эту неделю';
+
 /// Отказ: дополнительная смена на этой неделе уже открыта.
 const BlockReason parentBonusDone = BlockReason('parent.bonus.done',
     'Дополнительная смена на этой неделе уже открыта. Следующая — через неделю.');
@@ -1134,6 +1540,12 @@ abstract class World {
   /// недели за невыбранные приёмы. Меняет счёт недели.
   WorldResult chooseFood(String foodId);
 
+  /// Выбрать купленный вариант предмета комнаты (`skin_bed__4a`) его видом —
+  /// бесплатно, в любой фазе, не игровой день. Запись `skinChosen` в журнале:
+  /// выбор переживает перезапуск ([ResourceSnapshot.chosenSkins]). Не куплен
+  /// или не вариант — отказ; уже выбран — ничего не пишется.
+  WorldResult chooseSkin(String itemId);
+
   /// Урок после последней смены (критерии ночи §4), или null — урока нет
   /// или он уже решён. Держится до следующей смены или новой недели.
   LessonOffer? get pendingLesson;
@@ -1155,8 +1567,13 @@ abstract class World {
   /// [JobOffer.bonusFor], +1 опыт, сверх цены [JobOffer.goodEnergyExtra] ⚡ и
   /// [JobOffer.goodHappiness] 😊. ⚡ списывается только здесь: вышел из
   /// игры — ничего не потрачено.
+  ///
+  /// [choice] — id варианта мини-решения [JobOffer.choice]: оплата, ⚡ и 😊
+  /// варианта ложатся на смену. Вопроса нет — [choice] не учитывается; id
+  /// не из вопроса — отказ `job.choice_unknown`, ничего не списано; null при
+  /// вопросе — смена как без него.
   WorldResult completeJob(String jobId,
-      {String? variant, required double score});
+      {String? variant, required double score, String? choice});
 
   /// Ползунок «на цель» после смены: из кошелька заработка в ЦЕЛЬ.
   WorldResult depositToGoal(int amount);
@@ -1168,8 +1585,42 @@ abstract class World {
   /// Досуг: `park`, `cafe`, `cinema`, `pet_play`.
   WorldResult leisure(String kind);
 
+  /// Вещи и сетка кастомизации комнаты, флаг экрана `room.customize`.
+  RoomCatalog get room;
+
+  /// Купить вещь комнаты: из ХОЧУ, затем из заработка — тот же счёт и те
+  /// же отказы, что у [buy] (фаза, «Не хватает N», уже есть). Запись
+  /// `roomItemBought`.
+  WorldResult buyRoomItem(String itemId);
+
+  /// Почему вещь нельзя поставить левым верхним углом в клетку ([x], [y]),
+  /// или null ([roomPlaceBlock]). Экран подсвечивает по нему клетки.
+  BlockReason? canPlaceRoomItem(String itemId, int x, int y);
+
+  /// Поставить купленную вещь комнаты в клетку (или передвинуть).
+  /// Бесплатно, в любой фазе. Отказ — журнал не меняется. Запись
+  /// `roomItemPlaced`.
+  WorldResult placeRoomItem(String itemId, int x, int y);
+
+  /// Убрать вещь с сетки (остаётся купленной). Запись `roomItemRemoved`.
+  WorldResult removeRoomItem(String itemId);
+
   /// Тап по питомцу: реакция всегда, 😊 — за первый тап в игровой день (T7).
   WorldResult petTap(String petId);
+
+  /// Погладить Финни: реакция всегда; +😊 (`config.finniPetHappiness`) — только
+  /// за первое касание в игровой день, `reasonCode` `finni.pet`. Повтор в тот
+  /// же день — `finni.pet_again`, 😊 = 0. Монеты, ⚡ и копилку не меняет.
+  WorldResult petFinni();
+
+  /// Ежедневное дело: купить [count] порций [foodId] в холодильник — деньги и
+  /// ⚡ похода один раз; утром Финни ест сам. `fridge.stocked`; выключено —
+  /// `feature.off`.
+  WorldResult stockFridge(String foodId, int count);
+
+  /// Ежедневное дело: «отдохнуть дома» — −⚡, +😊. `rest.done`; выключено —
+  /// `feature.off`.
+  WorldResult restAtHome();
 
   /// «Спать»: неделя кончается сейчас. Бонус сна — если ⚡ осталось.
   WorldResult sleep();
@@ -1182,6 +1633,30 @@ abstract class World {
   /// Снять из копилки в кошелёк заработка. Экран сначала показывает превью
   /// «было / станет» и спрашивает подтверждение (ТЗ 2.5.7.5).
   WorldResult withdrawFromGoal(int amount);
+
+  /// Перевод [amount] монет из части [from] в часть [to] (банк, ТЗ Насти
+  /// 18.10, экран 11; флаг `bank.transfer`). Одна запись журнала
+  /// `envelopeTransfer` со встречными суммами: сумма трёх частей не меняется,
+  /// это не доход и не расход.
+  ///
+  /// Отказ, ничего не изменилось: флаг выключен (`feature.off`), неделя не
+  /// идёт (`phase.transfer`), [from] == [to] ([transferSame]), сумма ≤ 0
+  /// (`transfer.zero`), больше, чем в [from] ([transferTooMuch]).
+  /// [opId] — ключ операции: перевод с ключом, который уже есть в журнале,
+  /// — отказ `transfer.repeat` (двойное подтверждение, повтор после
+  /// перезапуска не списывает второй раз).
+  WorldResult transfer(
+      {required MoneyPart from,
+      required MoneyPart to,
+      required int amount,
+      String? opId});
+
+  /// Подсказка [id] уже показана (профиль, как онбординг: живёт вне журнала,
+  /// стирается сбросом игры). `bank.intro` — карточка «Что такое банк?».
+  bool seen(String id);
+
+  /// Отметить подсказку [id] показанной — сохраняется сразу.
+  Future<WorldResult> markSeen(String id);
 
   // ───────────── C2 (27.09): A10–A14, добавлено для потока B ─────────────
 
@@ -1249,6 +1724,15 @@ abstract class World {
   /// журнал не пополняется. Сброс игры снимает эффект вместе с журналом.
   WorldResult demoUnlockAllJobs();
 
+  /// Демо «Открыть город» (pm 18.10, «Режим проверки»): переезд в жильё
+  /// города без монет и очки роста до порога города одной записью
+  /// `demo.openCity`, затем `stage.changed`. Уже в городе — отказ
+  /// `demo.city.done`. Сброс игры стирает вместе с журналом.
+  WorldResult demoOpenCity();
+
+  /// Демо «Дать монеты»: +[amount] свободных монет записью `demo.coins`.
+  WorldResult demoGiveCoins(int amount);
+
   /// Все события мира по порядку конфига (`events.json → events[]`) — список
   /// демо «Показать событие»: id и заголовок.
   List<({String id, String title})> get demoEvents;
@@ -1275,6 +1759,16 @@ abstract class World {
 
   /// Взрослый уже открыл дополнительную смену на этой неделе.
   bool get parentBonusThisWeek;
+
+  /// Ступень сложности работы [jobId] от опыта (C2, флаг
+  /// `day_cycle.xp_stages`): 1, 2, 3…; null — у работы ступеней нет (флаг
+  /// выключен, режим «неделя», курьер и программист со своими уровнями).
+  int? xpStage(String jobId);
+
+  /// Бонус взрослого монетами (DEN-27, вариант A, флаг `adult.weekly_bonus`):
+  /// сколько монет даёт [parentExtraShift] раз в неделю; 0 — бонус прежний,
+  /// «+1 смена».
+  int get parentBonusCoins;
 
   /// Бонус взрослого (S14): «взрослый открывает дополнительное задание» —
   /// одна смена сверх лимита на **эту** неделю. Запись `parentBonus` с

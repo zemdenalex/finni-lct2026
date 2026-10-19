@@ -74,6 +74,26 @@ class AssetRegistry {
   String? item(String id) =>
       _path((_entry('items', id) ?? _entry('night_items', id))?['image']);
 
+  /// Размер картинки вещи в логических px (`size_px`) — чтобы вписать её
+  /// в место комнаты по пропорции. Нет — null.
+  Size? itemSize(String id) {
+    final Object? v =
+        (_entry('items', id) ?? _entry('night_items', id))?['size_px'];
+    if (v is! List || v.length != 2) return null;
+    final Object? w = v[0], h = v[1];
+    if (w is! num || h is! num || w <= 0 || h <= 0) return null;
+    return Size(w.toDouble(), h.toDouble());
+  }
+
+  /// Цвет варианта для точек-цветов в магазине (`swatch`, `#rrggbb`).
+  int? swatch(String id) {
+    final Object? v =
+        (_entry('items', id) ?? _entry('night_items', id))?['swatch'];
+    if (v is! String || v.length != 7 || !v.startsWith('#')) return null;
+    final int? rgb = int.tryParse(v.substring(1), radix: 16);
+    return rgb == null ? null : 0xFF000000 | rgb;
+  }
+
   /// Пиксельный значок верхней плашки (`hud_coin`, `hud_bolt`, `hud_smile`).
   String? hudIcon(String id) => _path(_entry('hud_icons', id)?['image']);
 
@@ -94,6 +114,16 @@ class AssetRegistry {
   /// `walk-1`…`walk-4` по номеру облика) — ветка арта 29.09. Нет группы в
   /// реестре — null, и Финни идёт прежними кадрами или покачиваясь.
   SpriteRef? finniWalk(String species) => _sprite('finni_walk', species);
+
+  /// Позы вида Финни (`finni_poses`, теги `joy-<облик>`, `sleep-<облик>`):
+  /// радость и усталость для реакции в комнате. Нет группы — null.
+  SpriteRef? finniPoses(String species) => _sprite('finni_poses', species);
+
+  /// Есть ли тег [tag] в позах вида Финни.
+  bool finniHasPose(String species, String tag) {
+    final Object? tags = _entry('finni_poses', species)?['tags'];
+    return tags is List<Object?> && tags.contains(tag);
+  }
 
   /// Есть ли у вида Финни тег анимации ([tag]: `walk`, `wave`, …) — по
   /// списку `tags` реестра.
@@ -177,7 +207,9 @@ class AssetRegistry {
           yield* walk(v);
         }
       } else if (node is String &&
-          (node.endsWith('.png') || node.endsWith('.json')) &&
+          (node.endsWith('.png') ||
+              node.endsWith('.webp') ||
+              node.endsWith('.json')) &&
           !node.startsWith('gen-test')) {
         yield '$base$node';
       }

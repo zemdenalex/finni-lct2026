@@ -30,7 +30,13 @@ class PlanPool extends StatefulWidget {
     required this.shake,
     required this.full,
     this.compact = false,
+    this.left,
   });
+
+  /// Сколько ещё не разложено (лист «План недели», Настя, тема 11): строка
+  /// показывает его — «Осталось разложить: N», а [amount] — мелко рядом,
+  /// чтобы ребёнок не терял всю сумму. null — как было: «На неделю: N».
+  final int? left;
 
   /// Сколько раскладывают на эту неделю.
   final int amount;
@@ -87,13 +93,37 @@ class _PlanPoolState extends State<PlanPool>
       style: const TextStyle(
           fontSize: 16, fontWeight: FontWeight.w700, color: WorldColors.wants),
     );
+    final int? left = widget.left;
     final Widget row = widget.compact
         ? full
         : Row(
             children: <Widget>[
-              Flexible(child: Text(t('pool', 'На неделю:'), style: text)),
-              const SizedBox(width: Gap.sm),
-              Coins(widget.amount, size: 22),
+              Flexible(
+                child: Text(
+                    left == null
+                        ? t('pool', 'На неделю:')
+                        : t('pool_left', 'Осталось разложить:'),
+                    // С остатком в строке ещё «из N»: подпись 16, монеты 20
+                    // — так «Осталось разложить: ● 1200 из 1200» влезает в
+                    // одну строку на 360 dp (шрифт 1,0). В две строки лист
+                    // рос на 26 dp, и полоса над ним была уже пальца (41 dp).
+                    style: left == null ? text : text.copyWith(fontSize: 16)),
+              ),
+              SizedBox(width: left == null ? Gap.sm : Gap.xs),
+              Coins(left ?? widget.amount,
+                  key: const ValueKey<String>('plan:pool:value'),
+                  size: left == null ? 22 : 20),
+              // Вся сумма недели — мелко в той же строке.
+              if (left != null) ...<Widget>[
+                const SizedBox(width: Gap.xs),
+                Text(
+                  (s?.ui['pool_total'] ?? 'из {total}')
+                      .replaceAll('{total}', '${widget.amount}'),
+                  key: const ValueKey<String>('plan:pool:total'),
+                  style: const TextStyle(
+                      fontSize: 14, color: WorldColors.textSoft),
+                ),
+              ],
             ],
           );
     final AnimationController? c = _ctrlOrNull;

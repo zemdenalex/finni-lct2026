@@ -130,7 +130,17 @@ class EventEffects {
     this.recurring,
     this.recurringWeeks = 0,
     this.simulation,
+    this.lossX = 0,
+    this.lossSavingsX = 0,
   });
+
+  /// Потеря (мошенники, 18.10): доля всех монет, что **лежат** («Нужно»,
+  /// «Хочу», свободные — [lossX], `loss_wallet_share`; берётся из «Хочу»,
+  /// затем свободных, затем «Нужно»), или доля копилки
+  /// ([lossSavingsX], `loss_savings_share`), до монеты. Вариант не
+  /// блокируется нехваткой: нет монет — нечего и терять.
+  final double lossX;
+  final double lossSavingsX;
 
   final double moneyX;
   final double savingsX;
@@ -175,6 +185,8 @@ class EventEffects {
     'shift',
     'recurring',
     'simulation',
+    'loss_wallet_share',
+    'loss_savings_share',
   };
 
   static const Set<String> _knownRecurring = <String>{
@@ -226,7 +238,18 @@ class EventEffects {
       recurring: r,
       recurringWeeks: weeks,
       simulation: m['simulation'] == null ? null : _str(m, 'simulation', path),
+      lossX: _loss(m, 'loss_wallet_share', path),
+      lossSavingsX: _loss(m, 'loss_savings_share', path),
     );
+  }
+
+  /// Доля потери: от 0 до 1 (больше, чем лежит, не теряется).
+  static double _loss(Map<String, Object?> m, String key, String path) {
+    final double v = _optNum(m, key, path) ?? 0;
+    if (v < 0 || v > 1) {
+      throw FormatException('$path.$key: ожидалась доля 0–1, а стоит $v');
+    }
+    return v;
   }
 
   static SavingsSource _source(Object? v, String path) => switch (v) {
@@ -385,6 +408,8 @@ class WorldEventSpec {
     required this.title,
     required this.situation,
     required this.options,
+    this.situationBoy,
+    this.situationGirl,
     this.conditions = const EventConditions(),
     this.simulation,
   });
@@ -398,6 +423,13 @@ class WorldEventSpec {
   final String buildingId;
   final String title;
   final String situation;
+
+  /// Ситуация в роде героя (`situation_boy` / `situation_girl`, правило 5Б
+  /// Насти): нет — [situation]. Пол в знакомстве не выбран — тоже
+  /// [situation], она без рода. Выбирает `WorldGame.pendingEvent`.
+  final String? situationBoy;
+  final String? situationGirl;
+
   final EventConditions conditions;
   final List<WorldEventOptionSpec> options;
   final SlotSimSpec? simulation;
@@ -426,6 +458,10 @@ class WorldEventSpec {
       buildingId: _str(m, 'building', path),
       title: _str(m, 'title', path),
       situation: _str(m, 'situation', path),
+      situationBoy:
+          m['situation_boy'] == null ? null : _str(m, 'situation_boy', path),
+      situationGirl:
+          m['situation_girl'] == null ? null : _str(m, 'situation_girl', path),
       conditions: EventConditions.fromJson(m['conditions'], '$path.conditions'),
       options: <WorldEventOptionSpec>[
         for (int i = 0; i < opts.length; i++)

@@ -1,3 +1,4 @@
+import 'package:finlit/features/world/goal_eta_text.dart';
 import 'package:finlit/core/art/sprite_anim.dart';
 import 'package:finlit/domain/phrases.dart';
 import 'package:finlit/domain/world/contract.dart';
@@ -5,7 +6,9 @@ import 'package:finlit/features/world/piggy/piggy_screen.dart';
 import 'package:finlit/features/world/shop/pet_shop_screen.dart';
 import 'package:finlit/features/world/shop/world_shop_screen.dart';
 import 'package:finlit/features/world/world_state.dart';
+import 'package:finlit/features/world/pic_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/world_harness.dart';
@@ -61,7 +64,7 @@ Future<void> _tap(WidgetTester tester, String key) async {
 String _text(WidgetTester tester, String key) => tester
     .widgetList<Text>(find.descendant(
         of: find.byKey(ValueKey<String>(key)), matching: find.byType(Text)))
-    .map((Text t) => t.data)
+    .map((Text t) => t.data ?? t.textSpan?.toPlainText() ?? '')
     .join(' ');
 
 void main() {
@@ -74,9 +77,40 @@ void main() {
       await _pump(tester, const PiggyScreen(), w);
       final Finder f = find.byKey(const ValueKey<String>('perk:tech_laptop'));
       await tester.scrollUntilVisible(f, 200, scrollable: _list.first);
-      expect(tester.widget<Text>(f).data,
+      expect(tester.widget<PicText>(f).text,
           allOf(contains('Программист'), contains('Окупится примерно за')));
       expect(tester.takeException(), isNull);
+    });
+
+    // Настя 18.10: экран, куда ведёт здание «Банк», называется «Банк» в шапке
+    // и в справке (было «Копилка»). Ловит: шапка снова «Копилка».
+    testWidgets('экран банка: в шапке «Банк», не «Копилка»',
+        (WidgetTester tester) async {
+      await _pump(tester, const PiggyScreen(), _savedWorld(kind));
+      expect(find.text('Банк'), findsWidgets);
+      expect(find.text('Копилка'), findsNothing,
+          reason: 'в шапке и справке экрана копилки — «Банк»');
+      expect(tester.takeException(), isNull);
+    });
+
+    // Т6 А (Настя 19.10, решение pm): прогресс цели — монетами «640 из
+    // 1000», у полосы и для TalkBack, без процентов. Ловит: процент вернулся.
+    testWidgets('копилка: накоплено — «640 из 1000», без процентов',
+        (WidgetTester tester) async {
+      final SemanticsHandle sem = tester.ensureSemantics();
+      final World w = _savedWorld(kind);
+      ok(w.chooseGoal('pet_fish'));
+      await _pump(tester, const PiggyScreen(), w);
+      final int price = w.catalogItem('pet_fish')!.price;
+      final int goal = w.snapshot.goal;
+      expect(
+          tester
+              .widget<Text>(find.byKey(const ValueKey<String>('piggy:percent')))
+              .data,
+          '$goal из $price');
+      expect(find.bySemanticsLabel(RegExp('Накоплено $goal из $price')),
+          findsWidgets);
+      sem.dispose();
     });
 
     // Ловит: карточка еды без шкал пользы и вкуса, «Съесть» ест без
@@ -105,27 +139,28 @@ void main() {
           .map((Text t) => t.data ?? t.textSpan?.toPlainText() ?? '')
           .join(' ');
       expect(dialog, contains('${fish.price}'));
-      expect(dialog, contains('НУЖНО'));
+      expect(dialog, contains('Нужно'));
       final int need = w.snapshot.need;
-      expect(dialog, contains('В НУЖНО сейчас $need'),
+      expect(dialog, contains('В части «Нужно» сейчас $need'),
           reason: 'остаток конверта до еды (ревью 28d9a1f)');
       String hudEnergy() => tester
-          .getSemantics(find.bySemanticsLabel(RegExp('^Энергия: ')).first)
+          .getSemantics(find.bySemanticsLabel(RegExp('^Сил: ')).first)
           .label;
       final double before = w.snapshot.energy;
-      expect(hudEnergy(), 'Энергия: ${energyShown(before)} из 14');
+      expect(hudEnergy(), 'Сил: ${energyShown(before)} из 14');
       await _tap(tester, 'confirm:yes');
       expect(w.snapshot.mealsThisWeek, 1);
       // ⚡ сразу видно в HUD (критерии §2 п. 4).
       expect(w.snapshot.energy, closeTo(before + fish.energy, 1e-9));
       await _step(tester);
-      expect(hudEnergy(), 'Энергия: ${energyShown(w.snapshot.energy)} из 14');
+      expect(hudEnergy(), 'Сил: ${energyShown(w.snapshot.energy)} из 14');
       // «Почему» — в итоге действия (§2 п. 6).
       expect(
           tester
-              .widget<Text>(find.byKey(const ValueKey<String>('result:reason'),
+              .widget<PicText>(find.byKey(
+                  const ValueKey<String>('result:reason'),
                   skipOffstage: false))
-              .data,
+              .text,
           contains('полезная'));
       expect(tester.takeException(), isNull);
     });
@@ -182,7 +217,7 @@ void main() {
       // На этой неделе рыбка ещё не ест.
       expect(w.snapshot.weeklyBill, int.parse(m[1]!));
 
-      expect(w.sleep().ok, isTrue);
+      expect(sleepWeek(w).ok, isTrue);
       expect(w.payBills().ok, isTrue);
       expect(w.startWeek().ok, isTrue);
       expect(w.snapshot.weeklyBill, promised);
@@ -197,7 +232,7 @@ void main() {
       final ResourceSnapshot before = w.snapshot;
       final int price = w.catalogItem('poster_city')!.price;
 
-      await tester.tap(find.text('Хочу'));
+      await tester.tap(find.text('Уют и декор'));
       await _step(tester);
       final Finder buy = find.byKey(const ValueKey<String>('buy:poster_city'));
       await tester.scrollUntilVisible(buy, 200, scrollable: _list.first);
@@ -269,10 +304,12 @@ void main() {
       expect(find.byKey(const ValueKey<String>('piggy:block')), findsNothing);
     });
 
-    // Ловит (ТЗ 2.5.7.4): срока до цели на S9 нет, он показан до первого
-    // взноса или не появляется сразу после взноса по плану.
-    testWidgets('срок до цели: до взноса — объяснение, после — по среднему',
-        (WidgetTester tester) async {
+    // Ловит (ТЗ 2.5.7.4, вариант A 17.10): срока до цели на S9 нет, он
+    // показан до первого взноса или до конца недели с взносом, или не
+    // появляется после итогов этой недели.
+    testWidgets(
+        'срок до цели: до законченной недели с взносом — объяснение, '
+        'после — по среднему', (WidgetTester tester) async {
       final World w = kind.make();
       ok(w.startWeek());
       ok(w.plan(needs: 0, wants: 0, goal: 0));
@@ -283,8 +320,8 @@ void main() {
           .data!;
       expect(
           eta(),
-          'Срок посчитаем после первого взноса в копилку — по тому, сколько '
-          'получается откладывать.');
+          'Сколько ждать, станет ясно, когда ты в первый раз отложишь '
+          'монеты.');
 
       final World w2 = kind.make();
       ok(w2.startWeek());
@@ -293,13 +330,22 @@ void main() {
       await _pump(tester, const PiggyScreen(), w2);
       expect(w2.weekHistory.last.goal.actual, 100,
           reason: 'настройка: в этой неделе отложено ровно 100');
+      expect(eta(), goalEtaWeekNotOver,
+          reason: 'неделя идёт — среднего ещё нет, и это не «после первого '
+              'взноса»: взнос уже есть');
+
+      ok(sleepWeek(w2));
+      ok(w2.payBills());
+      await _pump(tester, const PiggyScreen(), w2);
+      expect(w2.weekHistory.last.billsPaid, isTrue,
+          reason: 'настройка: неделя с взносом закончена');
       final int left = w2.catalogItem('pet_dog')!.price - w2.snapshot.goal;
       expect(left, greaterThan(100),
           reason: 'настройка: копить не одну неделю');
       final int weeks = (left / 100).ceil();
       expect(
           eta(),
-          'Если откладывать как сейчас (~100 в неделю) — примерно $weeks '
+          'Если откладывать как сейчас (около 100 в неделю) — примерно $weeks '
           '${Phrases.weekWord(weeks)}.');
     });
 
@@ -325,6 +371,76 @@ void main() {
       expect(w.snapshot.free, 50);
     });
 
+    // Ловит (проход демо 16.10): ползунок для TalkBack говорит «50» при
+    // сумме 0 — читает проценты шкалы, а не монеты.
+    testWidgets('ползунок для TalkBack называет сумму, а не проценты',
+        (WidgetTester tester) async {
+      final SemanticsHandle sem = tester.ensureSemantics();
+      final World w = _savedWorld(kind);
+      await _pump(tester, const PiggyScreen(), w);
+      // Нижнее меню (стиль Алины) забрало 60 dp: ползунок — ниже первого
+      // экрана, список строит его, когда до него докрутили.
+      await tester.scrollUntilVisible(
+          find.byKey(const ValueKey<String>('withdraw:slider')), 200,
+          scrollable: _list.first);
+      // Узел ползунка ищем по флагу isSlider: ключ стоит на виджете Slider,
+      // и в разных версиях Flutter `getSemantics` по ключу отдаёт то сам
+      // ползунок, то панель «Снять» над ним (тогда value пустое — тест
+      // падал от устройства дерева, а не от того, что слышит TalkBack).
+      String said() {
+        SemanticsNode? found;
+        bool visit(SemanticsNode n) {
+          if (n.getSemanticsData().flagsCollection.isSlider) {
+            found = n;
+            return false;
+          }
+          n.visitChildren(visit);
+          return found == null;
+        }
+
+        visit(tester.getSemantics(
+            find.byKey(const ValueKey<String>('withdraw:slider'))));
+        expect(found, isNotNull, reason: 'у «Снять» нет узла ползунка');
+        return found!.getSemanticsData().value;
+      }
+
+      expect(said(), '0 ${Phrases.coinWord(0)}');
+      for (int i = 0; i < 3; i++) {
+        await _tap(tester, 'withdraw:plus');
+      }
+      expect(said(), '30 ${Phrases.coinWord(30)}');
+      sem.dispose();
+    });
+
+    // Ловит (ТЗ 2.5.7.5): при снятии с цели не видно, как сдвинется срок,
+    // хотя срок на экране считается.
+    testWidgets('снятие: в подтверждении — как изменится срок до цели',
+        (WidgetTester tester) async {
+      final World w = kind.make();
+      ok(w.startWeek());
+      ok(w.plan(needs: 0, wants: 0, goal: 100));
+      ok(w.chooseGoal('pet_dog'));
+      // Срок есть только после законченной недели с взносом (вариант A).
+      ok(sleepWeek(w));
+      ok(w.payBills());
+      ok(w.startWeek());
+      ok(w.plan(needs: 0, wants: 0, goal: 0));
+      await _pump(tester, const PiggyScreen(), w);
+      final int left = w.catalogItem('pet_dog')!.price - w.snapshot.goal;
+      final int before = (left / 100).ceil();
+      final int after = ((left + 50) / 100).ceil();
+      expect(after, greaterThan(before), reason: 'настройка: срок сдвинется');
+      for (int i = 0; i < 5; i++) {
+        await _tap(tester, 'withdraw:plus');
+      }
+      await _tap(tester, 'withdraw:go');
+      expect(
+          find.textContaining('Срок до цели: примерно $before → $after '
+              '${Phrases.weekWord(after)}'),
+          findsOneWidget);
+      await _tap(tester, 'confirm:no');
+    });
+
     // Ловит: вёрстка ломается на маленьком телефоне с крупным шрифтом.
     for (final (String name, Widget screen) in <(String, Widget)>[
       ('магазин', const WorldShopScreen()),
@@ -341,7 +457,11 @@ void main() {
           expect(find.byType(SpriteAnim), findsWidgets);
         }
         if (screen is WorldShopScreen) {
-          for (final String tab in <String>['Хочу', 'Одежда']) {
+          for (final String tab in <String>[
+            'Уют и декор',
+            'Одежда',
+            'Мебель'
+          ]) {
             await tester.tap(find.text(tab));
             await _step(tester);
             expect(tester.takeException(), isNull);
@@ -373,6 +493,29 @@ void main() {
                 .bottom,
             lessThanOrEqualTo(48));
         expect(tester.takeException(), isNull);
+      });
+
+      // Ловит (проход RC 17.10, находка 8): итог покупки оставался над
+      // списком и на другой вкладке, закрывая ~120 px чужого отдела.
+      testWidgets('итог покупки уходит при смене вкладки',
+          (WidgetTester tester) async {
+        final World w = kind.make();
+        ok(w.startWeek());
+        ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
+        await _pump(tester, const WorldShopScreen(), w);
+        final String food = w.catalog
+            .firstWhere(
+                (WorldCatalogItem i) => i.category == WorldCatalogCategory.food)
+            .id;
+        await _tap(tester, 'eat:$food');
+        await _tap(tester, 'confirm:yes');
+        expect(
+            find.byKey(const ValueKey<String>('result:card')), findsOneWidget);
+        // Как смахивание: вкладку меняет контроллер.
+        DefaultTabController.of(tester.element(find.byType(TabBarView)))
+            .animateTo(2);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey<String>('result:card')), findsNothing);
       });
 
       testWidgets('зоомагазин: питомцы по два в ряд, покупка работает',
@@ -436,7 +579,11 @@ void main() {
           await _pump(tester, screen, w, textScale: 1.3, size: landscape);
           expect(tester.takeException(), isNull);
           if (screen is WorldShopScreen) {
-            for (final String tab in <String>['Хочу', 'Одежда']) {
+            for (final String tab in <String>[
+              'Уют и декор',
+              'Одежда',
+              'Мебель'
+            ]) {
               await tester.tap(find.text(tab));
               await _step(tester);
               expect(tester.takeException(), isNull);

@@ -9,10 +9,15 @@ import '../../../core/widgets.dart';
 import '../../../domain/phrases.dart';
 import '../../../domain/world/contract.dart';
 import '../../../domain/world/goal_eta.dart';
+import '../bank/transfer_screen.dart';
+import '../goal_eta_text.dart';
+import '../pic_text.dart';
 import '../shop/shop_kit.dart';
+import '../home/plan_amount.dart';
 import '../world_layout.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
+import '../world_dock.dart';
 
 /// S9 — копилка: активная цель, накоплено / цена / осталось, выбор цели,
 /// «отложить из кошелька», «снять» с превью «было / станет» и отдельным
@@ -41,6 +46,14 @@ class _PiggyScreenState extends State<PiggyScreen> {
     AssetRegistry.load().then((AssetRegistry r) {
       if (mounted) setState(() => _reg = r);
     }, onError: (Object _) {});
+    // Вход в здание «Банк» из города (аргумент маршрута — id здания): при
+    // флаге `bank.transfer` в первый раз — карточка «Что такое банк?».
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ModalRoute.of(context)?.settings.arguments == 'piggy-bank') {
+        showBankIntro(context);
+      }
+    });
   }
 
   int _deposit = 0;
@@ -70,16 +83,38 @@ class _PiggyScreenState extends State<PiggyScreen> {
       title: 'Снять $amount из копилки?',
       lines: <String>[
         'В копилке: было ${s.goal} → станет ${s.goal - amount}.',
-        'В кошельке: было ${s.free} → станет ${s.free + amount}.',
+        'В заработке: было ${s.free} → станет ${s.free + amount}.',
         if (goal != null)
           'До цели «${goal.title}»: было ${math.max(0, goal.price - s.goal)} '
               '→ станет ${math.max(0, goal.price - s.goal + amount)}.',
+        // ТЗ 2.5.7.5: срок считается — показать, как он сдвинется. Темп тот
+        // же, что в строке срока на экране (до снятия).
+        if (goal != null)
+          if (_etaShift(st.world, goal, s, amount) case final String eta) eta,
       ],
       yes: 'Снять',
       no: 'Оставить',
     );
     if (!yes || !mounted) return;
     _show(st.act((World w) => w.withdrawFromGoal(amount)));
+  }
+
+  /// «Срок до цели: примерно 3 → 4 недели» или null, если срока нет
+  /// (до первого взноса) или цель уже набрана.
+  static String? _etaShift(
+      World w, WorldCatalogItem goal, ResourceSnapshot s, int amount) {
+    final int left = math.max(0, goal.price - s.goal);
+    final GoalEta? e = goalEta(w.weekHistory, left);
+    final int? before = e?.weeks;
+    final int? per = e?.perWeek;
+    if (before == null || per == null || per <= 0) return null;
+    final int after = (left + amount + per - 1) ~/ per;
+    if (after == before) {
+      return 'Срок до цели не изменится: примерно $before '
+          '${Phrases.weekWord(before)}.';
+    }
+    return 'Срок до цели: примерно $before → $after '
+        '${Phrases.weekWord(after)}.';
   }
 
   Future<void> _buy(WorldCatalogItem e) async {
@@ -112,9 +147,9 @@ class _PiggyScreenState extends State<PiggyScreen> {
     final Widget depositPanel = _MovePanel(
       key: const ValueKey<String>('piggy:deposit'),
       icon: Icons.south_rounded,
-      title: 'Отложить из кошелька',
-      text: 'В кошельке заработка ${s.free}.',
-      empty: 'В кошельке пусто — отложить нечего. Заработать можно '
+      title: 'Отложить из заработка',
+      text: 'В заработке ${s.free}.',
+      empty: 'В заработке пусто — отложить нечего. Заработать можно '
           'сменой на работе.',
       id: 'deposit',
       value: deposit,
@@ -127,7 +162,7 @@ class _PiggyScreenState extends State<PiggyScreen> {
       key: const ValueKey<String>('piggy:withdraw'),
       icon: Icons.north_rounded,
       title: 'Снять из копилки',
-      text: 'В копилке ${s.goal}. Снятое уйдёт в кошелёк.',
+      text: 'В копилке ${s.goal}. Снятое вернётся в заработок.',
       empty: 'В копилке пусто — снимать нечего.',
       id: 'withdraw',
       value: withdraw,
@@ -136,10 +171,20 @@ class _PiggyScreenState extends State<PiggyScreen> {
       action: 'Снять',
       onGo: () => _withdrawNow(withdraw),
     );
+    // Перевод между частями (флаг `bank.transfer`); выключен — кнопки нет.
+    final Widget? transfer = bankTransferOn(w)
+        ? OutlinedButton.icon(
+            key: const ValueKey<String>('piggy:transfer'),
+            style: OutlinedButton.styleFrom(minimumSize: kitButton),
+            onPressed: () => openTransfer(context),
+            icon: const Icon(Icons.swap_horiz_rounded),
+            label: const Text(BankTexts.title),
+          )
+        : null;
     final List<Widget> goals = <Widget>[
       const Text('На что копить', style: kitTitle),
       const SizedBox(height: Gap.xs),
-      const Text('Накопленное остаётся в копилке, если сменить цель.',
+      const Text('Монеты в копилке останутся, если выбрать другую цель.',
           style: kitSoft),
       for (final (WorldCatalogCategory sec, String name)
           in const <(WorldCatalogCategory, String)>[
@@ -160,6 +205,7 @@ class _PiggyScreenState extends State<PiggyScreen> {
             entry: e,
             snapshot: s,
             block: w.canDo(WorldAction.chooseGoal, id: e.id),
+            eta: goalEtaShort(goalEta(w.weekHistory, e.price - s.goal)),
             onChoose: () => _choose(e),
             picture: _reg?.item(e.id),
           ),
@@ -168,18 +214,15 @@ class _PiggyScreenState extends State<PiggyScreen> {
 
     return WorldPage(
       id: 'piggy',
-      title: 'Копилка',
+      dock: DockSection.plan,
+      title: 'Банк',
       snapshot: s,
-      helpTitle: 'Копилка',
+      helpTitle: 'Банк',
       // В альбомной итог — над переносом монет справа, а не третьей колонкой.
       result: land ? null : _last,
-      help: 'Копилка — конверт ЦЕЛЬ. Монеты здесь не тратятся на покупки, '
-          'только на цель.\n\n'
-          '«Отложить» переносит монеты из кошелька заработка в копилку. '
-          '«Снять» возвращает их в кошелёк — сначала покажем, что было и '
-          'что станет.\n\n'
-          'Цель можно сменить: накопленное останется в копилке. Когда '
-          'накоплено хватает — цель можно купить.',
+      help: 'В копилке копим на цель: эти монеты не тратятся на покупки. '
+          '«Отложить» переносит монеты из заработка в копилку, «Снять» — '
+          'обратно. Когда накопленного хватает, цель можно купить.',
       body: land
           // Альбомная: цель и выбор цели слева, перенос монет справа.
           ? Row(
@@ -219,6 +262,10 @@ class _PiggyScreenState extends State<PiggyScreen> {
                           padding: const EdgeInsets.fromLTRB(
                               Gap.xs, Gap.sm, Gap.md, Gap.lg),
                           children: <Widget>[
+                            if (transfer != null) ...<Widget>[
+                              transfer,
+                              const SizedBox(height: Gap.sm),
+                            ],
                             depositPanel,
                             const SizedBox(height: Gap.sm),
                             withdrawPanel,
@@ -236,6 +283,10 @@ class _PiggyScreenState extends State<PiggyScreen> {
               children: <Widget>[
                 goalPanel,
                 const SizedBox(height: Gap.md),
+                if (transfer != null) ...<Widget>[
+                  transfer,
+                  const SizedBox(height: Gap.md),
+                ],
                 depositPanel,
                 const SizedBox(height: Gap.md),
                 withdrawPanel,
@@ -303,7 +354,8 @@ class _GoalPanel extends StatelessWidget {
               key: const ValueKey<String>('piggy:numbers'), style: kitText),
           const SizedBox(height: Gap.xs),
           Semantics(
-            label: 'Накоплено ${(fill * 100).round()} процентов',
+            // Т6 А (Настя 19.10): доля монетами, без процентов.
+            label: 'Накоплено ${Phrases.partOf(s.goal, g.price)}',
             excludeSemantics: true,
             child: Row(
               children: <Widget>[
@@ -319,7 +371,13 @@ class _GoalPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: Gap.sm),
-                Text('${(fill * 100).round()} %', style: kitText),
+                // При узкой карточке и шрифте 1,3 переносится, а не вылезает.
+                Flexible(
+                  child: Text(Phrases.partOf(s.goal, g.price),
+                      key: const ValueKey<String>('piggy:percent'),
+                      textAlign: TextAlign.end,
+                      style: kitText),
+                ),
               ],
             ),
           ),
@@ -349,14 +407,10 @@ class _GoalPanel extends StatelessWidget {
 String _etaLine(GoalEta e) {
   final int? weeks = e.weeks;
   if (weeks != null) {
-    return 'Если откладывать как сейчас (~${e.perWeek} в неделю) — '
+    return 'Если откладывать как сейчас (около ${e.perWeek} в неделю) — '
         'примерно $weeks ${Phrases.weekWord(weeks)}.';
   }
-  return switch (e.reason!) {
-    GoalEtaGap.noDeposit =>
-      'Срок посчитаем после первого взноса в копилку — по тому, сколько '
-          'получается откладывать.',
-  };
+  return goalEtaGapText(e.reason!);
 }
 
 /// Перенос монет: сумма ползунком и кнопками −/+, затем действие.
@@ -413,15 +467,18 @@ class _MovePanel extends StatelessWidget {
           if (max > 0) ...<Widget>[
             Row(
               children: <Widget>[
-                IconButton(
+                // Касание — шаг, удержание — повтор с разгоном
+                // (plan_amount.dart, как в плане недели).
+                HoldStepButton(
                   key: ValueKey<String>('$id:minus'),
-                  tooltip: '$title: меньше на $step',
-                  constraints:
-                      const BoxConstraints(minWidth: 48, minHeight: 48),
-                  onPressed: value > 0
-                      ? () => onChanged(math.max(0, value - step))
-                      : null,
-                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                  outlined: false,
+                  label: '$title: меньше на $step',
+                  icon: Icons.remove_circle_outline_rounded,
+                  value: value,
+                  max: max,
+                  step: step,
+                  up: false,
+                  onChanged: onChanged,
                 ),
                 Expanded(
                   child: Slider(
@@ -430,19 +487,26 @@ class _MovePanel extends StatelessWidget {
                     max: max.toDouble(),
                     divisions: math.max(1, max ~/ step),
                     label: '$value',
+                    // TalkBack по умолчанию читает проценты шкалы («50%» при
+                    // половине) — называем монеты (проход демо 16.10).
+                    semanticFormatterCallback: (double v) {
+                      final int n = v.round();
+                      return '$n ${Phrases.coinWord(n)}';
+                    },
                     onChanged: (double v) =>
                         onChanged(v >= max ? max : ((v / step).round() * step)),
                   ),
                 ),
-                IconButton(
+                HoldStepButton(
                   key: ValueKey<String>('$id:plus'),
-                  tooltip: '$title: больше на $step',
-                  constraints:
-                      const BoxConstraints(minWidth: 48, minHeight: 48),
-                  onPressed: value < max
-                      ? () => onChanged(math.min(max, value + step))
-                      : null,
-                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  outlined: false,
+                  label: '$title: больше на $step',
+                  icon: Icons.add_circle_outline_rounded,
+                  value: value,
+                  max: max,
+                  step: step,
+                  up: true,
+                  onChanged: onChanged,
                 ),
               ],
             ),
@@ -462,10 +526,14 @@ class _GoalRow extends StatelessWidget {
     required this.block,
     required this.onChoose,
     this.picture,
+    this.eta,
   });
 
   /// Картинка цели из реестра; нет — строка без картинки.
   final String? picture;
+
+  /// Срок до цели при нынешнем темпе ([goalEtaShort]); null — срока нет.
+  final String? eta;
 
   final WorldCatalogItem entry;
   final ResourceSnapshot snapshot;
@@ -495,41 +563,60 @@ class _GoalRow extends StatelessWidget {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
-            // Картинка цели (ноутбук, велосипед, питомец…), если есть арт.
-            if (picture case final String p)
-              ItemPicture(p, width: 48, height: 48),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Картинка цели и описание — одной группой: иначе на широком
+            // экране (веб 1440) Wrap разносил их по краям, текст уезжал
+            // вправо от картинки.
+            Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(e.title,
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: WorldColors.text)),
-                PriceLine(e.price),
-                Text(weekly, style: kitSoft),
-                // Инструмент — вложение: что открывает и за сколько смен
-                // окупится (ноутбук, транспорт; критерии ночи §3 п. 4).
-                if (e.category == WorldCatalogCategory.tech ||
-                    e.category == WorldCatalogCategory.transport ||
-                    e.category == WorldCatalogCategory.home)
-                  if (owned && snapshot.toolPayback.containsKey(e.id))
-                    Text(
-                        snapshot.toolPayback[e.id]! >= e.price
-                            ? 'Окупился: принёс ${snapshot.toolPayback[e.id]} '
-                                'сверх работы без него'
-                            : 'Окупилось ${snapshot.toolPayback[e.id]} из '
-                                '${e.price}',
-                        key: ValueKey<String>('payback:${e.id}'),
-                        style: kitSoft)
-                  else if (e.perk case final String perk)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Text(perk,
-                          key: ValueKey<String>('perk:${e.id}'),
-                          style: kitSoft),
-                    ),
+                // Картинка цели (ноутбук, велосипед, питомец…), если есть арт.
+                if (picture case final String p) ...<Widget>[
+                  ItemPicture(p, width: 48, height: 48),
+                  const SizedBox(width: Gap.sm),
+                ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(e.title,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: WorldColors.text)),
+                      PriceLine(e.price),
+                      Text(weekly, style: kitSoft),
+                      // Срок — при выборе цели (путь ребёнка 16.10, дефект 11).
+                      if (!owned && eta != null)
+                        Text(eta!,
+                            key: ValueKey<String>('row:eta:${e.id}'),
+                            style: kitSoft),
+                      // Инструмент — вложение: что открывает и за сколько смен
+                      // окупится (ноутбук, транспорт; критерии ночи §3 п. 4).
+                      if (e.category == WorldCatalogCategory.tech ||
+                          e.category == WorldCatalogCategory.transport ||
+                          e.category == WorldCatalogCategory.home)
+                        if (owned && snapshot.toolPayback.containsKey(e.id))
+                          Text(
+                              snapshot.toolPayback[e.id]! >= e.price
+                                  ? 'Окупился: принёс ${snapshot.toolPayback[e.id]} '
+                                      'сверх работы без него'
+                                  : 'Окупилось ${snapshot.toolPayback[e.id]} из '
+                                      '${e.price}',
+                              key: ValueKey<String>('payback:${e.id}'),
+                              style: kitSoft)
+                        else if (e.perk case final String perk)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            // PicText: «смены на ⚡ легче» — значок приложения, а
+                            // не пустое место там, где в шрифте нет эмодзи.
+                            child: PicText(perk,
+                                key: ValueKey<String>('perk:${e.id}'),
+                                style: kitSoft),
+                          ),
+                    ],
+                  ),
+                ),
               ],
             ),
             if (owned)

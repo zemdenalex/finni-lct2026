@@ -50,7 +50,22 @@ class GlossaryScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Словарик')),
+      appBar: AppBar(
+        // «Назад» как на остальных экранах: скруглённая стрелка, подпись
+        // для TalkBack, палец не промахнётся (аудит доступности 16.10).
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                key: const ValueKey<String>('glossary:back'),
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: 'Назад',
+                iconSize: 28,
+                constraints: const BoxConstraints(
+                    minWidth: TapSize.min, minHeight: TapSize.min),
+                onPressed: () => Navigator.of(context).maybePop(),
+              )
+            : null,
+        title: const Text('Словарик'),
+      ),
       body: SafeArea(
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),

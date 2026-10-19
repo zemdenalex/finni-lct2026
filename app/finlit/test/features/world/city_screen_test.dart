@@ -1,6 +1,6 @@
 import 'package:finlit/core/theme.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_autopilot.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_game.dart';
@@ -182,6 +182,24 @@ void main() {
         });
       }
     }
+
+    // Настя 18.10: здание у копилки в городе называется «Банк». Ловит: на карте
+    // и в запасном списке снова «Копилка» (так называется экран и часть денег,
+    // но не здание).
+    testWidgets('здание с копилкой в городе называется «Банк»',
+        (WidgetTester tester) async {
+      await pumpCity(tester);
+      await openCityPlaces(tester);
+      final Finder btn =
+          find.byKey(const ValueKey<String>('city:button:piggy-bank'));
+      await tester.ensureVisible(btn);
+      expect(
+          find.descendant(of: btn, matching: find.text('Банк')), findsOneWidget);
+      expect(
+          find.descendant(of: btn, matching: find.text('Копилка')), findsNothing);
+      expect(cityBuildings.where((CityBuilding b) => b.name == 'Копилка'),
+          isEmpty);
+    });
 
     testWidgets('«!» — над зданием из world.eventBuildingId и ведёт в событие',
         (WidgetTester tester) async {

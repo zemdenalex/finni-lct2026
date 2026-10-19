@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../domain/world/contract.dart' show FinniGender;
+import '../home/plan_amount.dart' show PlanAdvice;
 
 /// Сценки знакомства в комнате — `assets/content/world/onboarding.json`
 /// (исходник `content/onboarding.json`).
@@ -21,8 +22,10 @@ class OnboardingScript {
     required this.species,
     required this.envelopesShort,
     required this.planStep,
+    this.planAdvice = const PlanAdvice(),
     this.cityHint,
     this.cityEvent = const <String, String>{},
+    this.citySmoothWalk = false,
   });
 
   /// Подписи знакомства, которые должны быть в `ui` (регистрация, кнопки,
@@ -72,6 +75,7 @@ class OnboardingScript {
     final Object? short = root['envelopes_short'];
     final Object? step = root['plan_step'];
     final Object? city = root['city'];
+    final Object? advice = root['plan_advice'];
     if (env is! Map<String, Object?>) {
       throw const FormatException('onboarding.json → envelopes: ждали объект');
     }
@@ -97,6 +101,23 @@ class OnboardingScript {
     if (step is! int || step <= 0) {
       throw const FormatException(
           'onboarding.json → plan_step: ждали целое больше нуля');
+    }
+    // Совет Финни (необязательный раздел): «Хочу» + «Копилка» = 100 %.
+    PlanAdvice planAdvice = const PlanAdvice();
+    if (advice != null) {
+      final Object? want =
+          advice is Map<String, Object?> ? advice['want_percent'] : null;
+      final Object? goal =
+          advice is Map<String, Object?> ? advice['goal_percent'] : null;
+      if (want is! int ||
+          goal is! int ||
+          want < 0 ||
+          goal < 0 ||
+          want + goal != 100) {
+        throw const FormatException('onboarding.json → plan_advice: ждали '
+            'want_percent и goal_percent — целые, в сумме 100');
+      }
+      planAdvice = PlanAdvice(wantPercent: want);
     }
     final List<OnboardingScene> list = <OnboardingScene>[
       for (int i = 0; i < scenes.length; i++)
@@ -129,6 +150,7 @@ class OnboardingScript {
         goal: text(short['goal'], 'envelopes_short.goal'),
       ),
       planStep: step,
+      planAdvice: planAdvice,
       cityHint: city is Map<String, Object?> && city['hint'] is String
           ? city['hint']! as String
           : null,
@@ -139,6 +161,8 @@ class OnboardingScript {
               in (city['event']! as Map<String, Object?>).entries)
             if (e.value is String) e.key: e.value! as String,
       },
+      citySmoothWalk:
+          city is Map<String, Object?> && city['smooth_walk'] == true,
     );
   }
 
@@ -164,11 +188,19 @@ class OnboardingScript {
   /// Шаг кнопок «−» и «+» в плане знакомства.
   final int planStep;
 
+  /// Доли совета Финни в плане (`plan_advice`); нет раздела — 30 / 70.
+  final PlanAdvice planAdvice;
+
   /// Подсказка над картой города (`city.hint`); нет — запасная в коде.
   final String? cityHint;
 
   /// Подсказка, когда у здания «!»: по id здания (`city.event`).
   final Map<String, String> cityEvent;
+
+  /// Флаг `city.smooth_walk` (`docs/final/gorod-dvizhenie.md`): дома —
+  /// препятствие, скольжение вдоль кромок, путь касания в обход домов.
+  /// Нет ключа или не true — ходьба как на 068ed67.
+  final bool citySmoothWalk;
 
   /// Подпись [key] с подстановками [values] (`{n}`, `{left}`, …).
   String t(String key,
@@ -183,8 +215,9 @@ class OnboardingScript {
       OnboardingScene(
           id: 'plan',
           kind: SceneKind.plan,
-          lines: <String>['Разложи монеты недели по конвертам.'],
-          help: 'НУЖНО — еда и жильё. ХОЧУ — приятное. ЦЕЛЬ — копилка.'),
+          lines: <String>['Раздели монеты недели на три части.'],
+          help:
+              '«Нужно» — еда и жильё. «Хочу» — приятное. «Копилка» — на цель.'),
       OnboardingScene(
           id: 'goal',
           kind: SceneKind.goal,
@@ -193,20 +226,20 @@ class OnboardingScript {
     ],
     envelopes: (
       need: 'Потратить на нужное',
-      want: 'Потратить на желаемое',
-      goal: 'Отложить на мечту',
+      want: 'Потратить на «Хочу»',
+      goal: 'Отложить на цель',
     ),
     skip: 'Пропустить',
     ui: <String, String>{
       'step_of': 'Шаг {n} из {total}',
       'back': 'Назад',
       'nick_title': 'Как тебя звать?',
-      'nick_text': 'Придумай ник.',
+      'nick_text': 'Придумай имя для игры.',
       'nick_label': 'Ник',
       'nick_hint': 'Ник',
       'nick_help': 'Ник — игровое имя.',
       'look_title': 'Финни',
-      'look_help': 'Выбери облик и имя.',
+      'look_help': 'Выбери героя и имя.',
       'name_label': 'Имя',
       'boy': 'Мальчик',
       'girl': 'Девочка',

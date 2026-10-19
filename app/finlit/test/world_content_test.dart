@@ -68,7 +68,9 @@ void main() {
   test('настоящие файлы из assets грузятся и несут числа Насти v13', () async {
     final WorldContent c = await loader.load();
     final EconomyContent e = c.economy;
-    expect(e.pocketMoney, 400);
+    // Режим дней: карманные — из профиля баланса `mid` (17.10); в самом
+    // файле — 400 (Настя v13), их видит запасной режим «неделя».
+    expect(e.pocketMoney, 820);
     expect(e.startGiftAmount, 200);
     expect(e.energyBasePerWeek, 10);
     expect(e.energyMaxPerWeek, 14);
@@ -146,9 +148,9 @@ void main() {
   test('урок: доля вне 0..1 — ошибка с путём', () async {
     await expectFieldError(
       'jobs.json',
-      <Object>['lessons', 'accountant', 'choices', 1, 'effects', 'goal_share'],
+      <Object>['lessons', 'accountant', 0, 'choices', 1, 'effects', 'goal_share'],
       (_) => 2,
-      'lessons.accountant.choices[1].effects.goal_share: доля от 0 до 1',
+      'lessons.accountant[0].choices[1].effects.goal_share: доля от 0 до 1',
     );
   });
 
@@ -205,9 +207,11 @@ void main() {
   test('поле не того типа называется полным путём', () async {
     await expectFieldError(
       'economy.json',
-      <Object>['pocket_money', 'base'],
-      (_) => '400',
-      'pocket_money.base: ожидалось целое число',
+      // start_gift — профиль баланса его не перекрывает (pocket_money.base
+      // перекрыл бы профиль `mid` раньше проверки типа).
+      <Object>['start_gift', 'amount'],
+      (_) => '200',
+      'start_gift.amount: ожидалось целое число',
     );
   });
 
@@ -354,6 +358,7 @@ const List<String> _files = <String>[
   'economy.json',
   'jobs.json',
   'events.json',
+  'room_items.json',
 ];
 
 const Object _remove = Object();

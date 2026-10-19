@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/feel.dart';
 import '../../../../core/theme.dart';
+import '../../../../domain/world/contract.dart'
+    show FinniGender, OnboardingProgress, heroGendered;
 import '../../world_layout.dart';
 import '../job_games.dart';
 import '../mini_games.dart';
@@ -29,6 +31,7 @@ class GardenerContent {
     required this.lineLow,
     required this.calmTurns,
     required this.calmWiltTurns,
+    this.fields = const <({int beds, int columns})>[],
   });
 
   factory GardenerContent.fromData(JobData d) {
@@ -44,6 +47,33 @@ class GardenerContent {
       lineLow: dStr(lines, 'low'),
       calmTurns: dInt(d, 'calm_turns'),
       calmWiltTurns: dInt(d, 'calm_wilt_turns'),
+      fields: <({int beds, int columns})>[
+        if (d['fields'] != null)
+          for (final JobData f in dObjs(d, 'fields'))
+            (beds: dInt(f, 'beds'), columns: dInts(f, 'grid').first),
+      ],
+    );
+  }
+
+  /// Поля по сменам (`fields`, C3): смена [round] берёт `fields[round % N]`.
+  /// Пусто — одно поле из `beds` и `grid`.
+  final List<({int beds, int columns})> fields;
+
+  /// Содержание смены [round]: грядки и колонки — её поля, остальное то же.
+  GardenerContent forRound(int round) {
+    if (fields.isEmpty) return this;
+    final ({int beds, int columns}) f = fields[round % fields.length];
+    return GardenerContent(
+      beds: f.beds,
+      columns: f.columns,
+      maxDryAtOnce: maxDryAtOnce,
+      greatShare: greatShare,
+      okShare: okShare,
+      lineGreat: lineGreat,
+      lineOk: lineOk,
+      lineLow: lineLow,
+      calmTurns: calmTurns,
+      calmWiltTurns: calmWiltTurns,
     );
   }
 
@@ -73,13 +103,28 @@ class GardenerContent {
 
 const String gardenerHelp = 'Грядки понемногу сохнут: на сухой появляется '
     'капля и надпись «Полей!». Нажми на такую грядку — она снова растёт. '
-    'Полей сухие грядки и нажми «Дальше» — спешить некуда, часов нет. Не '
-    'полил — грядка поникнет, но не пропадёт: полей её, и она оживёт. Оплата '
-    'от результата не зависит.';
+    'Полей сухие грядки и нажми «Дальше» — спешить некуда, часов нет. Если '
+    'не полить, грядка поникнет, но не пропадёт: полей её, и она оживёт. '
+    'Оплата от результата не зависит.';
+
+/// Итог смены садовника, первая строка. Правило 5Б Насти: смена — героя,
+/// поэтому «{name} полил / полила» в его роде; пол не выбран — без рода.
+String gardenerSummary(
+    int watered, int dried, String hero, FinniGender? gender) {
+  final String beds = '$watered ${_bedsWord(watered)} из $dried.';
+  return heroGendered(gender,
+      neutral: 'Получилось полить $beds',
+      boy: '$hero полил $beds',
+      girl: '$hero полила $beds');
+}
 
 Widget buildGardenerGame(BuildContext context, MiniGameArgs args) =>
     GardenerGame(
-        content: args.games.gardener, round: args.round, onDone: args.onDone);
+        content: args.games.gardener,
+        round: args.round,
+        heroName: args.heroName,
+        heroGender: args.heroGender,
+        onDone: args.onDone);
 
 enum GardenBed { growing, dry, wilted }
 
@@ -88,11 +133,15 @@ class GardenerGame extends StatefulWidget {
     super.key,
     required this.content,
     this.round = 0,
+    this.heroName = OnboardingProgress.defaultFinniName,
+    this.heroGender,
     required this.onDone,
   });
 
   final GardenerContent content;
   final int round;
+  final String heroName;
+  final FinniGender? heroGender;
   final MiniGameDone onDone;
 
   @override
@@ -101,7 +150,7 @@ class GardenerGame extends StatefulWidget {
 
 class _GardenerGameState extends State<GardenerGame> {
   late final math.Random _rng = math.Random(widget.round);
-  GardenerContent get _c => widget.content;
+  late final GardenerContent _c = widget.content.forRound(widget.round);
 
   late final List<GardenBed> _beds =
       List<GardenBed>.filled(_c.beds, GardenBed.growing);
@@ -199,8 +248,9 @@ class _GardenerGameState extends State<GardenerGame> {
       if (!_over) ...<Widget>[
         Text(
           key: const ValueKey<String>('gardener:turn'),
+          // Последний ход — кнопка «Закончить», подсказка называет её же.
           'Ход ${_turn + 1} из ${_c.calmTurns}. Полей сухие грядки '
-          'и нажми «Дальше».',
+          'и нажми «${_turn == _c.calmTurns - 1 ? 'Закончить' : 'Дальше'}».',
           style: land ? gameText(context) : text.bodyMedium,
         ),
         const SizedBox(height: Gap.sm),
@@ -225,7 +275,7 @@ class _GardenerGameState extends State<GardenerGame> {
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Text(
-                  'Ты полил $_watered ${_bedsWord(_watered)} из $_dried.\n'
+                  '${gardenerSummary(_watered, _dried, widget.heroName, widget.heroGender)}\n'
                   '${_c.resultLine(_share)}',
                   style: gameText(context),
                 ),
@@ -367,14 +417,14 @@ class _BedTile extends StatelessWidget {
         key: ValueKey<String>('gardener:bed:$index'),
         color: bg,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           side: BorderSide(
             color: state == GardenBed.growing ? WorldColors.line : fg,
             width: state == GardenBed.growing ? 1.5 : 3,
           ),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           onTap: onTap,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: TapSize.min + 24),
@@ -414,7 +464,7 @@ class _Box extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: WorldColors.needsBg,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.line, width: 1.5),
         ),
         child: Padding(padding: const EdgeInsets.all(Gap.sm), child: child),

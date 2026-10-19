@@ -129,6 +129,10 @@ abstract final class Radii {
 
   /// Поля, чипы и мелкие плашки.
   static const double chip = 12;
+
+  /// Низкие подписи (~24 px) — чтобы не стать «пилюлей» (радиус меньше
+  /// половины высоты; DEN-30, design-bans).
+  static const double label = 6;
 }
 
 /// Минимальные размеры интерактивных элементов.
@@ -355,6 +359,10 @@ ThemeData _buildTheme() {
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.paper,
     materialTapTargetSize: MaterialTapTargetSize.padded,
+    // Плотность всегда стандартная: на вебе с компьютера Flutter сам берёт
+    // компактную (−8 dp), и кнопки с областью касания сжимались до 40 dp
+    // (путь ребёнка rc-7d, D6; ТЗ 3.6.3 — не меньше 48).
+    visualDensity: VisualDensity.standard,
     fontFamily: family,
     fontFamilyFallback: fontFallback,
     // §3.6.4 требует не менее 16 sp для основного текста. Здесь основной

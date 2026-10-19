@@ -61,3 +61,6 @@ scratchpad/
 
 # --- сайт команды: сборка, не исходник ---
 site-build/
+
+# tools/stage_release.sh output (local, never committed)
+/stage/

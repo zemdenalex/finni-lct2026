@@ -46,10 +46,11 @@ List<WorldEntry> _since(WorldGame w, int from) => w.journal.sublist(from);
 
 void main() {
   test(
-      'events.json: 21 событие разбирается, у каждого здание города, ссылки '
+      'events.json: 52 события разбираются, у каждого здание города, ссылки '
       'на досуг, товар, смену и цель есть в конфиге', () {
     final List<WorldEventSpec> events = _realEvents();
-    expect(events, hasLength(21)); // 11 + 10 из контент-предложений 29.09
+    // 11 + 10 (29.09) + 10 + 14 (7 дней, 17.10).
+    expect(events, hasLength(52));
     const Set<String> buildings = <String>{
       'home',
       'grocery',
@@ -450,7 +451,7 @@ void main() {
     test('до плана — фаза', () {
       final WorldGame w = WorldGame()..startWeek();
       expectBlocked(w, 'consultant', 'phase.job',
-          text: 'Сначала план недели: разложи карманные по конвертам.');
+          text: 'Сначала план недели: раздели стипендию на три части.');
     });
 
     test('нет такой работы', () {

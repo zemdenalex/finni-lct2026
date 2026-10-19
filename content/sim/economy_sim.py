@@ -507,6 +507,10 @@ def simulate(eco: Economy, style_id: str, weeks: int, seed: int, verbose: bool =
         if st.pets:
             days = shifts + sum(1 for b in bought if b in eco.leisure)
             hap_week += eco.raw["pets"]["daily_touch_happiness"] * days
+        # --- Finni petted (Denis 16.10): the first touch of each game day gives 😊. Every style pets him daily —
+        # the upper bound, so the snowball checks below see the most joy this rule can add.
+        days = shifts + sum(1 for b in bought if b in eco.leisure)
+        hap_week += eco.hap.get("finni_pet", 0) * days
 
         # --- week end: sleep or exhausted
         cheapest = min(
@@ -830,8 +834,10 @@ def content_checks(eco: Economy, jobs, events) -> list[str]:
             def costs(o):
                 ef = o.get("effects", {})
                 leisure_price = eco.leisure.get(ef.get("leisure"), {}).get("price", 0)
+                # required_extra_pocket_x не блокирует выбор: движок кладёт его
+                # в счёт недели (shortfall_rule), а не списывает из кошелька.
                 return (ef.get("money_pocket_x", 0) < 0 or ef.get("savings_pocket_x", 0) < 0
-                        or ef.get("required_extra_pocket_x", 0) > 0 or leisure_price > 0
+                        or leisure_price > 0
                         or "buy" in ef or "goal_discount" in ef)
             if all(costs(o) for o in e["options"]):
                 problems.append(f"событие {e['id']}: нет бесплатного варианта — при нехватке денег выбор пропадёт")

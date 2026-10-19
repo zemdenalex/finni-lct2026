@@ -4,6 +4,7 @@ import 'package:finlit/data/world_config_from_content.dart';
 import 'package:finlit/data/world_content.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_game.dart';
+import 'support/world_harness.dart' show weekMode;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'domain/world/week_one_scenario.dart';
@@ -14,7 +15,8 @@ WorldConfig _fromFiles() {
   String read(String f) =>
       File('${WorldContentLoader.base}/$f').readAsStringSync();
   return worldConfigFromContent(WorldContent.parse(
-    economy: read('economy.json'),
+    // Числа сданной недели: режим «неделя» (флаг `days_per_week: 1`).
+    economy: weekMode(read('economy.json')),
     jobs: read('jobs.json'),
     events: read('events.json'),
   ));

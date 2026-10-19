@@ -1,3 +1,4 @@
+import '../../../domain/phrases.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
@@ -41,7 +42,7 @@ class PlanFactRows extends StatelessWidget {
         _Row(
           key: ValueKey<String>('$keyPrefix:need'),
           envelope: Envelope.needs,
-          label: 'НУЖНО',
+          label: 'Нужно',
           planned: week.need.planned,
           planMade: week.planMade,
           fact: needFact,
@@ -51,7 +52,7 @@ class PlanFactRows extends StatelessWidget {
         _Row(
           key: ValueKey<String>('$keyPrefix:want'),
           envelope: Envelope.wants,
-          label: 'ХОЧУ',
+          label: 'Хочу',
           planned: week.want.planned,
           planMade: week.planMade,
           fact: actual(week.want.actual, 'потратили'),
@@ -61,7 +62,7 @@ class PlanFactRows extends StatelessWidget {
         _Row(
           key: ValueKey<String>('$keyPrefix:goal'),
           envelope: Envelope.savings,
-          label: 'ЦЕЛЬ',
+          label: 'Копилка',
           planned: week.goal.planned,
           planMade: week.planMade,
           // Взяли из копилки больше, чем положили: не «отложили −50» —
@@ -163,12 +164,13 @@ class _Row extends StatelessWidget {
 String? foodTakeaway(WeekPlanFact w) {
   if (w.food <= 0) return null;
   final String head = w.planMade
-      ? 'Еда: ${w.food} из плана НУЖНО ${w.need.planned}'
+      ? 'Еда: ${w.food} из плана «Нужно» ${w.need.planned}'
       : 'Еда: ${w.food}';
   if (w.treats <= 0) return '$head — без лишнего на вкусное.';
-  final int pct = (w.treats * 100 / w.food).round();
-  return '$head. Вкусное без пользы (пицца, бургер) съело $pct % еды — '
-      'на полезное и простое ушло бы меньше.';
+  // Т6 А (Настя 19.10): доля монетами, без процентов.
+  return '$head. Вкусное без пользы (пицца, бургер) съело '
+      '${Phrases.partOf(w.treats, w.food)} — на полезное и '
+      'простое ушло бы меньше.';
 }
 
 String planFactTakeaway(WeekPlanFact w) {
@@ -180,13 +182,13 @@ String planFactTakeaway(WeekPlanFact w) {
     // Переложить в НУЖНО можно, только если что-то лежало в ХОЧУ или ЦЕЛИ;
     // иначе карманных просто меньше счёта — разницу закрывают смены.
     return w.want.planned + w.goal.planned > 0
-        ? 'Счета вышли на $need больше плана НУЖНО — в следующий раз '
-            'положим туда больше.'
-        : 'Счета вышли на $need больше карманных — такую разницу мы '
+        ? 'Счета больше плана на $need — в следующий раз '
+            'положим в «Нужно» больше.'
+        : 'Счета вышли на $need больше стипендии — такую разницу мы '
             'закрываем сменами.';
   }
   if (want > 0) {
-    return 'На ХОЧУ ушло на $want больше плана — добрали из заработка.';
+    return 'На «Хочу» ушло на $want больше плана — добрали из заработка.';
   }
   if (goal > 0) return 'Отложили на $goal больше, чем собирались!';
   if (goal < 0 && w.goal.planned > 0) {

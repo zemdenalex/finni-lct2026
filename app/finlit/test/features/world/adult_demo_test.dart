@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:finlit/app.dart' show BootScreen;
 
+import 'package:finlit/core/build_info.dart';
 import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/domain/world/world_autopilot.dart';
 import 'package:finlit/domain/world/world_game.dart';
@@ -160,6 +161,19 @@ void main() {
     expect(jobsButton(), isNotNull, reason: 'сброс снимает демо-запись');
   });
 
+  // Ловит (ревью 17.10): в режиме дней «Закончить неделю» звала
+  // один `sleep` — кончался только день, а демо по ТЗ 2.5.13 проходит этапы
+  // подряд: одно нажатие — сразу итоги недели.
+  testWidgets('демо, режим дней: «Закончить неделю» — сразу итоги',
+      (WidgetTester tester) async {
+    final WorldGame w = contentDayWorld()..startWeek();
+    ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
+    expect(w.snapshot.daysPerWeek, greaterThan(1), reason: 'контент: дни');
+    await pumpWorldScreen(tester, const WorldDemoScreen(), world: w);
+    await _tap(tester, 'demo:sleep');
+    expect(w.phase, WeekPhase.review);
+  });
+
   // Ловит: «Показать событие» (ТЗ 2.5.8.5) не даёт выбрать событие вне
   // расписания или S10 после выбора показывает не его (пусто или событие по
   // расписанию).
@@ -221,6 +235,19 @@ void main() {
     expect(find.byType(WorldOnboardingScreen), findsOneWidget);
   });
 
+  // Правило текстов 8А: номер сборки переехал из меню комнаты сюда. Ловит:
+  // по экрану не понять, какая сборка открыта (устаревший кэш веб-демо
+  // дважды выдавал старую), или в тестах сборка не «dev».
+  testWidgets('взрослым: номер сборки', (WidgetTester tester) async {
+    await pumpWorldScreen(tester, WorldAdultScreen(random: Random(5)));
+    await _unlockAdult(tester);
+    final Finder f = find.byKey(const ValueKey<String>('adult:build'));
+    final Finder list = find.byType(Scrollable).last;
+    await tester.scrollUntilVisible(f, 200, scrollable: list);
+    expect(tester.widget<Text>(f).data, 'Сборка $buildSha');
+    expect(buildSha, 'dev');
+  });
+
   // Ловит: источники советов вуза (с адресами) не видны взрослому — ссылки
   // разрешены только в S14 (ТЗ §3.1.5); или адреса пропали из JSON.
   testWidgets('взрослым: источники советов вуза с адресами',
@@ -247,6 +274,35 @@ void main() {
     await _tap(tester, 'adult:licenses');
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(LicensePage), findsOneWidget);
+  });
+
+  // Ловит (аудит 17.10): в днях лимита смен нет (`kNoShiftLimit`), а
+  // правило бонуса обещало «смен станет 1048577 вместо 1048576» и кнопка
+  // открывала бесполезную смену.
+  testWidgets('взрослым, режим дней без лимита смен: бонус не нужен, без чисел',
+      (WidgetTester tester) async {
+    final WorldGame w = contentDayWorld();
+    ok(w.startWeek());
+    ok(w.plan(needs: 0, wants: 0, goal: 0));
+    expect(w.canDo(WorldAction.parentBonus)?.code, 'parent.no_limit');
+    expect(w.parentExtraShift().ok, isFalse);
+    await pumpWorldScreen(tester, WorldAdultScreen(random: Random(7)),
+        world: w);
+    await _unlockAdult(tester);
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey<String>('adult:bonus')), 200,
+        scrollable: find.byType(Scrollable).last);
+    final String rule = tester
+        .widget<PicText>(find.byKey(const ValueKey<String>('adult:bonus:rule')))
+        .text;
+    expect(rule, contains('бонус не нужен'));
+    expect(rule, isNot(contains('$kNoShiftLimit')));
+    expect(
+        tester
+            .widget<ButtonStyleButton>(
+                find.byKey(const ValueKey<String>('adult:bonus')))
+            .onPressed,
+        isNull);
   });
 
   // Ловит (ТЗ 2.5.12.3): на S14 нет кнопки бонуса или она даёт монеты;

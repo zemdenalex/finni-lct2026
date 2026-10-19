@@ -58,6 +58,18 @@ class WorldState extends ChangeNotifier {
   /// Здание с событием недели («!» в городе, S2) — из мира (A10).
   String? get eventBuildingId => _world.eventBuildingId;
 
+  /// Вид предмета комнаты, выбранный ребёнком из купленных («выбрать» в
+  /// магазине): предмет (`skin_bed`, `decor_globe`) → id варианта. Хранит
+  /// мир (журнал) — переживает перезапуск. Не выбран — в комнате последний
+  /// купленный ([equippedSkins]).
+  Map<String, String> get chosenSkins => _world.snapshot.chosenSkins;
+
+  /// Выбрать купленный вариант [id] как вид предмета — бесплатно. Мимо
+  /// [act]: итог покупки в [lastResult] не затирается.
+  void chooseSkin(String id) {
+    if (_world.chooseSkin(id).ok) notifyListeners();
+  }
+
   /// Выполнить действие мира и перерисовать всех слушателей.
   WorldResult act(WorldResult Function(World w) action) {
     final WorldResult r = action(_world);
@@ -86,6 +98,10 @@ class WorldState extends ChangeNotifier {
   /// Онбординг: имя Финни (пусто — «Финни»).
   Future<WorldResult> setFinniName(String name) =>
       _onboard((World w) => w.setFinniName(name));
+
+  /// Подсказка показана один раз (`bank.intro`) — в профиле, сразу.
+  Future<WorldResult> markSeen(String id) =>
+      _onboard((World w) => w.markSeen(id));
 
   /// Онбординг: шаг без выбора, «назад», «готово».
   Future<WorldResult> setOnboardingStep(int step) =>

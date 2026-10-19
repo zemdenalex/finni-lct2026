@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/build_info.dart';
 import '../../../core/theme.dart';
 import '../../../core/widgets.dart';
+import '../../../domain/phrases.dart';
 import '../../../domain/world/contract.dart';
 import '../../adult/parent_questions.dart' show ChildQuestion, ChildQuestions;
 import '../demo/world_checklist.dart';
@@ -16,6 +18,7 @@ import '../shop/shop_kit.dart';
 import '../world_help.dart';
 import '../world_layout.dart';
 import '../world_routes.dart';
+import '../settings/world_reset.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
 
@@ -35,10 +38,27 @@ import '../../../core/world_theme.dart';
 /// «дождался / передумал»), крупные числа (числа мира — из контента).
 /// Показано то, что есть.
 class WorldAdultScreen extends StatefulWidget {
-  const WorldAdultScreen({super.key, this.random});
+  const WorldAdultScreen(
+      {super.key,
+      this.random,
+      this.title = 'Взрослым',
+      this.afterUnlock,
+      this.popOnUnlock = false});
 
   /// Для тестов — предсказуемый пример.
   final Random? random;
+
+  /// Заголовок шапки: «Взрослым» или «Режим проверки» (вход из «Настроек»).
+  final String title;
+
+  /// Куда после верного ответа вместо раздела (DEN-27: режим проверки из
+  /// «Настроек» за тем же примером); null — сам раздел.
+  final String? afterUnlock;
+
+  /// Только барьер: верный ответ закрывает экран с `true` (ТЗ §3.5.5 —
+  /// «Начать игру заново» в «Настройках» за тем же примером); раздел не
+  /// открывается.
+  final bool popOnUnlock;
 
   static const Key questionKey = ValueKey<String>('adult:question');
   static const Key answerKey = ValueKey<String>('adult:answer');
@@ -118,6 +138,16 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
 
   Future<void> _tryUnlock() async {
     if (int.tryParse(_answer.text.trim()) == _left * _right) {
+      if (widget.popOnUnlock) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      if (widget.afterUnlock case final String route) {
+        await Navigator.of(context).pushReplacementNamed(route);
+        return;
+      }
+      // Чек-лист «Проверки», шаг 12: отмечается, только когда открыт сам
+      // раздел S14, а не барьер перед режимом проверки или сбросом.
       WorldDemoSession.adultOpened = true;
       setState(() {
         _unlocked = true;
@@ -143,6 +173,15 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
     }
   }
 
+  /// Что даёт бонус взрослого (BG-02): монеты при `adult.weekly_bonus`,
+  /// иначе дополнительная смена.
+  static String _bonusWhat(BuildContext context) {
+    final int coins = context.read<WorldState>().world.parentBonusCoins;
+    return coins > 0
+        ? '$coins ${Phrases.coinWord(coins)}'
+        : 'дополнительная смена';
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: WorldColors.night,
@@ -156,7 +195,7 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
             tooltip: 'Назад',
             onPressed: _back,
           ),
-          title: const Text('Взрослым'),
+          title: Text(widget.title),
           actions: <Widget>[
             HelpButton(
               key: const ValueKey<String>('adult:help'),
@@ -165,7 +204,7 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
                   'Раздел для взрослого',
                   'Здесь нет игры: чему учит приложение, общий прогресс без '
                       'оценок, вопросы для разговора дома, бонус — '
-                      'дополнительная смена раз в неделю — и управление '
+                      '${_bonusWhat(context)} раз в неделю — и управление '
                       'данными.\n\nВход — через пример на умножение, чтобы '
                       'ребёнок случайно не сбросил игру.'),
             ),
@@ -504,6 +543,11 @@ class _Content extends StatelessWidget {
             Text(sources,
                 key: const ValueKey<String>('adult:sources'), style: kitSoft),
           ],
+          // Какая сборка открыта — для взрослого и команды (кэш веб-демо уже
+          // выдавал старую); на экране ребёнка её нет (правило 8, C10).
+          const SizedBox(height: Gap.sm),
+          const Text('Сборка $buildSha',
+              key: ValueKey<String>('adult:build'), style: kitSoft),
         ],
       ),
     ];
@@ -557,46 +601,8 @@ class _Content extends StatelessWidget {
     ].take(3).toList();
   }
 
-  Future<void> _reset(BuildContext context) async {
-    final bool yes = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext c) => AlertDialog(
-            title: const Text('Начать игру заново?'),
-            content: const SingleChildScrollView(
-              child: Text(
-                'Весь прогресс будет стёрт: недели, монеты, копилка, цель, '
-                'покупки, питомцы, очки роста, имя и облик Финни. Игра '
-                'начнётся со знакомства. Отменить нельзя.',
-                style: kitText,
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                key: const ValueKey<String>('adult:confirm:no'),
-                style: TextButton.styleFrom(minimumSize: kitButton),
-                onPressed: () => Navigator.of(c).pop(false),
-                child: const Text('Отмена'),
-              ),
-              FilledButton(
-                key: const ValueKey<String>('adult:confirm:yes'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(c).colorScheme.error,
-                  minimumSize: kitButton,
-                ),
-                onPressed: () => Navigator.of(c).pop(true),
-                child: const Text('Стереть и начать'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-    if (!yes || !context.mounted) return;
-    await context.read<WorldState>().reset();
-    if (!context.mounted) return;
-    WorldDemoSession.resetDone = true;
-    await Navigator.of(context)
-        .pushNamedAndRemoveUntil(WorldRoutes.onboarding, (_) => false);
-  }
+  /// Тот же диалог, что в «Настройках» (DEN-27): [confirmWorldReset].
+  Future<void> _reset(BuildContext context) => confirmWorldReset(context);
 }
 
 /// Бонус взрослого (ТЗ 2.5.12.3): правило и кнопка «Открыть дополнительную
@@ -613,17 +619,37 @@ class _ParentBonus extends StatelessWidget {
     final int limit = w.shiftsLimitThisWeek;
     final int base = used ? limit - 1 : limit;
     final BlockReason? block = w.canDo(WorldAction.parentBonus);
+    // Лимита смен нет — правило с числами не показываем (1048577 вместо …).
+    final bool noLimit = block?.code == 'parent.no_limit';
+    // DEN-27, вариант A (флаг `adult.weekly_bonus`): бонус — монеты.
+    final int coins = w.parentBonusCoins;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        PicText(
-            'Раз в неделю вы можете открыть Финни одну дополнительную '
-            'смену — например, за дела дома. Смен на этой неделе станет '
-            '${base + 1} вместо $base, взять её можно на любой работе. '
-            'Монет, ⚡ и 😊 бонус не даёт: их ребёнок зарабатывает сам. '
-            'Со следующей недели снова $base ${_shiftWord(base)}.',
-            key: const ValueKey<String>('adult:bonus:rule'),
-            style: kitText),
+        if (coins > 0)
+          // ЗАГЛУШКА: текст правила временный.
+          PicText(
+              'Раз в неделю вы можете подарить Финни $coins монет — '
+              'например, за дела дома.',
+              key: const ValueKey<String>('adult:bonus:rule'),
+              style: kitText)
+        else if (noLimit)
+          const PicText(
+              'Когда число смен в неделю ограничено, раз в неделю вы можете '
+              'открыть Финни одну дополнительную смену — например, за дела '
+              'дома. Сейчас смены держат только силы Финни, поэтому бонус не '
+              'нужен.',
+              key: ValueKey<String>('adult:bonus:rule'),
+              style: kitText)
+        else
+          PicText(
+              'Раз в неделю вы можете открыть Финни одну дополнительную '
+              'смену — например, за дела дома. Смен на этой неделе станет '
+              '${base + 1} вместо $base, взять её можно на любой работе. '
+              'Монет, ⚡ и 😊 бонус не даёт: их ребёнок зарабатывает сам. '
+              'Со следующей недели снова $base ${_shiftWord(base)}.',
+              key: const ValueKey<String>('adult:bonus:rule'),
+              style: kitText),
         const SizedBox(height: Gap.sm),
         OutlinedButton.icon(
           key: const ValueKey<String>('adult:bonus'),
@@ -631,10 +657,15 @@ class _ParentBonus extends StatelessWidget {
               OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: block == null ? () => _open(context, st) : null,
           icon: Icon(used ? Icons.check_rounded : Icons.work_history_rounded),
+          // ЗАГЛУШКА (вариант A): подписи кнопки монетами временные.
           label: Text(
-              used
-                  ? 'Дополнительная смена открыта'
-                  : 'Открыть дополнительную смену',
+              coins > 0
+                  ? (used
+                      ? 'Бонус на этой неделе получен'
+                      : 'Дать $coins монет')
+                  : used
+                      ? 'Дополнительная смена открыта'
+                      : 'Открыть дополнительную смену',
               style: const TextStyle(fontSize: 16)),
         ),
         if (block != null) ...<Widget>[

@@ -131,6 +131,7 @@ class Panel extends StatelessWidget {
     this.edge = Paper.edge,
     this.onTap,
     this.semanticLabel,
+    this.tone = PanelTone.auto,
   });
 
   final Widget child;
@@ -140,18 +141,42 @@ class Panel extends StatelessWidget {
   final VoidCallback? onTap;
   final String? semanticLabel;
 
+  /// [PanelTone.paper] — светлая «бумажная» карточка мира (стиль Алины:
+  /// доска, магазин, итог) с тёмным текстом. Действует только в теме мира.
+  final PanelTone tone;
+
   @override
   Widget build(BuildContext context) {
     // Тёмная тема мира (`WorldTheme`): белая плашка по умолчанию становится
-    // тёмной плиткой, иначе светлый текст мира ложится на белое.
+    // тёмной карточкой стиля Алины, иначе светлый текст мира ложится на белое.
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color color = dark && this.color == AppColors.surface
-        ? WorldColors.raised
-        : this.color;
+    final bool paper = dark && tone == PanelTone.paper;
+    final bool plain = this.color == AppColors.surface;
+    // Мир: справочная карточка — её `.panel` (#ffffff09, без рамки, r14) на
+    // затемнённой комнате; нажимаемая — непрозрачная плитка с рамкой и
+    // уступом (по виду кнопку не спутать со сведениями).
+    final Color color = paper
+        ? WorldColors.paper
+        : dark && plain
+            ? (onTap == null ? WorldColors.surface : WorldColors.raised)
+            : this.color;
     final Color edge =
         dark && this.edge == Paper.edge ? WorldColors.line : this.edge;
-    final BorderRadius radius = BorderRadius.circular(Radii.envelope);
+    final BorderSide side = dark && (onTap == null || paper)
+        ? BorderSide.none
+        : BorderSide(color: edge, width: 1.5);
+    final BorderRadius radius =
+        BorderRadius.circular(dark ? WorldRadii.button : Radii.envelope);
     Widget body = Padding(padding: padding, child: child);
+    if (paper) {
+      body = DefaultTextStyle.merge(
+        style: const TextStyle(color: WorldColors.onPaper),
+        child: IconTheme.merge(
+          data: const IconThemeData(color: WorldColors.onPaper),
+          child: body,
+        ),
+      );
+    }
     if (onTap != null) {
       body = InkWell(onTap: onTap, borderRadius: radius, child: body);
     }
@@ -166,10 +191,7 @@ class Panel extends StatelessWidget {
       ),
       child: Material(
         color: color,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: edge, width: 1.5),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
         clipBehavior: Clip.antiAlias,
         child: body,
       ),
@@ -184,7 +206,10 @@ class Panel extends StatelessWidget {
   }
 }
 
-/// Заголовок раздела внутри экрана: пиктограмма и слово.
+/// Тон [Panel] в теме мира: [auto] — тёмная карточка (или цвет, переданный
+/// явно), [paper] — светлая бумажная с тёмным текстом.
+enum PanelTone { auto, paper }
+
 class SectionHeading extends StatelessWidget {
   const SectionHeading(this.text, {super.key, this.icon, this.color});
 

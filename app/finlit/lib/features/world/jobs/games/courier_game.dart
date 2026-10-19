@@ -615,11 +615,11 @@ class _ParcelButton extends StatelessWidget {
     return Material(
       color: WorldColors.panel,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         side: BorderSide(color: border, width: mark == null ? 1.5 : 3),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: TapSize.min),
@@ -658,7 +658,7 @@ class _Box extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.line, width: 1.5),
         ),
         child: Padding(padding: const EdgeInsets.all(Gap.sm), child: child),

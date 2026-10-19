@@ -49,7 +49,7 @@ void main() {
       if (kind.name == 'WorldGame') {
         expect(all.map((e) => e.id).toList(),
             contentConfig.events.map((WorldEventSpec e) => e.id).toList());
-        expect(all, hasLength(21));
+        expect(all, hasLength(52));
       }
       expect(all, isNotEmpty);
 

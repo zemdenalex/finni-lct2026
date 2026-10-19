@@ -1,3 +1,4 @@
+import '../domain/world/achievements.dart' show AchievementDef;
 import '../domain/world/world_config.dart';
 import '../domain/world/world_events.dart';
 import 'world_content.dart';
@@ -27,6 +28,13 @@ import 'world_content.dart';
 /// путём до поля, а не тихая потеря.
 WorldConfig worldConfigFromContent(WorldContent content) {
   final EconomyContent e = content.economy;
+  final DayCycle dc = e.dayCycle;
+  // Профиль баланса (режим дней): монеты × pay_scale вверх до десятка — та
+  // же шкала у оплаты смен и у трат уроков, иначе урок стоит больше смены.
+  int coins(int n) =>
+      dc.enabled && dc.payScale != 1 ? ceilTens(n * dc.payScale) : n;
+  // Масштаб ⚡ режима дней ([DayCycle.energyScale]); в режиме «неделя» — 1.
+  final double s = dc.enabled ? dc.energyScale : 1;
 
   ShortfallStep step(String id) {
     for (final ShortfallStep s in e.shortfallOrder) {
@@ -57,8 +65,8 @@ WorldConfig worldConfigFromContent(WorldContent content) {
       throw const WorldContentError('economy.json', 'transport.effects',
           'у shift_energy_delta нужны value и min_cost');
     }
-    transportDiscount = -value;
-    transportMin = minCost;
+    transportDiscount = -value * s;
+    transportMin = minCost * s;
   }
 
   final List<PetOption> pets =
@@ -75,7 +83,7 @@ WorldConfig worldConfigFromContent(WorldContent content) {
       case 'sleep_happiness_delta':
         sleepHappinessPerks[p.id] = value.round();
       case 'sleep_carry_delta':
-        sleepCarryPerks[p.id] = value;
+        sleepCarryPerks[p.id] = value * s;
       case 'happiness_decay_delta':
         decayPerks[p.id] = value;
       case 'pay_mult':
@@ -104,9 +112,11 @@ WorldConfig worldConfigFromContent(WorldContent content) {
           id: rate.id,
           variant: t.id.isEmpty ? null : t.id,
           title: t.id.isEmpty ? rate.name : '${rate.name} · ${t.name ?? t.id}',
-          pay: t.pay,
-          energy: t.energy,
+          // Профиль баланса: оплата × pay_scale вверх до десятка (дни).
+          pay: coins(t.pay),
+          energy: t.energy * s,
           needs: t.unlockedBy ?? rate.unlockedBy,
+          moodKind: rate.moodKind,
         ),
   ];
 
@@ -114,10 +124,13 @@ WorldConfig worldConfigFromContent(WorldContent content) {
     pocketMoney: e.pocketMoney,
     startGift: e.startGiftAmount,
     energyBasePerWeek: e.energyBasePerWeek,
-    energyMax: e.energyMaxPerWeek,
-    livingDrainPerAction: e.livingDrainPerAction,
+    // Режим дней со своим пределом ⚡ (DEN-18): 20 вместо недельных 14.
+    energyMax: e.dayCycle.enabled && e.dayCycle.energyMax != null
+        ? e.dayCycle.energyMax!
+        : e.energyMaxPerWeek,
+    livingDrainPerAction: e.livingDrainPerAction * s,
     sleepMinLeftForBonus: e.sleepMinLeftForBonus,
-    sleepCarryNextWeek: e.sleepCarryNextWeek,
+    sleepCarryNextWeek: e.sleepCarryNextWeek * s,
     sleepHappiness: e.sleepHappiness,
     exhaustedHappiness: e.exhaustedHappiness,
     happinessStart: e.happinessStart,
@@ -140,20 +153,39 @@ WorldConfig worldConfigFromContent(WorldContent content) {
     leisureWeeklyCap: e.leisureWeeklyCap,
     goalReachedBonus: e.goalReachedBonus,
     petsHappinessCap: e.petsHappinessTotalCap,
+    dayCycle: e.dayCycle,
+    shareParent: e.shareParent,
+    bankTransfer: e.bankTransfer,
+    room: content.room,
+    eventsPerWeekMax: dc.enabled ? dc.eventsPerWeek ?? 2 : 2,
+    achievements: <AchievementDef>[
+      ...e.achievements,
+      if (dc.enabled && e.achievementsDays) ...e.achievementsDaysItems,
+    ],
+    achievementsDays: dc.enabled && e.achievementsDays,
+    adultSection: e.adultSection,
     petTapHappiness: e.petDailyTouchHappiness,
+    finniPetHappiness: e.finniPetHappiness,
     familyHelpHappiness: familyHelp,
     simpleFoodId: simpleFoodId,
     // Отдельного «стартового уровня еды» в файле нет: стартуем с той же
     // простой еды, на которую понижает правило нехватки.
     startFoodId: simpleFoodId,
     startHomeId: e.homeStart,
-    mealsPerWeek: e.mealsPerWeek,
+    mealsPerWeek:
+        dc.enabled ? dc.mealsPerWeek ?? e.mealsPerWeek : e.mealsPerWeek,
     stageByRent: e.stageByRent,
-    maxShiftsPerWeek: e.maxShiftsPerWeek,
-    maxShiftsPerJobPerWeek: e.maxShiftsPerJobPerWeek,
+    maxShiftsPerWeek: dc.enabled
+        ? dc.maxShiftsPerWeek ?? e.maxShiftsPerWeek
+        : e.maxShiftsPerWeek,
+    maxShiftsPerJobPerWeek: dc.enabled
+        ? dc.maxShiftsPerJobPerWeek ?? e.maxShiftsPerJobPerWeek
+        : e.maxShiftsPerJobPerWeek,
     experienceGrowth: e.experienceMultPerShift,
     goodScoreMin: e.goodScoreMin,
-    goodShiftEnergyExtra: e.goodShiftEnergyExtra,
+    adultWeeklyBonus: e.adultWeeklyBonus,
+    adultWeeklyBonusCoins: e.adultWeeklyBonusCoins,
+    goodShiftEnergyExtra: e.goodShiftEnergyExtra * s,
     goodShiftHappiness: e.goodShiftHappiness,
     efficiencyShare: e.efficiencyBonusMaxShare,
     savedRegularlyMinShare: e.savedRegularlyMinShare,
@@ -166,7 +198,7 @@ WorldConfig worldConfigFromContent(WorldContent content) {
     stageSteps: e.stages.map((StageRule s) => s.payStep).toList(),
     snackId: e.snackId,
     snackPrice: e.snackPrice,
-    snackEnergyNow: e.snackEnergyNow,
+    snackEnergyNow: e.snackEnergyNow * s,
     snackMaxPerWeek: e.snackMaxPerWeek,
     transportPrice: e.transport.price,
     transportDiscount: transportDiscount,
@@ -178,7 +210,7 @@ WorldConfig worldConfigFromContent(WorldContent content) {
           title: f.name,
           price: f.price,
           happiness: f.happiness,
-          energyNow: f.energyNow,
+          energyNow: f.energyNow * s,
           treat: f.treat,
           why: f.why,
         ),
@@ -190,7 +222,7 @@ WorldConfig worldConfigFromContent(WorldContent content) {
           title: h.name,
           price: h.price,
           weeklyCost: h.weeklyCost,
-          energyPerWeek: h.energyPerWeek,
+          energyPerWeek: h.energyPerWeek * s,
           happinessPerWeek: h.happinessPerWeek,
           stage: h.stage,
         ),
@@ -232,7 +264,7 @@ WorldConfig worldConfigFromContent(WorldContent content) {
           id: l.id,
           title: l.name,
           price: l.price,
-          energy: l.energy,
+          energy: l.energy * s,
           happiness: l.happiness,
           perExtraPet: l.perExtraPet ?? 0,
           requires: _leisureRequires(l),
@@ -243,8 +275,41 @@ WorldConfig worldConfigFromContent(WorldContent content) {
     sleepCarryPerks: sleepCarryPerks,
     decayPerks: decayPerks,
     payPerks: payPerks,
-    events: _events(content.events),
-    lessons: content.lessons,
+    events: _events(content.events, s),
+    lessons: <WorldLesson>[
+      for (final WorldLesson l in content.lessons) _scaledLesson(l, coins),
+    ],
+  );
+}
+
+/// Урок с монетами в масштабе профиля: трата × [coins], в текстах
+/// `{coins:N}` → [coins] от N (в «неделе» — само N). Числа без плейсхолдера
+/// не трогаются: у кассира арифметика сдачи (30, 100, 70) масштаб не пережила
+/// бы — после округления «сдача» перестала бы сходиться.
+WorldLesson _scaledLesson(WorldLesson l, int Function(int) coins) {
+  String text(String s) => s.replaceAllMapped(
+      RegExp(r'\{coins:(\d+)\}'), (Match m) => '${coins(int.parse(m[1]!))}');
+  return WorldLesson(
+    id: l.id,
+    jobId: l.jobId,
+    topic: l.topic,
+    title: text(l.title),
+    situation: text(l.situation),
+    understood: text(l.understood),
+    word: l.word,
+    wordTerm: l.wordTerm,
+    choices: <WorldLessonChoice>[
+      for (final WorldLessonChoice c in l.choices)
+        WorldLessonChoice(
+          id: c.id,
+          label: text(c.label),
+          finni: text(c.finni),
+          goalShare: c.goalShare,
+          needShare: c.needShare,
+          spend: coins(c.spend),
+          happiness: c.happiness,
+        ),
+    ],
   );
 }
 
@@ -259,9 +324,10 @@ String? _leisureRequires(LeisureOption l) {
 
 /// События недели: эффекты разбирает домен ([parseWorldEvents]), его
 /// [FormatException] («путь: что не так») становится [WorldContentError].
-List<WorldEventSpec> _events(List<WorldEvent> events) {
+List<WorldEventSpec> _events(List<WorldEvent> events, double scale) {
   try {
-    return parseWorldEvents(events.map((WorldEvent e) => e.data));
+    return parseWorldEvents(
+        events.map((WorldEvent e) => _scaleEnergy(e.data, scale)));
   } on FormatException catch (e) {
     const String prefix = 'events.json → ';
     String message = e.message;
@@ -272,3 +338,28 @@ List<WorldEventSpec> _events(List<WorldEvent> events) {
         message.substring(colon + 2));
   }
 }
+
+/// Копия события с ⚡ × [scale]: эффекты `energy`, `energy_next_week` и
+/// условия `energy_min`/`energy_max` (режим дней, [DayCycle.energyScale]).
+Object? _scaleEnergy(Object? v, double scale) {
+  if (scale == 1) return v;
+  if (v is Map<String, Object?>) {
+    return <String, Object?>{
+      for (final MapEntry<String, Object?> e in v.entries)
+        e.key: _energyKeys.contains(e.key) && e.value is num
+            ? (e.value! as num) * scale
+            : _scaleEnergy(e.value, scale),
+    };
+  }
+  if (v is List<Object?>) {
+    return <Object?>[for (final Object? x in v) _scaleEnergy(x, scale)];
+  }
+  return v;
+}
+
+const Set<String> _energyKeys = <String>{
+  'energy',
+  'energy_next_week',
+  'energy_min',
+  'energy_max',
+};

@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import '../ledger/ledger_entry.dart' show LedgerKind;
 import 'contract.dart';
+import 'skin_id.dart';
 import 'world_config.dart';
 import 'world_entry.dart';
 import 'world_mood.dart';
@@ -27,6 +30,7 @@ class WorldState {
   WorldState._(this.config)
       : happiness = config.happinessStart,
         happinessAtWeekStart = config.happinessStart,
+        happinessAtDayStart = config.happinessStart,
         foodId = config.startFoodId,
         homeId = config.startHomeId,
         rentHomeId = config.startHomeId;
@@ -48,6 +52,10 @@ class WorldState {
   int happiness;
   int happinessAtWeekStart;
 
+  /// 😊 на утро текущего дня (после ночного возврата к нейтральному) —
+  /// для оплаты и ⚡ смены при `day_cycle.mood_pay_daily` (C6, вариант A).
+  int happinessAtDayStart;
+
   // ── рост ──
   int growthPoints = 0;
   int experience = 0;
@@ -66,6 +74,16 @@ class WorldState {
 
   /// id вещи → номер недели покупки.
   final Map<String, int> owned = <String, int>{};
+
+  /// Вещи комнаты ([WorldLedgerKind.roomItemBought]): id → неделя покупки.
+  /// Отдельно от [owned]: у них своё место — сетка, а не слот декора.
+  final Map<String, int> roomOwned = <String, int>{};
+
+  /// Вещь комнаты → левый верхний угол на сетке.
+  final Map<String, RoomCell> roomPlaced = <String, RoomCell>{};
+
+  /// Предмет комнаты → выбранный вариант ([WorldChoiceKind.skinChosen]).
+  final Map<String, String> chosenSkins = <String, String>{};
 
   /// Демо «Открыть все профессии» ([WorldDemoKind.unlockAllJobs]): замки
   /// работ сняты. Владение не меняется — скидки транспорта и перков нет.
@@ -94,6 +112,13 @@ class WorldState {
   /// Урок после последней смены ждёт выбора: работа и оплата смены.
   String? lessonJobId;
   int lessonPay = 0;
+
+  /// Какой по счёту урок работы ждёт (C8): номер смены с мини-игрой этой
+  /// работы за всю игру, с 0. Уроки чередуются по кругу.
+  int lessonIndex = 0;
+
+  /// Смен с мини-игрой по работам за всю игру — для чередования уроков.
+  final Map<String, int> lessonShiftsByJob = <String, int>{};
   int incomeThisWeek = 0;
 
   /// Заработок недели для проверки роста (P7): оплата смен и деньги событий,
@@ -112,12 +137,118 @@ class WorldState {
   /// Чистое отложенное за неделю: взносы в ЦЕЛЬ минус снятое из неё.
   int depositsThisWeek = 0;
 
+  /// Ключи операций перевода из журнала ([World.transfer] `opId`): повтор
+  /// с тем же ключом — отказ, в том числе после перезапуска.
+  final Set<String> transferOps = <String>{};
+
+  /// Переводов за всю игру.
+  int transfersTotal = 0;
+
   /// ⚡, которые закрытая неделя передаёт следующей: сон + еда.
   double carryNextWeek = 0;
 
   /// Игровой день = число действий, тративших ⚡, за всю игру (T7).
   int day = 0;
+
+  /// День по энергии: день недели (с 1) и сытость 0–100 (`day_cycle`).
+  int dayInWeek = 1;
+
+  /// Приёмов еды сегодня (день по энергии: не больше [mealsPerDay]).
+  int mealsToday = 0;
+
+  /// Смен сегодня (правило `day_cycle.max_shifts_per_day`).
+  int shiftsToday = 0;
+
+  /// Событий показано сегодня (правило `day_cycle.max_events_per_day`).
+  int eventsShownToday = 0;
+
+  /// Холодильник: блюдо → порций.
+  final Map<String, int> fridge = <String, int>{};
+
+  /// Дела текущего дня ([ResourceSnapshot.doneToday]).
+  final Set<String> doneToday = <String>{};
+
+  // ── награды (D3) ──
+  int shiftsTotal = 0;
+
+  /// Смен каждой работы за всю игру ([ResourceSnapshot.shiftsByJobTotal]):
+  /// раунд её мини-игры. В отличие от [shiftsByJob] не обнуляется неделей.
+  final Map<String, int> shiftsByJobTotal = <String, int>{};
+  int goalsBoughtTotal = 0;
+  int petsOwnedTotal = 0;
+  int lessonsDone = 0;
+  int weeksNoFamilyHelp = 0;
+  int noFamilyStreak = 0;
+  bool familyHelpThisWeek = false;
+  int goalSavedMax = 0;
+
+  /// Полученные награды: id → неделя получения.
+  final Map<String, int> achievementsEarned = <String, int>{};
+
+  /// День недели получения награды; нет — режим «неделя» или старое
+  /// сохранение (до 17.10 поля `day` в записи не было).
+  final Map<String, int> achievementsEarnedDay = <String, int>{};
+
+  /// DEN-32: насколько предел ⚡ больше из-за наград (постоянный бафф).
+  double energyMaxBonus = 0;
+
+  /// DEN-32: временные баффы 😊 — сколько утр ещё прибавлять и сколько.
+  final List<({int happiness, int mornings})> moodBuffs =
+      <({int happiness, int mornings})>[];
+
+  /// 😊, которые баффы наград добавят следующим утром.
+  int get moodBuffMorning => moodBuffs.fold(
+      0, (int s, ({int happiness, int mornings}) b) => s + b.happiness);
+
+  int achievementProgress(AchievementMetric m) => switch (m) {
+        AchievementMetric.shifts => shiftsTotal,
+        AchievementMetric.goodShifts => experience,
+        AchievementMetric.goalsBought => goalsBoughtTotal,
+        AchievementMetric.weeksNoFamilyHelp => weeksNoFamilyHelp,
+        AchievementMetric.noFamilyStreak => noFamilyStreak,
+        AchievementMetric.goalSavedMax => goalSavedMax,
+        AchievementMetric.lessonsDone => lessonsDone,
+        AchievementMetric.petsOwned => petsOwnedTotal,
+        AchievementMetric.stage => stage.index,
+        AchievementMetric.distinctJobs => jobsTried.length,
+        AchievementMetric.luckyShifts => luckyShifts,
+        AchievementMetric.shiftChoices => shiftChoicesMade,
+        AchievementMetric.daysPlayed => daysPlayed,
+        AchievementMetric.workDays => workDays,
+      };
+
+  // Счётчики дневных наград (C7) — за всю игру, из журнала.
+  final Set<String> jobsTried = <String>{};
+  int luckyShifts = 0;
+  int shiftChoicesMade = 0;
+  int daysPlayed = 0;
+  int workDays = 0;
+
+  List<AchievementView> get achievementViews => <AchievementView>[
+        for (final AchievementDef d in config.achievements)
+          _view(d, achievementProgress(d.metric)),
+      ];
+
+  AchievementView _view(AchievementDef d, int p) {
+    final int? week = achievementsEarned[d.id];
+    return AchievementView(
+      def: d,
+      progress: week != null ? d.target : (p > d.target ? d.target : p),
+      status: week != null
+          ? AchievementStatus.earned
+          : p > 0
+              ? AchievementStatus.inProgress
+              : AchievementStatus.locked,
+      earnedWeek: week,
+      earnedDay: achievementsEarnedDay[d.id],
+    );
+  }
+
+  late int satiety = config.satietyStart;
   int lastTapDay = -1;
+
+  /// Игровой день последнего +😊 за касание Финни.
+  int lastFinniPetDay = -1;
 
   /// [day] в начале этой недели: игровых дней недели = [day] − это.
   int dayAtWeekStart = 0;
@@ -203,6 +334,11 @@ class WorldState {
       feedingPets.fold<int>(0, (int a, WorldPet p) => a + p.foodPerWeek);
 
   /// Приёмов пищи до конца недели: их Финни съест дома в итогах.
+  /// День по энергии: приёмы недели делятся на дни — неделю не съесть за утро.
+  int get mealsPerDay => config.dayCycle.enabled
+      ? (config.mealsPerWeek / config.daysPerWeek).ceil()
+      : config.mealsPerWeek;
+
   int get mealsLeft => config.mealsPerWeek > mealsThisWeek
       ? config.mealsPerWeek - mealsThisWeek
       : 0;
@@ -241,11 +377,34 @@ class WorldState {
         ),
         foodId: foodId,
         daysThisWeek: day - dayAtWeekStart,
+        dayInWeek: dayInWeek,
+        daysPerWeek: config.daysPerWeek,
+        satiety: config.dayCycle.enabled ? satiety : null,
+        satietyHungryAt: config.dayCycle.hungryAt,
+        satietyFullAt: config.dayCycle.fullAt,
+        fridge: Map<String, int>.unmodifiable(fridge),
+        doneToday: Set<String>.unmodifiable(doneToday),
+        shiftsTotal: shiftsTotal,
+        shiftsByJobTotal: Map<String, int>.unmodifiable(shiftsByJobTotal),
+        achievements: List<AchievementView>.unmodifiable(achievementViews),
         snacksThisWeek: snacksThisWeek,
         mealsThisWeek: mealsThisWeek,
         mealsPerWeek: config.mealsPerWeek,
+        mealsCanEat: mealsCanEat,
         toolPayback: Map<String, int>.unmodifiable(toolPayback),
+        roomOwned: Set<String>.unmodifiable(roomOwned.keys),
+        roomPlaced: Map<String, RoomCell>.unmodifiable(roomPlaced),
+        chosenSkins: Map<String, String>.unmodifiable(chosenSkins),
       );
+
+  /// Дни: приёмы недели, но не больше «оставшиеся дни × в день − сегодня
+  /// съедено»; неделя — приёмы недели.
+  int get mealsCanEat {
+    if (!config.dayCycle.enabled) return mealsLeft;
+    final int byDays =
+        (config.daysPerWeek - dayInWeek + 1) * mealsPerDay - mealsToday;
+    return math.max(0, math.min(mealsLeft, byDays));
+  }
 
   /// Свернуть журнал с нуля.
   static WorldState fold(Iterable<WorldEntry> journal, WorldConfig config) {
@@ -264,6 +423,18 @@ class WorldState {
     free += e.free;
     unallocated += e.unallocated;
     energy = roundEnergy(energy + e.energy);
+    if (goal > goalSavedMax) goalSavedMax = goal;
+    final Object? sat = e.args['satiety'];
+    if (sat is num) satiety = (satiety + sat.round()).clamp(0, 100);
+    final String? done = switch (e.kind) {
+      WorldLedgerKind.mealEaten => 'meal',
+      WorldLedgerKind.finniPetted => 'pet',
+      WorldLedgerKind.fridgeStocked => 'fridge',
+      WorldLedgerKind.restAtHome => 'rest',
+      WorldLedgerKind.jobPayout => 'job',
+      _ => null,
+    };
+    if (done != null) doneToday.add(done);
     happiness += e.happiness;
 
     final Enum k = e.kind;
@@ -283,6 +454,18 @@ class WorldState {
       moodCauseCode = e.reasonCode;
       moodCauseDelta = e.happiness;
     }
+    if (k == WorldLedgerKind.weekStarted || k == WorldLedgerKind.dayEnded) {
+      daysPlayed++;
+      // Утро: временные баффы наград тратят по дню (прибавка уже в записи).
+      for (int i = moodBuffs.length - 1; i >= 0; i--) {
+        final ({int happiness, int mornings}) b = moodBuffs[i];
+        if (b.mornings <= 1) {
+          moodBuffs.removeAt(i);
+        } else {
+          moodBuffs[i] = (happiness: b.happiness, mornings: b.mornings - 1);
+        }
+      }
+    }
     if (k == WorldLedgerKind.weekStarted) {
       // Прошлая неделя для проверки роста — только если она была.
       earnedLastWeek = weekNo == 0 ? null : earnedThisWeek;
@@ -292,6 +475,7 @@ class WorldState {
       phase = WeekPhase.planning;
       rentHomeId = homeId;
       happinessAtWeekStart = happiness;
+      happinessAtDayStart = happiness;
       endedBy = null;
       billsPaid = false;
       shiftsThisWeek = 0;
@@ -308,6 +492,12 @@ class WorldState {
       eventsShownThisWeek = 0;
       extraBill = 0;
       dayAtWeekStart = day;
+      dayInWeek = 1;
+      mealsToday = 0;
+      shiftsToday = 0;
+      eventsShownToday = 0;
+      doneToday.clear();
+      familyHelpThisWeek = false;
     } else if (k == LedgerKind.pocketMoney) {
       incomeThisWeek += e.unallocated;
     } else if (k == LedgerKind.planConfirmed) {
@@ -317,9 +507,20 @@ class WorldState {
       // P1: опыт — только за хорошо сделанную смену. Записи до 27.09 без
       // флага `good` считаются как раньше (каждая смена — опыт).
       if (a['good'] as bool? ?? true) experience++;
+      shiftsTotal++;
       shiftsThisWeek++;
+      shiftsToday++;
       final String job = a['jobId']! as String;
       shiftsByJob[job] = (shiftsByJob[job] ?? 0) + 1;
+      shiftsByJobTotal[job] = (shiftsByJobTotal[job] ?? 0) + 1;
+      jobsTried.add(job);
+      if (shiftsToday == 1) workDays++;
+      if (a['choiceOption'] != null) shiftChoicesMade++;
+      final Object? luckId = a['luck'];
+      if (luckId is String &&
+          config.dayCycle.luck.any((ShiftLuck l) => l.id == luckId && l.good)) {
+        luckyShifts++;
+      }
       incomeThisWeek += e.free;
       earnedThisWeek += e.free;
       day++;
@@ -332,6 +533,9 @@ class WorldState {
       if (e.reasonCode == 'job.payout') {
         lessonJobId = job;
         lessonPay = e.free;
+        final int n = lessonShiftsByJob[job] ?? 0;
+        lessonIndex = n;
+        lessonShiftsByJob[job] = n + 1;
       }
     } else if (k == WorldLedgerKind.leisure) {
       leisureHappinessThisWeek += e.happiness;
@@ -344,6 +548,7 @@ class WorldState {
       eventLastShown[id] = e.weekNo;
       pendingEventId = id;
       eventsShownThisWeek++;
+      eventsShownToday++;
     } else if (k == WorldLedgerKind.eventChoice) {
       incomeThisWeek += a['income'] as int? ?? 0;
       earnedThisWeek += a['income'] as int? ?? 0;
@@ -369,20 +574,41 @@ class WorldState {
       }
     } else if (k == WorldLedgerKind.goalSliderDeposit) {
       depositsThisWeek += e.goal;
+    } else if (k == WorldLedgerKind.envelopeTransfer) {
+      // 🟡 В5 (Насте, аудит 18.10): перевод в копилку и из неё сейчас НЕ
+      // считается «отложили» — depositsThisWeek, очко «откладывал» и срок до
+      // цели его не видят. Решит Настя — строка ниже меняется на
+      // `depositsThisWeek += e.goal;`, как у goalSliderDeposit.
+      transfersTotal++;
+      final Object? op = a['opId'];
+      if (op is String) transferOps.add(op);
     } else if (k == LedgerKind.savingsWithdraw) {
       // T1 «отложено ≥ 10 % дохода» — чистое отложенное: снятое из копилки
       // (вручную или на счета) вычитается, иначе «положил и снял» даёт очко.
       depositsThisWeek += e.goal;
     } else if (k == WorldLedgerKind.petTapHappiness) {
       lastTapDay = day;
+    } else if (k == WorldLedgerKind.finniPetted) {
+      lastFinniPetDay = day;
     } else if (k == LedgerKind.purchase) {
       if (a['itemId'] == config.snackId) snacksThisWeek++;
     } else if (k == WorldLedgerKind.lessonChoice) {
+      lessonsDone++;
       lessonJobId = null;
       depositsThisWeek += e.goal;
     } else if (k == WorldLedgerKind.mealEaten) {
       // Не игровой день: `day` не растёт (Денис 938: «кушаем не так часто»).
       mealsThisWeek++;
+      mealsToday++;
+      if (a['fromFridge'] == true) {
+        final String id = a['foodId']! as String;
+        final int left = (fridge[id] ?? 0) - 1;
+        if (left > 0) {
+          fridge[id] = left;
+        } else {
+          fridge.remove(id);
+        }
+      }
     } else if (k == WorldLedgerKind.petBought ||
         k == WorldLedgerKind.transportBought ||
         k == WorldLedgerKind.homeBought ||
@@ -390,20 +616,42 @@ class WorldState {
         k == WorldLedgerKind.itemOwned) {
       final String id = a['itemId']! as String;
       owned[id] = e.weekNo;
-      if (k != WorldLedgerKind.itemOwned) goalsBoughtThisWeek++;
+      if (k != WorldLedgerKind.itemOwned) {
+        goalsBoughtThisWeek++;
+        goalsBoughtTotal++;
+      }
+      if (k == WorldLedgerKind.petBought) petsOwnedTotal++;
       if (k == WorldLedgerKind.petBought) activePetId ??= id;
       if (k == WorldLedgerKind.homeBought) homeId = id;
       if (activeGoalId == id) activeGoalId = null;
+    } else if (k == WorldLedgerKind.roomItemBought) {
+      roomOwned[a['itemId']! as String] = e.weekNo;
+    } else if (k == WorldLedgerKind.roomItemPlaced) {
+      roomPlaced[a['itemId']! as String] =
+          (x: a['x']! as int, y: a['y']! as int);
+    } else if (k == WorldLedgerKind.roomItemRemoved) {
+      roomPlaced.remove(a['itemId']! as String);
     } else if (k == WorldLedgerKind.activePetChanged) {
       activePetId = a['petId']! as String;
     } else if (k == WorldChoiceKind.goalChosen) {
       activeGoalId = a['goalId']! as String;
     } else if (k == WorldChoiceKind.foodChosen) {
       foodId = a['foodId']! as String;
+    } else if (k == WorldChoiceKind.skinChosen) {
+      final String id = a['itemId']! as String;
+      if (skinObject(id) case final String object) chosenSkins[object] = id;
     } else if (k == WorldLedgerKind.parentBonus) {
       parentBonusThisWeek = true;
+      // Бонус монетами (DEN-27, A) — доход недели, но не заработок смен.
+      incomeThisWeek += e.free;
     } else if (k == WorldDemoKind.unlockAllJobs) {
       allJobsUnlocked = true;
+    } else if (k == WorldDemoKind.openCity) {
+      // Демо «Открыть город»: как переезд (жильё снято), плюс очки до порога.
+      final String id = a['homeId']! as String;
+      owned[id] = e.weekNo;
+      homeId = id;
+      growthPoints += a['points'] as int? ?? 0;
     } else if (k == WorldDemoKind.showEvent) {
       // Демо «Показать событие»: ждёт выбора, как показанное по расписанию,
       // но расписание (последний показ, лимит недели) не трогается.
@@ -412,6 +660,40 @@ class WorldState {
       phase = WeekPhase.review;
       endedBy = WeekEnd.sleep;
       carryNextWeek += (a['carry'] as num? ?? 0).toDouble();
+    } else if (k == WorldLedgerKind.achievementEarned) {
+      achievementsEarned[a['id']! as String] = e.weekNo;
+      if (a['day'] case final int day) {
+        achievementsEarnedDay[a['id']! as String] = day;
+      }
+      // DEN-32: бафф награды — по её правилу в конфиге (запись несёт только
+      // id; 😊 «сразу» — в самой записи).
+      for (final AchievementDef d in config.achievements) {
+        if (d.id != a['id']) continue;
+        switch (d.effect) {
+          case EnergyMaxBuff(:final double value):
+            energyMaxBonus += value;
+          case MoodBuff(:final int happiness, :final int days) when days > 1:
+            moodBuffs.add((happiness: happiness, mornings: days - 1));
+          default:
+        }
+      }
+    } else if (k == WorldLedgerKind.familyHelp) {
+      familyHelpThisWeek = true;
+    } else if (k == WorldLedgerKind.fridgeStocked) {
+      final String id = a['foodId']! as String;
+      fridge[id] = (fridge[id] ?? 0) + (a['count']! as int);
+    } else if (k == WorldLedgerKind.dayEnded) {
+      dayInWeek = a['dayInWeek']! as int;
+      // Утро нового дня: 😊 уже с ночным возвратом (запись несёт его сдвиг).
+      happinessAtDayStart = happiness;
+      mealsToday = 0;
+      shiftsToday = 0;
+      eventsShownToday = 0;
+      // Событие без ответа живёт до конца своего дня: утро приносит новое
+      // (DEN-23 «до 1 в день»). Иначе одно непосещённое «!» держало очередь
+      // всю неделю. Повтор не раньше `eventRepeatWeeks` — как у показанного.
+      pendingEventId = null;
+      doneToday.clear();
     } else if (k == WorldLedgerKind.energyOut) {
       phase = WeekPhase.review;
       endedBy = WeekEnd.energyOut;
@@ -421,6 +703,12 @@ class WorldState {
       final Object? growth = a['growth'];
       if (growth == weekGrowthFlat) flatWeeks++;
       if (growth == weekGrowthUp) flatWeeks = 0;
+      if (familyHelpThisWeek) {
+        noFamilyStreak = 0;
+      } else {
+        weeksNoFamilyHelp++;
+        noFamilyStreak++;
+      }
       carryNextWeek += (a['foodEnergyNext'] as num? ?? 0).toDouble();
     }
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finlit/features/world/goal_eta_text.dart';
 import 'package:finlit/app_state.dart';
 import 'package:finlit/data/onboarding_store.dart';
 import 'package:finlit/data/storage.dart';
@@ -81,6 +82,17 @@ Future<void> _fillNeeds(WidgetTester tester) async {
   await _settle(tester);
 }
 
+/// «Дальше» на плане: если в НУЖНО меньше счетов, игра спрашивает —
+/// оставляем план как есть.
+Future<void> _confirmPlan(WidgetTester tester) async {
+  await _tapNext(tester);
+  final Finder keep = find.byKey(const ValueKey<String>('confirm:yes'));
+  if (keep.evaluate().isNotEmpty) {
+    await tester.tap(keep);
+    await _settle(tester);
+  }
+}
+
 /// Проходит регистрацию и все сценки; возвращает состояние мира.
 Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
     {double textScale = 1, Size size = portrait}) async {
@@ -91,7 +103,7 @@ Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
   expect(ws.phase, WeekPhase.planning);
   await _talkToPlan(tester);
   await _fillNeeds(tester); // конверты с нуля: всё — в НУЖНО
-  await _tapNext(tester);
+  await _confirmPlan(tester);
   expect(ws.phase, WeekPhase.living);
   expect(tester.widget<FilledButton>(_next).onPressed, isNull,
       reason: 'цель по умолчанию не выбирается');
@@ -106,6 +118,9 @@ Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
   }
   return ws;
 }
+
+/// Шагов знакомства: два экрана регистрации и все сценки.
+final int _steps = 2 + contentScript.scenes.length;
 
 /// Текст на экране целиком (в том числе внутри [Text.rich]).
 Finder _say(String text) => find.byWidgetPredicate(
@@ -152,12 +167,12 @@ void main() {
       expect(
           find.byKey(const ValueKey<String>('onboarding-nick')), findsOneWidget,
           reason: 'первый экран — ник');
-      expect(find.text('Шаг 1 из 2'), findsOneWidget);
+      expect(find.text('Шаг 1 из $_steps'), findsOneWidget);
       await tester.enterText(
           find.byKey(const ValueKey<String>('onboarding-nick')), 'Кот');
       await tester.pump();
       await _tapNext(tester);
-      expect(find.text('Шаг 2 из 2'), findsOneWidget);
+      expect(find.text('Шаг 2 из $_steps'), findsOneWidget);
       expect(
           find.byWidgetPredicate((Widget w) =>
               w.key is ValueKey<String> &&
@@ -303,7 +318,7 @@ void main() {
       await pumpWorldScreen(tester, const WorldOnboardingScreen(),
           world: world);
       await _settle(tester);
-      expect(find.text('Шаг 2 из 2'), findsOneWidget);
+      expect(find.text('Шаг 2 из $_steps'), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('gender:boy')), findsOneWidget);
 
       await tester.tap(find.byTooltip('Назад'));
@@ -360,6 +375,100 @@ void main() {
 
     // Ловит: план и цель не доходят до хранилища — после перезапуска
     // знакомство снова с начала, а конверты недели уже разложены.
+    // Путь ребёнка 16.10, дефект 4: с НУЖНО меньше счетов игра молчала до
+    // итогов. Уронит: «Дальше» на плане снова не предупреждает или
+    // предупреждение не даёт поправить план.
+    testWidgets('план: НУЖНО меньше счетов — предупреждение до «Готово»',
+        (WidgetTester tester) async {
+      final WorldState ws = await pumpWorldScreen(
+          tester, const WorldOnboardingScreen(),
+          world: kind.make());
+      await _register(tester, customise: false);
+      await _talkToPlan(tester);
+      final int bill = ws.snapshot.weeklyBill;
+      await tester.ensureVisible(_planPlus);
+      await tester.tap(_planPlus); // НУЖНО = один шаг — заведомо меньше
+      await _settle(tester);
+      await _tapNext(tester);
+      expect(find.text('Хватит ли на счета?'), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.byType(AlertDialog),
+              matching:
+                  find.textContaining('Счета недели — $bill, а в части «Нужно»')),
+          findsOneWidget);
+      // Правило формулировок 1А: части бюджета — «Нужное», «Хочу», «Копилка»
+      // обычными буквами (капс озвучка читает по буквам).
+      expect(
+          find.descendant(
+              of: find.byType(AlertDialog),
+              matching: find.textContaining(RegExp('НУЖНО|ХОЧУ|ЦЕЛЬ'))),
+          findsNothing);
+      expect(ws.phase, WeekPhase.planning, reason: 'план ещё не отдан миру');
+      await tester.tap(find.byKey(const ValueKey<String>('confirm:no')));
+      await _settle(tester);
+      expect(_planPlus, findsOneWidget, reason: '«Изменить план» — назад');
+      expect(ws.phase, WeekPhase.planning);
+      await _confirmPlan(tester);
+      expect(ws.phase, WeekPhase.living, reason: '«Так и оставить» — дальше');
+    });
+
+    // Путь ребёнка 16.10, дефект 12: «Шаг 1 из 2», а впереди ещё 7 сценок.
+    // Уронит: счётчик снова считает только регистрацию или пропал в сценках.
+    testWidgets('счётчик шагов — весь путь знакомства, и в сценках тоже',
+        (WidgetTester tester) async {
+      await pumpWorldScreen(tester, const WorldOnboardingScreen(),
+          world: kind.make());
+      expect(_steps, greaterThan(2));
+      expect(find.text('Шаг 1 из $_steps'), findsOneWidget);
+      await _register(tester, customise: false);
+      final Finder bar = find.byKey(const ValueKey<String>('onboarding:steps'));
+      expect(bar, findsOneWidget, reason: 'полоса шагов видна в сценках');
+      expect(tester.getSemantics(bar).label, 'Шаг 3 из $_steps');
+    });
+
+    // Путь ребёнка 16.10, дефект 11, и вариант A 17.10: в знакомстве ни одна
+    // неделя ещё не закончилась — числа нет («Котёнок ~79 недель» от 20 из
+    // плана вводило в заблуждение), но и не «после первого взноса»: взнос
+    // в плане уже есть. Уронит: срок по идущей неделе вернулся; объяснение
+    // про взнос при взносе.
+    testWidgets('цель: взнос в плане — срок посчитаем в конце недели',
+        (WidgetTester tester) async {
+      final WorldState ws = await pumpWorldScreen(
+          tester, const WorldOnboardingScreen(),
+          world: kind.make());
+      await _register(tester, customise: false);
+      await _talkToPlan(tester);
+      final Finder plusGoal = find.byKey(const ValueKey<String>('plus:goal'));
+      await tester.ensureVisible(plusGoal);
+      for (int i = 0; i < 5; i++) {
+        await tester.tap(plusGoal); // в копилку 50
+        await tester.pump();
+      }
+      await _confirmPlan(tester);
+      expect(ws.snapshot.goal, greaterThan(0), reason: 'настройка: взнос есть');
+      expect(find.byKey(const ValueKey<String>('goal:eta:pet_fish')),
+          findsNothing);
+      final Finder none = find.byKey(const ValueKey<String>('goal:eta:none'));
+      await tester.ensureVisible(none);
+      expect(tester.widget<Text>(none).data, goalEtaWeekNotOver);
+    });
+
+    testWidgets('цель: без взноса в копилку — объяснение вместо срока',
+        (WidgetTester tester) async {
+      await pumpWorldScreen(tester, const WorldOnboardingScreen(),
+          world: kind.make());
+      await _register(tester, customise: false);
+      await _talkToPlan(tester);
+      await _fillNeeds(tester); // всё в «Нужно», в копилку ничего
+      await _confirmPlan(tester);
+      final Finder none = find.byKey(const ValueKey<String>('goal:eta:none'));
+      expect(none, findsOneWidget);
+      expect(tester.widget<Text>(none).data, goalEtaNoDeposit);
+      expect(find.byKey(const ValueKey<String>('goal:eta:pet_fish')),
+          findsNothing);
+    });
+
     testWidgets('план и цель тоже сохраняются: шаг цели, потом «готово»',
         (WidgetTester tester) async {
       final List<Map<String, Object?>> saved = <Map<String, Object?>>[];
@@ -370,7 +479,7 @@ void main() {
       await _register(tester, customise: false);
       await tester.tap(_skip);
       await _settle(tester);
-      await _tapNext(tester); // план
+      await _confirmPlan(tester); // план
       expect(saved.last['step'], OnboardingProgress.stepGoal);
       final Finder goal = find.byKey(const ValueKey<String>('goal:pet_fish'));
       await tester.ensureVisible(goal);

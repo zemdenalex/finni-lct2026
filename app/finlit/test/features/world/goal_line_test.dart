@@ -1,4 +1,5 @@
 import 'package:finlit/domain/world/contract.dart';
+import 'package:finlit/domain/world/world_game.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
@@ -59,4 +60,26 @@ void main() {
       expect(find.textContaining('копит:'), findsNothing);
     });
   }
+
+  // Ловит (проход RC 17.10): в альбомной вторая строка «Сейчас» резалась
+  // многоточием («на счета не хв…») — причина шага не читалась.
+  testWidgets('альбомная: причина «Сейчас» видна целиком',
+      (WidgetTester tester) async {
+    final WorldGame w = contentDayWorld()..startWeek();
+    // Всё в копилку: монет на руках меньше счёта — «Сейчас» с причиной.
+    ok(w.plan(needs: 0, wants: 0, goal: w.snapshot.unallocated));
+    await tester.runAsync(() async {
+      await pumpWorldScreen(tester, const RoomScreen(),
+          world: w, size: landscape);
+    });
+    await _settle(tester);
+    final Finder why = find.byKey(const ValueKey<String>('room:now:why'));
+    expect(why, findsOneWidget, reason: 'на счета не хватает — есть причина');
+    expect(
+        tester
+            .renderObject<RenderParagraph>(
+                find.descendant(of: why, matching: find.byType(RichText)))
+            .didExceedMaxLines,
+        isFalse);
+  });
 }

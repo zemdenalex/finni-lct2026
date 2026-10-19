@@ -14,6 +14,7 @@ import '../world_state.dart';
 import 'board/job_offer_card.dart';
 import 'job_games.dart';
 import '../../../core/world_theme.dart';
+import '../world_dock.dart';
 
 /// S6 · «Требуется…»: доска смен (`docs/game/jobs-board.md`).
 ///
@@ -70,20 +71,17 @@ class JobBoardScreen extends StatelessWidget {
     showHelp(
         context,
         'Что здесь?',
-        'Это доска «Требуется…» — здесь берут смены.\n\n'
-            'Работа — это финансовые задания: каждая смена — мини-игра.\n\n'
-            '«Заплатят» — сколько монет дадут за смену. Число известно '
-            'заранее и не уменьшится от ошибок или времени.\n'
-            '⭐ — можно получить ещё немного сверху, если сделать хорошо.\n'
-            '⚡ — сколько сил уйдёт. Силы тратятся только в конце смены: '
-            'вышел раньше — ничего не потрачено.\n'
-            '📈 — чем больше смен сделано, тем выше оплата.\n'
-            '📅 — сколько раз эту работу ещё можно взять на неделе.\n\n'
-            'Если смену сейчас не взять, на карточке написано почему.');
+        'Здесь берут смены. Каждая смена — '
+            'мини-игра, оплата видна заранее. Силы тратятся в конце '
+            'смены: если выйти раньше, они не потратятся.');
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      WithDock(current: DockSection.city, child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final WorldState ws = context.watch<WorldState>();
     final World world = ws.world;
     final WeekPhase phase = world.phase;
@@ -102,6 +100,8 @@ class JobBoardScreen extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: Gap.sm),
           child: JobOfferCard(
             offer: o,
+            coins: snap.available,
+            energy: snap.energy,
             onTake: () => Navigator.of(context).pushNamed(WorldRoutes.job,
                 arguments: JobPlayArgs(o.jobId, variant: o.variant)),
           ),
@@ -145,7 +145,6 @@ class JobBoardScreen extends StatelessWidget {
     flushSingles();
 
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         toolbarHeight: land ? 48 : null,
         leading: IconButton(
@@ -185,7 +184,7 @@ class JobBoardScreen extends StatelessWidget {
                             TextStyle(fontSize: 16, color: WorldColors.text)),
                     const SizedBox(height: Gap.sm),
                     if (uni.short.isNotEmpty) ...<Widget>[
-                      _FinniNote(text: uni.short),
+                      _FinniNote(text: heroText(uni.short, ws.finniName)),
                       const SizedBox(height: Gap.sm),
                     ],
                     if (banner != null) ...<Widget>[
@@ -208,7 +207,7 @@ class JobBoardScreen extends StatelessWidget {
                                 color: WorldColors.text)),
                       ),
                       const SizedBox(height: Gap.xs),
-                      Text(uni.intro,
+                      Text(heroText(uni.intro, ws.finniName),
                           style: const TextStyle(
                               fontSize: 16, color: WorldColors.textSoft)),
                       const SizedBox(height: Gap.sm),
@@ -247,7 +246,7 @@ class _FinniNote extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
         decoration: BoxDecoration(
           color: WorldColors.needsBg,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,7 +278,7 @@ class _UniversityTile extends StatelessWidget {
           padding: const EdgeInsets.all(Gap.sm + Gap.xs),
           decoration: BoxDecoration(
             color: WorldColors.panel,
-            borderRadius: BorderRadius.circular(Radii.chip),
+            borderRadius: BorderRadius.circular(WorldRadii.button),
             border: Border.all(color: WorldColors.line),
           ),
           child: Column(
@@ -315,7 +314,7 @@ class _Banner extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.sm + Gap.xs),
         decoration: BoxDecoration(
           color: WorldColors.goalBg,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.goal),
         ),
         child: Row(

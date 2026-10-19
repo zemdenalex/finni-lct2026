@@ -6,6 +6,7 @@ import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/features/world/city/city_filler.dart';
 import 'package:finlit/features/world/city/city_geometry.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
+import 'package:finlit/features/world/city/city_walk.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Ловит: декор (куст, фонарь, дерево, забор) на какой-то стадии
@@ -58,5 +59,47 @@ void main() {
         }
       });
     }
+  }
+
+  // Ловит: клумба посреди площади, забор и фонари на дорожках (Денис,
+  // скрин 18.10, ящик с цветами на дороге под Домом). После роста поля до
+  // 8 × 8 часть декора оказалась на клетках-дорогах. Проверяется точка, на
+  // которой предмет стоит (низ-центр): строго внутри ромба дороги — на
+  // дороге. Кромка (фонари на углах перекрёстка) — не дорога.
+  final CityGeometry geo = isoGeometry;
+  final CityWalk walk = CityWalk(geo);
+  double diamond(CityCell c, Offset p, [double f = 1]) {
+    final Offset m = geo.center(c);
+    return (p.dx - m.dx).abs() / (geo.tileW / 2 * f) +
+        (p.dy - m.dy).abs() / (geo.tileH / 2 * f);
+  }
+
+  for (final WorldStage stage in WorldStage.values) {
+    test('декор не на дорогах и не у дверей · ${stage.name}', () {
+      final List<String> bad = <String>[];
+      final List<CityDecor> decor = geo.decor(stage);
+      for (int i = 0; i < decor.length; i++) {
+        final CityDecor d = decor[i];
+        final String at = '#$i ${d.kind.name} (${d.x}, ${d.y})';
+        for (final CityCell c in geo.roads) {
+          // 0,95: точка хотя бы на 5 % ромба внутри дороги.
+          if (diamond(c, d.bottom) < 0.95) bad.add('$at → дорога $c');
+        }
+        for (final MapEntry<String, CityCell> b in geo.cells.entries) {
+          // Пятно здания — его ромб, ужатый как для ходьбы.
+          if (diamond(b.value, d.bottom, CityWalk.footprint) < 1) {
+            bad.add('$at → участок ${b.key} ${b.value}');
+          }
+          final Offset door = walk.door(b.key);
+          // Финни стоит у двери: предмет не накрывает её и стоит не ближе
+          // 12 px (полшага Финни).
+          if (cityDecorRect(d).inflate(4).contains(door) ||
+              (d.bottom - door).distance < 12) {
+            bad.add('$at → дверь ${b.key} $door');
+          }
+        }
+      }
+      expect(bad, isEmpty, reason: bad.join('\n'));
+    });
   }
 }

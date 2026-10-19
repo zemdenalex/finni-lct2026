@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import '../glossary/glossary_screen.dart';
 import 'adult/world_adult_screen.dart';
 import 'city/city_screen.dart';
 import 'demo/world_demo_screen.dart';
+import 'daily/daily_layer.dart';
 import 'dev/sprite_test_screen.dart';
 import 'event/event_screen.dart';
 import 'history/history_screen.dart';
@@ -17,15 +19,17 @@ import 'leisure/leisure_screen.dart';
 import 'onboarding/world_onboarding_screen.dart';
 import 'piggy/piggy_screen.dart';
 import 'review/week_review_screen.dart';
+import 'world_dock.dart';
 import 'world_state.dart';
 import 'settings/world_settings_screen.dart';
 import 'shop/pet_shop_screen.dart';
 import 'shop/world_shop_screen.dart';
+import 'tutorial/tutorial_gate.dart';
 
 /// Маршруты нового мира (поток B). Номера экранов — `docs/game/`.
 ///
 /// Каждая карточка правит только свой экран; таблица маршрутов здесь уже
-/// полная, чтобы правки не конфликтовали в одном файле.
+/// полная, чтобы параллельные правки не спорили за один файл.
 abstract final class WorldRoutes {
   static const String onboarding = '/w/onboarding'; // S0 · B1
   static const String room = '/w/room'; // S1 · B2
@@ -45,6 +49,14 @@ abstract final class WorldRoutes {
   static const String adult = '/w/adult'; // S14 · B9
   static const String demo = '/w/demo'; // S16 · B9
 
+  /// Режим проверки из «Настроек» (DEN-27): тот же пример, что у
+  /// «Взрослым», после него — [demo].
+  static const String demoGate = '/w/demo-gate';
+
+  /// Барьер перед «Начать игру заново» в «Настройках» (ТЗ §3.5.5): тот же
+  /// пример; верный ответ закрывает экран с `true`, затем — подтверждение.
+  static const String resetGate = '/w/reset-gate';
+
   /// Звук и анимации (ТЗ 3.6.7) — открывается из комнаты без барьера.
   static const String settings = '/w/settings'; // S15
 
@@ -63,7 +75,8 @@ class JobPlayArgs {
 final Map<String, WidgetBuilder> worldRoutes = <String, WidgetBuilder>{
   WorldRoutes.onboarding: (_) =>
       const WorldTheme(child: WorldOnboardingScreen()),
-  WorldRoutes.room: (_) => const WorldTheme(child: RoomScreen()),
+  WorldRoutes.room: (_) => const WorldTheme(
+      child: TutorialGate(child: DailyLayer(child: RoomScreen()))),
   WorldRoutes.city: (_) => const WorldTheme(child: CityScreen()),
   WorldRoutes.shop: (_) => const WorldTheme(child: WorldShopScreen()),
   WorldRoutes.petShop: (_) => const WorldTheme(child: PetShopScreen()),
@@ -74,14 +87,25 @@ final Map<String, WidgetBuilder> worldRoutes = <String, WidgetBuilder>{
   WorldRoutes.event: (_) => const WorldTheme(child: EventScreen()),
   WorldRoutes.review: (_) => const WorldTheme(child: WeekReviewScreen()),
   WorldRoutes.history: (_) => const WorldTheme(child: HistoryScreen()),
-  WorldRoutes.sprites: (_) => const WorldTheme(child: SpriteTestScreen()),
+  // Отладочный экран — только в debug-сборке, в релизе маршрута нет.
+  if (kDebugMode)
+    WorldRoutes.sprites: (_) => const WorldTheme(child: SpriteTestScreen()),
   WorldRoutes.adult: (_) => const WorldTheme(child: WorldAdultScreen()),
   WorldRoutes.demo: (_) => const WorldTheme(child: WorldDemoScreen()),
+  WorldRoutes.demoGate: (_) => const WorldTheme(
+      child: WorldAdultScreen(
+          title: 'Режим проверки', afterUnlock: WorldRoutes.demo)),
+  WorldRoutes.resetGate: (_) => const WorldTheme(
+      child: WorldAdultScreen(title: 'Начать игру заново', popOnUnlock: true)),
   WorldRoutes.settings: (_) => const WorldTheme(child: WorldSettingsScreen()),
+  // Словарик общий со старой игрой — нижнее меню мира даёт маршрут.
   WorldRoutes.glossary: (BuildContext context) => WorldTheme(
-          child: GlossaryScreen(allOpen: true, learned: <String>{
-        for (final ({String id, String term}) w
-            in context.read<WorldState>().world.learning.words)
-          w.id,
-      })),
+          child: WithDock(
+        current: DockSection.more,
+        child: GlossaryScreen(allOpen: true, learned: <String>{
+          for (final ({String id, String term}) w
+              in context.read<WorldState>().world.learning.words)
+            w.id,
+        }),
+      )),
 };

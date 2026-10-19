@@ -1,18 +1,15 @@
 import 'package:finlit/app_state.dart';
-import 'package:finlit/core/build_info.dart';
 import 'package:finlit/core/feel.dart';
 import 'package:finlit/core/theme.dart';
 import 'package:finlit/data/storage.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/home/world_hud.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
 import 'package:finlit/features/world/history/history_screen.dart';
-import 'package:finlit/features/world/jobs/job_board_screen.dart';
 import 'package:finlit/features/world/piggy/piggy_screen.dart';
-import 'package:finlit/features/world/shop/world_shop_screen.dart';
 import 'package:finlit/features/world/pic_text.dart';
 import 'package:finlit/features/world/review/week_review_screen.dart';
 import 'package:finlit/features/world/settings/world_settings_screen.dart';
@@ -73,10 +70,9 @@ const Map<String, Size> _roomSizes = <String, Size>{
   'портрет 360×800': Size(360, 800),
 };
 
-/// Разделы нижней панели в текущем варианте ([RoomScreen.threeTabs]).
-const List<String> _navIds = RoomScreen.threeTabs
-    ? <String>['week', 'city', 'progress']
-    : <String>['plan', 'jobs', 'shop', 'piggy', 'progress'];
+/// Разделы нижнего меню, по которым ходят (макет Алины; «Дом» — текущий,
+/// «Ещё» — меню ⋮).
+const List<String> _navIds = <String>['week', 'city', 'progress'];
 
 void main() {
   // AppState.boot() читает контент через rootBundle, а он кеширует Future
@@ -116,9 +112,9 @@ void main() {
         reason: 'анимации выключены — в комнате ничего не движется');
   });
 
-  // Ловит: по экрану не понять, какая сборка открыта (устаревший кэш веб-демо
-  // дважды выдавал старую) — строка сборки пропала из меню ⋮.
-  testWidgets('меню ⋮: последняя строка — сборка, без BUILD_SHA «dev»',
+  // Правило 8 (C10): «Сборка» не на экране ребёнка — строка переехала в
+  // раздел взрослого (`adult_build_line_test`). Ловит: её вернули в меню ⋮.
+  testWidgets('меню ⋮: строки сборки нет — она во «Взрослым»',
       (WidgetTester tester) async {
     await tester.runAsync(() async {
       await pumpWorldScreen(tester, const RoomScreen(),
@@ -127,9 +123,9 @@ void main() {
     await _settle(tester);
     await tester.tap(find.byKey(const ValueKey<String>('room:menu')));
     await _step(tester);
-    expect(find.byKey(const ValueKey<String>('room:build')), findsOneWidget);
-    expect(find.text('Сборка $buildSha'), findsOneWidget);
-    expect(buildSha, 'dev');
+    expect(find.byKey(const ValueKey<String>('room:settings')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('room:build')), findsNothing);
+    expect(find.textContaining('Сборка'), findsNothing);
   });
 
   forEachWorld((WorldKind kind) {
@@ -225,7 +221,7 @@ void main() {
           });
           await _settle(tester);
           final List<double> sizes = <double>[
-            for (final String id in _navIds)
+            for (final String id in RoomScreen.navIds)
               // Подпись — `Text`; значок Material тоже рисуется RichText.
               shownTextSize(tester.renderObject<RenderParagraph>(
                   find.descendant(
@@ -275,19 +271,21 @@ void main() {
       await _settle(tester);
       await tester.tap(find.byKey(const ValueKey<String>('room:finni')));
       await _step(tester);
-      final String reason = world.snapshot.moodReason.text;
-      expect(reason, isNotEmpty);
-      expect(
-          find.descendant(
-              of: find.byType(SnackBar), matching: find.text(reason)),
-          findsOneWidget);
+      // Вариант A (15.10) и поглаживание (16.10): фраза мира о касании —
+      // строкой над Финни, не снекбаром; причина настроения — от мира.
+      expect(world.snapshot.moodReason.code, 'mood.petted');
+      expect(find.byWidgetPredicate((Widget w) {
+        final Key? k = w.key;
+        return k is ValueKey<String> && k.value.startsWith('finni:reaction:');
+      }), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     // Ловит: итоги недели молчат, почему у Финни такое настроение (S11).
     testWidgets('итоги недели показывают причину настроения',
         (WidgetTester tester) async {
       final World world = _livingWorld(kind);
-      ok(world.sleep());
+      ok(sleepWeek(world));
       await pumpWorldScreen(tester, const WeekReviewScreen(),
           world: world, size: landscape);
       final Finder pay = find.byKey(const ValueKey<String>('review:pay'));
@@ -352,7 +350,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('sleep:confirm')));
       await _step(tester);
       expect(world.phase, WeekPhase.review);
-      expect(find.textContaining('Финни'), findsWidgets);
+      expect(
+          find.textContaining(RegExp('Ночь прошла|Сон помог')), findsWidgets);
       await tester.tap(find.byKey(const ValueKey<String>('sleep:next')));
       await _step(tester);
       expect(find.byType(RoomScreen), findsNothing);
@@ -399,8 +398,10 @@ void main() {
         } else {
           expect(goal.top, greaterThanOrEqualTo(coins.bottom),
               reason: 'цель $goal выше показателей $coins');
-          expect(goal.height, lessThanOrEqualTo(40),
-              reason: 'строка, не карточка');
+          // Макет Алины (18.10): цель — во втором ряду HUD двумя строками
+          // (название целиком на 360 dp), ряд — 48 dp.
+          expect(goal.height, lessThanOrEqualTo(56),
+              reason: 'две строки, не карточка');
           expect(goal.left, greaterThanOrEqualTo(scene.left));
         }
       });
@@ -415,45 +416,17 @@ void main() {
             String label,
             String? then,
             Finder Function() opened
-          ) in RoomScreen.threeTabs
-              ? <(String, String, String?, Finder Function())>[
-                  (
-                    'week',
-                    'Неделя',
-                    'room:week:plan',
-                    () => find.byKey(const ValueKey<String>('plan:confirm'))
-                  ),
-                  (
-                    'week',
-                    'Неделя',
-                    'room:week:piggy',
-                    () => find.byType(PiggyScreen)
-                  ),
-                  ('city', 'Город', null, () => find.byType(CityScreen)),
-                  (
-                    'progress',
-                    'Прогресс',
-                    null,
-                    () => find.byType(HistoryScreen)
-                  ),
-                ]
-              : <(String, String, String?, Finder Function())>[
-                  (
-                    'plan',
-                    'План',
-                    null,
-                    () => find.byKey(const ValueKey<String>('plan:confirm'))
-                  ),
-                  ('jobs', 'Работа', null, () => find.byType(JobBoardScreen)),
-                  ('shop', 'Магазин', null, () => find.byType(WorldShopScreen)),
-                  ('piggy', 'Копилка', null, () => find.byType(PiggyScreen)),
-                  (
-                    'progress',
-                    'Прогресс',
-                    null,
-                    () => find.byType(HistoryScreen)
-                  ),
-                ]) {
+          ) in <(String, String, String?, Finder Function())>[
+        (
+          'week',
+          'План',
+          'room:week:plan',
+          () => find.byKey(const ValueKey<String>('plan:confirm'))
+        ),
+        ('week', 'План', 'room:week:piggy', () => find.byType(PiggyScreen)),
+        ('city', 'Город', null, () => find.byType(CityScreen)),
+        ('progress', 'Мой путь', null, () => find.byType(HistoryScreen)),
+      ]) {
         testWidgets(
             'панель: «$label»${then == null ? '' : ' → $then'} открывает '
             'свой экран · ${o.key}', (WidgetTester tester) async {
@@ -471,7 +444,7 @@ void main() {
             final Key? k = w.key;
             return k is ValueKey<String> && k.value.startsWith('room:nav:');
           });
-          expect(navItems, findsNWidgets(_navIds.length));
+          expect(navItems, findsNWidgets(RoomScreen.navIds.length));
           final Finder item = find.byKey(ValueKey<String>('room:nav:$id'));
           expect(_textIn(tester, 'room:nav:$id'), label);
           await tester.tap(item);
@@ -512,7 +485,7 @@ void main() {
       ok(world.plan(needs: 0, wants: 0, goal: 200));
       ok(world.chooseGoal('pet_fish'));
       ok(world.buy('pet_fish'));
-      ok(world.sleep());
+      ok(sleepWeek(world));
       ok(world.payBills());
       ok(world.startWeek()); // неделя 2: рыбка, купленная в неделе 1, ест
       final String food =
@@ -531,7 +504,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey<String>('plan:confirm')));
       await _step(tester);
-      ok(world.sleep());
+      ok(sleepWeek(world));
       await pumpWorldScreen(tester, const WeekReviewScreen(),
           world: world, size: landscape);
       await tester.pump();
@@ -563,8 +536,9 @@ void main() {
       expect(tester.widget(find.byKey(const ValueKey<String>('room:now'))),
           isA<FilledButton>());
       expect(find.byType(FilledButton), findsOneWidget);
+      // Под шагом — его причина второй строкой («сил на дела не осталось»).
       expect(_textIn(tester, 'room:now'),
-          cityGold ? isNot(contains('спать')) : 'Сейчас: спать');
+          cityGold ? isNot(contains('спать')) : startsWith('Спать'));
     });
   }
 

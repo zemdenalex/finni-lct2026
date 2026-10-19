@@ -5,8 +5,10 @@ import '../../../core/feel.dart';
 import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../domain/world/contract.dart';
+import '../day_end.dart';
 import '../home/world_hud.dart';
 import '../pic_text.dart';
+import '../world_explain.dart';
 import '../world_help.dart';
 import '../world_layout.dart';
 import '../world_routes.dart';
@@ -14,7 +16,9 @@ import '../world_state.dart';
 import 'board/job_offer_card.dart';
 import 'job_games.dart';
 import 'mini_games.dart';
+import 'shift_choice_view.dart';
 import '../../../core/world_theme.dart';
+import '../world_dock.dart';
 
 /// Смена (S7) и её итог (S7r): карточка → мини-игра → оплата и ползунок
 /// «на цель» (`docs/game/job-cashier.md`, `job-consultant.md`).
@@ -23,6 +27,14 @@ import '../../../core/world_theme.dart';
 /// ⚡ списывается лишь в `completeJob`: вышел из игры — ничего не потрачено.
 /// Мини-игры — реестр [miniGames] (`mini_games.dart`).
 class JobPlayScreen extends StatefulWidget {
+  /// Раунд мини-игры работы [jobId]: её смены за игру, хорошие и нет. После
+  /// неудачной смены следующая даёт другой набор (эксперт 16.10: «не хотим
+  /// угадайку»), и так же после смен других работ: по общему счёту смен
+  /// ступень из двух наборов через одну смену давала тот же (NAS-7, Настя
+  /// 18.10). Первая смена профессии — раунд 0 (ценник-якорь, NAS-1).
+  static int roundFor(ResourceSnapshot s, String jobId) =>
+      s.shiftsByJobTotal[jobId] ?? 0;
+
   const JobPlayScreen({super.key, this.args});
 
   /// Для тестов; из таблицы маршрутов — аргумент маршрута.
@@ -34,6 +46,10 @@ class JobPlayScreen extends StatefulWidget {
 
 enum _Stage { offer, play, result }
 
+/// Подсказка, когда урок ждёт ответа, а ребёнок хочет уйти.
+const String lessonFirstText =
+    'Сначала выбери вариант в уроке выше — потом можно уйти.';
+
 class _JobPlayScreenState extends State<JobPlayScreen> {
   _Stage _stage = _Stage.offer;
 
@@ -41,12 +57,54 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
   JobOffer? _shownOffer;
   WorldResult? _result;
 
+  /// Везение этой смены (`job.payout.luck`), если объяснения включены.
+  ShiftLuckLine? _luck;
+
   /// Оценка мини-игры 0..1 — по ней карточка знает бонус и «хорошо ли».
   double _score = 0;
 
+  /// Мини-решение, показанное на карточке, и выбранный вариант (null —
+  /// вопроса не было). Ответ уходит в `completeJob(choice:)`.
+  ShiftChoice? _shownChoice;
+
+  /// Нажали вариант старого вопроса — мир его уже сменил: над новым
+  /// вопросом одна строка, почему кнопки другие (ревью).
+  bool _choiceChanged = false;
+  ShiftChoiceOption? _chosen;
+
   /// Итог урока после смены (критерии ночи §4).
   WorldResult? _lesson;
+
+  /// День и силы до смены: после неё мир мог сам закончить день (силы ниже
+  /// самого дешёвого дела — Финни спит, и сразу утро). Тогда под итогом —
+  /// строка «уже утро» ([DayEndStrip]).
+  int? _dayBefore;
+  double _energyBefore = 0;
+
+  /// Начало урока на итоге смены: к нему прокручивают кнопки выхода, пока
+  /// урок ждёт ответа.
+  final GlobalKey _lessonAnchor = GlobalKey();
+
+  /// Урок ждёт ответа, а ребёнок жмёт «Назад», «К доске работ» или «Домой»:
+  /// раньше кнопки были погашены, и это читалось как «не работают, только
+  /// перезапуск» (баг-репорт из чата задачи, 15.10). Теперь кнопка ведёт к
+  /// уроку; что сделать, написано над кнопками ([lessonFirstText]). Без
+  /// всплывающей строки: она ложилась на эти же кнопки.
+  void _toLesson() {
+    final BuildContext? c = _lessonAnchor.currentContext;
+    if (c != null) {
+      // Низ вариантов — у низа экрана: видны все варианты (и над ними —
+      // сколько поместится от вопроса).
+      Scrollable.ensureVisible(c,
+          duration: context.motion(Motion.state), alignment: 1);
+    }
+  }
+
   int _round = 0;
+
+  /// Ступень сложности на начало смены (C2, `day_cycle.xp_stages`); null —
+  /// у работы ступеней нет.
+  int? _xpStage;
 
   JobPlayArgs? get _args {
     if (widget.args != null) return widget.args;
@@ -78,21 +136,55 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     showHelp(context, 'Как играть', game.help);
   }
 
-  void _start(JobOffer offer, WorldState ws) => setState(() {
-        _shownOffer = offer;
-        _round = ws.snapshot.experience;
-        _stage = _Stage.play;
-      });
+  /// Вопрос смены сейчас — из мира, не из кэша: любая запись журнала
+  /// (тап по питомцу, еда) может его сменить.
+  ShiftChoice? _liveChoice(WorldState ws, JobPlayArgs args) =>
+      ws.world.offer(args.jobId, variant: args.variant)?.choice;
+
+  void _start(JobOffer offer, WorldState ws,
+      {ShiftChoice? question, ShiftChoiceOption? option}) {
+    final JobPlayArgs? args = _args;
+    // Вопрос успел смениться — перерисовать карточку с новым, смену не
+    // начинать: ответ на старый вопрос мир бы не принял.
+    if (question != null &&
+        (args == null || _liveChoice(ws, args)?.id != question.id)) {
+      setState(() => _choiceChanged = true);
+      return;
+    }
+    setState(() {
+      _shownOffer = offer;
+      _shownChoice = question;
+      _chosen = option;
+      _round =
+          args == null ? 0 : JobPlayScreen.roundFor(ws.snapshot, args.jobId);
+      _xpStage = args == null ? null : ws.world.xpStage(args.jobId);
+      _stage = _Stage.play;
+    });
+  }
 
   void _finish(JobPlayArgs args, double score) {
     final WorldState ws = context.read<WorldState>();
     final double s = score.clamp(0.0, 1.0);
-    final WorldResult r = ws.act((World w) =>
-        w.completeJob(args.jobId, variant: args.variant, score: s));
+    // Ответ — только на тот вопрос, что ещё стоит у смены; иначе смена без
+    // ответа (как без вопроса), а не отказ после сыгранной игры.
+    final ShiftChoiceOption? chosen =
+        _chosen != null && _liveChoice(ws, args)?.id == _shownChoice?.id
+            ? _chosen
+            : null;
+    final int dayBefore = ws.snapshot.dayInWeek;
+    final double energyBefore = ws.snapshot.energy;
+    final WorldResult r = ws.act((World w) => w.completeJob(args.jobId,
+        variant: args.variant, score: s, choice: chosen?.id));
+    final ShiftLuckLine? luck =
+        r.ok ? WorldExplain.of(context).lastShiftLuck(ws.world) : null;
     setState(() {
+      _chosen = chosen;
       _result = r;
+      _luck = luck;
       _score = s;
       _lesson = null;
+      _dayBefore = dayBefore;
+      _energyBefore = energyBefore;
       _stage = _Stage.result;
     });
     if (r.ok) context.cue(Cue.earn);
@@ -129,24 +221,37 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
           key: const ValueKey<String>('lesson:title'),
           style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: Gap.xs),
+      // Ситуация — кеглем вариантов под ней ([gameTextCompact], 16).
       Text(l.situation,
           key: const ValueKey<String>('lesson:situation'),
-          style: gameText(context)),
+          style: gameTextCompact),
       const SizedBox(height: Gap.sm),
-      for (final LessonChoiceView c in l.choices) ...<Widget>[
-        OutlinedButton(
-          key: ValueKey<String>('lesson:${c.id}'),
-          style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(TapSize.min),
-              alignment: Alignment.centerLeft,
-              side: const BorderSide(color: WorldColors.needs, width: 2)),
-          onPressed: c.available ? () => _chooseLesson(c.id) : null,
-          child: PicText(
-              c.preview.isEmpty ? c.label : '${c.label} (${c.preview.text})',
-              style: const TextStyle(fontSize: 16)),
+      // Варианты — одним блоком: к нему прокручивают кнопки выхода, и
+      // на экране оказываются все варианты, а не только заголовок.
+      KeyedSubtree(
+        key: _lessonAnchor,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (final LessonChoiceView c in l.choices) ...<Widget>[
+              OutlinedButton(
+                key: ValueKey<String>('lesson:${c.id}'),
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(TapSize.min),
+                    alignment: Alignment.centerLeft,
+                    side: const BorderSide(color: WorldColors.needs, width: 2)),
+                onPressed: c.available ? () => _chooseLesson(c.id) : null,
+                child: PicText(
+                    c.preview.isEmpty
+                        ? c.label
+                        : '${c.label} (${c.preview.text})',
+                    style: const TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(height: Gap.xs),
+            ],
+          ],
         ),
-        const SizedBox(height: Gap.xs),
-      ],
+      ),
       const SizedBox(height: Gap.sm),
     ];
   }
@@ -159,15 +264,19 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
   Widget build(BuildContext context) {
     final WorldState ws = context.watch<WorldState>();
     final JobPlayArgs? args = _args;
-    final MiniGame game = miniGameFor(args?.jobId ?? '');
+    final MiniGame game =
+        miniGameFor(args?.jobId ?? '', context.read<JobGames>());
     final JobOffer? offer =
         args == null ? null : ws.world.offer(args.jobId, variant: args.variant);
     final String title = offer?.title ?? 'Смена';
     final bool land = WorldLayout.isLandscape(context);
     // Итог смены с уроком без ответа: ни «Назад», ни системная кнопка не
     // уводят — сначала выбор (урок обязателен, Денис 29.09).
-    final bool lessonLock =
-        _stage == _Stage.result && ws.world.pendingLesson != null;
+    // Только урок этой смены: урок другой работы здесь не показан, и
+    // запирать им экран — тупик без выхода.
+    final bool lessonLock = _stage == _Stage.result &&
+        ws.world.pendingLesson != null &&
+        ws.world.pendingLesson!.jobId == args?.jobId;
     final Widget stage = AnimatedSwitcher(
       duration: context.motion(Motion.state),
       child: KeyedSubtree(
@@ -178,9 +287,11 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
               context,
               MiniGameArgs(
                 jobId: args!.jobId,
-                games: context.read<JobGames>(),
+                games: context.read<JobGames>().forStage(_xpStage),
                 variant: args.variant,
                 round: _round,
+                heroName: ws.finniName,
+                heroGender: ws.profile.gender,
                 onDone: (double s) => _finish(args, s),
               ),
             ),
@@ -190,57 +301,99 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     );
     return PopScope(
       canPop: !lessonLock,
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          // Альбомная — основная: низкая шапка, высота нужна игре.
-          toolbarHeight: land ? 48 : null,
-          leading: IconButton(
-            key: const ValueKey<String>('job:back'),
-            icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'Назад',
-            iconSize: 28,
-            constraints: const BoxConstraints(
-                minWidth: TapSize.min, minHeight: TapSize.min),
-            onPressed: lessonLock ? null : _back,
-          ),
-          title: Text(title),
-          actions: <Widget>[
-            HelpButton(
-              key: const ValueKey<String>('job:help'),
-              onPressed: () => _help(game),
+      onPopInvokedWithResult: (bool didPop, Object? _) {
+        if (!didPop && lessonLock) _toLesson();
+      },
+      // Нижнее меню (стиль Алины): смена — раздел «Город». Урок итога
+      // обязателен — пока нет ответа, меню ведёт к нему, а не уводит.
+      child: WithDock(
+        current: DockSection.city,
+        onBlocked: lessonLock ? _toLesson : null,
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            // Альбомная — основная: низкая шапка, высота нужна игре.
+            toolbarHeight: land ? 48 : null,
+            leading: IconButton(
+              key: const ValueKey<String>('job:back'),
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'Назад',
+              iconSize: 28,
+              constraints: const BoxConstraints(
+                  minWidth: TapSize.min, minHeight: TapSize.min),
+              onPressed: lessonLock ? _toLesson : _back,
             ),
-          ],
-        ),
-        body: SafeArea(
-          top: false,
-          child: Column(
-            children: <Widget>[
-              // Во время игры в альбомной HUD прячется: числа до конца смены
-              // не меняются (они на карточке), а поле получает 56 dp высоты.
-              if (!(land && _stage == _Stage.play))
-                WorldHud(snapshot: ws.snapshot),
-              Expanded(
-                child: land
-                    // Альбомная: высота ограничена, игра и карточки сами
-                    // раскладываются на панели (GameSplit), без общей прокрутки.
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            Gap.md, Gap.sm, Gap.md, Gap.sm),
-                        child: stage,
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(
-                            Gap.md, Gap.sm, Gap.md, Gap.lg),
-                        child: stage,
-                      ),
+            // Название работы целиком: «Продавец-консультант» на 360 dp
+            // обрезалось до «Продавец-конс…» (путь ребёнка 16.10, дефект 18).
+            // Ужимается в одну строку, не мельче 14 sp (text_size_test).
+            title: FittedBox(
+              key: const ValueKey<String>('job:title'),
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(title, maxLines: 1),
+            ),
+            actions: <Widget>[
+              HelpButton(
+                key: const ValueKey<String>('job:help'),
+                onPressed: () => _help(game),
               ),
             ],
+          ),
+          body: SafeArea(
+            top: false,
+            child: Column(
+              children: <Widget>[
+                // Во время игры в альбомной HUD прячется: числа до конца смены
+                // не меняются (они на карточке), а поле получает 56 dp высоты.
+                if (!(land && _stage == _Stage.play))
+                  WorldHud(snapshot: ws.snapshot),
+                Expanded(
+                  child: land
+                      // Альбомная: высота ограничена, игра и карточки сами
+                      // раскладываются на панели (GameSplit), без общей прокрутки.
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              Gap.md, Gap.sm, Gap.md, Gap.sm),
+                          child: stage,
+                        )
+                      : SingleChildScrollView(
+                          // Свой ключ у каждого этапа: прокрутка игры не
+                          // переходит на итог (путь ребёнка 16.10: итог
+                          // открывался внизу, урок — под шапкой).
+                          key: ValueKey<_Stage>(_stage),
+                          padding: const EdgeInsets.fromLTRB(
+                              Gap.md, Gap.sm, Gap.md, Gap.lg),
+                          child: stage,
+                        ),
+                ),
+                // Портрет: под прокруткой, всегда на экране. Альбомная — в
+                // левой панели под заголовком итога: снизу она закрывала бы
+                // варианты урока справа.
+                if (_stage == _Stage.result && !land)
+                  if (_night(ws) case (:final String short, full: _))
+                    DayEndStrip(
+                        key: const ValueKey<String>('job:result:night'),
+                        text: short,
+                        style: gameText(context)),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  /// Смена закончила день: [short] — строка «уже утро» под итогом, без
+  /// прокрутки; [full] — почему, в абзаце итога вместо «Силы кончились».
+  /// null — день идёт. Раньше утро было только последней фразой длинного
+  /// абзаца внизу итога, а шапка уже показывала утренние силы (путь ребёнка
+  /// rc-7d, D2). Строка короткая: на 360×640 при шрифте 1,3 она не должна
+  /// закрывать урок — он обязателен.
+  ({String short, String full})? _night(WorldState ws) => dayEndText(
+      result: _result,
+      dayBefore: _dayBefore,
+      energyBefore: _energyBefore,
+      now: ws.snapshot);
 
   /// Портрет — столбиком, альбомная — две панели: [left] числа и пояснения,
   /// [right] действия.
@@ -272,58 +425,167 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     final BlockReason? block = offer.blockReason;
     final String? why = block == null ? null : blockText(block);
     final bool land = WorldLayout.isLandscape(context);
-    return _split(
-      context,
-      const ValueKey<String>('job:offer'),
-      <Widget>[
-        _Row(
-          icon: Pic.coin,
-          label: 'Заплатят',
-          value: '${offer.pay}',
-          valueKey: 'job:offer:pay',
-        ),
-        _Row(
-          icon: Pic.star,
-          label: 'Ещё за эффективность',
-          value: 'до ${offer.efficiencyBonusMax}',
-        ),
-        _Row(
-          icon: Pic.bolt,
-          label: 'Потратишь энергии',
-          value: WorldHud.energyText(offer.energyCost),
-          valueKey: 'job:offer:energy',
-        ),
+    // Мини-решение (флаг `day_cycle.shift_choices_ui`): вариант и есть
+    // «Начать смену». Вопрос — из живой карточки [offer].
+    final ShiftChoice? question =
+        why == null && context.read<JobGames>().shiftChoicesUi
+            ? offer.choice
+            : null;
+    final Widget terms = PicText(
+      'Ставка ${offer.basePay}'
+      // Опыт словами и монетами, без процентов (Денис 19.10, Т6 А).
+      '${offer.experienceCoins > 0 ? ', ${experiencePayText(pay: offer.pay, coins: offer.experienceCoins)}' : ''}'
+      '${showStageStep(offer.stageStep) ? ', ${stageStepText(offer.stageStep)} за город' : ''}. '
+      'Ошибки оплату не уменьшают. ${goodShiftText(offer)}.',
+      key: const ValueKey<String>('job:offer:terms'),
+      style: land ? gameText(context) : text.bodyLarge,
+    );
+    // Альбомная с вопросом: условия — слева под числами, справа только
+    // вопрос и варианты, чтобы они были видны без прокрутки (как прежняя
+    // «Начать смену»).
+    final bool termsLeft = land && question != null;
+    // Портрет с вопросом: условия — под вариантами. Над ними на 360×800 второй
+    // вариант виднелся на 21 px, и ребёнок жал первый, не видя второго (путь
+    // ребёнка rc-7d, D2). Числа смены — тоже под ними (ниже).
+    final bool termsBelow = !land && question != null;
+    // Числа смены. В портрете с вопросом — под вариантами, как и условия:
+    // на 360×640 варианты уходили под край (y ≈ 680, при шрифте 1,3 — 870;
+    // баг-прогон 18.10, BG-04). Даже одна строка оплаты над вопросом при
+    // шрифте 1,3 сдвигает второй вариант за край, а последствия вариантов
+    // («+20 💰 · −2 ⚡») и так на кнопках.
+    final List<Widget> numbers = <Widget>[
+      _Row(
+        icon: Pic.coin,
+        label: 'Заплатят',
+        value: '${offer.pay}',
+        valueKey: 'job:offer:pay',
+      ),
+      _Row(
+        icon: Pic.star,
+        label: 'Ещё за эффективность',
+        value: 'до ${offer.efficiencyBonusMax}',
+      ),
+      _Row(
+        icon: Pic.bolt,
+        label: 'Потратишь сил',
+        value: WorldHud.energyText(offer.energyCost),
+        valueKey: 'job:offer:energy',
+      ),
+      if (!offer.shiftsUnlimited)
         _Row(
           icon: Pic.week,
           label: 'Смен на неделе осталось',
           value: '${offer.shiftsLeft}',
         ),
+      ..._xpExplain(context),
+      ..._xpStageLine(context, ws, args),
+    ];
+    return _split(
+      context,
+      const ValueKey<String>('job:offer'),
+      <Widget>[
+        if (!termsBelow) ...numbers,
+        if (termsLeft) ...<Widget>[
+          const SizedBox(height: Gap.sm),
+          terms,
+        ],
       ],
       <Widget>[
         if (!land) const SizedBox(height: Gap.xs),
-        PicText(
-          'Ставка ${offer.basePay}'
-          '${offer.experiencePercent > 0 ? ', опыт +${offer.experiencePercent} %' : ''}'
-          '${showStageStep(offer.stageStep) ? ', ${stageStepText(offer.stageStep)} за город' : ''}. '
-          'Ошибки оплату не уменьшают. ${goodShiftText(offer)}.',
-          key: const ValueKey<String>('job:offer:terms'),
-          style: land ? gameText(context) : text.bodyLarge,
-        ),
+        if (!termsLeft && !termsBelow) terms,
         if (why != null) ...<Widget>[
           const SizedBox(height: Gap.sm),
           _Note(icon: Icons.lock_rounded, text: why),
         ],
-        const SizedBox(height: Gap.md),
-        FilledButton.icon(
-          key: const ValueKey<String>('job:start'),
-          style: FilledButton.styleFrom(
-              minimumSize: Size.fromHeight(gameButtonHeight(context))),
-          onPressed: why == null ? () => _start(offer, ws) : null,
-          icon: const Icon(Icons.play_arrow_rounded),
-          label: const Text('Начать смену'),
-        ),
+        if (!termsLeft && !termsBelow) const SizedBox(height: Gap.md),
+        if (question != null && _choiceChanged) ...<Widget>[
+          const Text('Вопрос изменился',
+              key: ValueKey<String>('job:choice:changed'),
+              style: TextStyle(fontSize: 16, color: WorldColors.gold)),
+          const SizedBox(height: Gap.xs),
+        ],
+        if (question != null)
+          ShiftChoiceBlock(
+            offer: offer,
+            question: question,
+            onPick: (ShiftChoiceOption o) =>
+                _start(offer, ws, question: question, option: o),
+          )
+        else
+          FilledButton.icon(
+            key: const ValueKey<String>('job:start'),
+            style: FilledButton.styleFrom(
+                minimumSize: Size.fromHeight(gameButtonHeight(context))),
+            onPressed: why == null ? () => _start(offer, ws) : null,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Начать смену'),
+          ),
+        if (termsBelow) ...<Widget>[
+          const SizedBox(height: Gap.sm),
+          ...numbers,
+          const SizedBox(height: Gap.sm),
+          terms,
+        ],
       ],
     );
+  }
+
+  /// «Ступень 2: …» (C2): какая ступень сложности откроется в смене. Текст —
+  /// `explain.json → explain.xp_stage_title` (заглушка, пишет front), `{n}` —
+  /// номер ступени.
+  List<Widget> _xpStageLine(
+      BuildContext context, WorldState ws, JobPlayArgs? args) {
+    final int? stage = args == null ? null : ws.world.xpStage(args.jobId);
+    // Ступень 1 — базовая: «задания сложнее» на ней неправда (BG-10).
+    if (stage == null || stage <= 1) return const <Widget>[];
+    final String title =
+        WorldExplain.of(context).texts['xp_stage_title'] ?? 'Ступень {n}';
+    return <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: Gap.xs),
+        child: Text(title.replaceAll('{n}', '$stage'),
+            key: const ValueKey<String>('job:offer:stage'),
+            style: gameText(context)),
+      ),
+    ];
+  }
+
+  /// Опыт одной строкой и «Как это считается» (модель 7 дней, флаг
+  /// `explain_ui`): за что дают опыт и почему с ним платят больше.
+  List<Widget> _xpExplain(BuildContext context) {
+    final WorldExplain ex = WorldExplain.of(context);
+    final String? short = ex.xpShort;
+    final String? detail = ex.xpDetail;
+    if (short == null || detail == null) return const <Widget>[];
+    return <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: Gap.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Pictogram(Pic.chart, size: 24, color: WorldColors.text),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(short,
+                  key: const ValueKey<String>('job:offer:xp'),
+                  style: gameText(context)),
+            ),
+          ],
+        ),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          key: const ValueKey<String>('job:offer:xpHow'),
+          style: TextButton.styleFrom(
+              minimumSize: const Size(TapSize.min, TapSize.min)),
+          onPressed: () => showHelp(context, 'Как считается опыт', detail),
+          icon:
+              const Pictogram(Pic.question, size: 22, color: WorldColors.gold),
+          label: const Text('Как это считается'),
+        ),
+      ),
+    ];
   }
 
   Widget _resultCard(BuildContext context, WorldState ws) {
@@ -332,6 +594,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     final JobOffer? shown = _shownOffer;
     final int pay = shown?.pay ?? r.coins;
     final int bonus = shown?.bonusFor(_score) ?? 0;
+    final ShiftChoiceOption? chosen = _chosen;
     final bool good = shown?.isGoodScore(_score) ?? false;
     final bool land = WorldLayout.isLandscape(context);
     final Size wide = Size.fromHeight(land ? 48 : TapSize.min);
@@ -341,12 +604,19 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     final int mood = r.happiness + lessonMood;
     // Урок после смены обязателен (Денис 29.09): уйти можно, только
     // выбрав ответ.
-    final bool mustAnswer = ws.world.pendingLesson != null;
+    final bool mustAnswer = ws.world.pendingLesson != null &&
+        ws.world.pendingLesson!.jobId == _args?.jobId;
     final List<Widget> leave = <Widget>[
+      if (mustAnswer) ...<Widget>[
+        Text(lessonFirstText,
+            key: const ValueKey<String>('job:lessonFirst'),
+            style: gameText(context)),
+        const SizedBox(height: Gap.sm),
+      ],
       FilledButton.icon(
         key: const ValueKey<String>('job:toBoard'),
         style: FilledButton.styleFrom(minimumSize: wide),
-        onPressed: mustAnswer ? null : _back,
+        onPressed: mustAnswer ? _toLesson : _back,
         icon: const Icon(Icons.work_rounded),
         label: const Text('К доске работ'),
       ),
@@ -354,7 +624,7 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
       OutlinedButton.icon(
         key: const ValueKey<String>('job:toRoom'),
         style: OutlinedButton.styleFrom(minimumSize: wide),
-        onPressed: mustAnswer ? null : _toRoom,
+        onPressed: mustAnswer ? _toLesson : _toRoom,
         icon: const Icon(Icons.home_rounded),
         label: const Text('Домой'),
       ),
@@ -384,6 +654,10 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
     // Бывший ползунок «Сколько отложить на цель?» убран: решение о деньгах
     // теперь в уроке. Отложить руками — в копилке, пока урок не ждёт.
     final bool piggy = !lessonWaits && ws.snapshot.free > 0;
+    final String? moodWhy = switch (WorldExplain.of(context).moodWhy) {
+      final String t => heroText(t, ws.finniName),
+      null => null,
+    };
     return _split(
       context,
       const ValueKey<String>('job:result'),
@@ -392,6 +666,15 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
             key: const ValueKey<String>('job:result:title'),
             style: text.titleLarge),
         const SizedBox(height: Gap.sm),
+        if (land)
+          if (_night(ws) case (:final String short, full: _)) ...<Widget>[
+            DayEndStrip(
+                key: const ValueKey<String>('job:result:night'),
+                text: short,
+                style: gameText(context),
+                boxed: true),
+            const SizedBox(height: Gap.sm),
+          ],
         if (!land) ...lesson,
         _Row(
             icon: Pic.coin,
@@ -403,11 +686,23 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
             label: 'За эффективность',
             value: '+$bonus',
             valueKey: 'job:result:bonus'),
+        if (_luck case final ShiftLuckLine luck) _LuckRow(luck: luck),
+        // Ответ на мини-решение: монеты сверх оплаты здесь, силы и
+        // настроение — уже в строках ниже (они из итога мира).
+        if (chosen != null)
+          KeyedSubtree(
+            key: const ValueKey<String>('job:result:choice'),
+            child: _Row(
+                icon: Pic.check,
+                label: 'Выбор: ${chosen.label}',
+                value: shown == null
+                    ? ''
+                    : _signedCoins(shiftChoicePayDelta(shown, chosen)),
+                valueKey: 'job:result:choice:pay'),
+          ),
         _Row(
             icon: Pic.bolt,
-            label: good
-                ? 'Энергии потрачено (с хорошей сменой)'
-                : 'Энергии потрачено',
+            label: good ? 'Сил потрачено (с хорошей сменой)' : 'Сил потрачено',
             value: WorldHud.energyText(-r.energy),
             valueKey: 'job:result:energy'),
         // Смена и урок вместе: иначе строка «−2», а 😊 в шапке уже на 1
@@ -415,9 +710,16 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
         if (mood != 0)
           _Row(
               icon: Pic.smile,
-              label: lessonMood != 0 ? 'Настроение (с уроком)' : 'Настроение',
+              label: lessonMood != 0 ? 'Настроение (после урока)' : 'Настроение',
               value: mood > 0 ? '+$mood' : '−${-mood}',
-              valueKey: 'job:result:happiness'),
+              valueKey: 'job:result:happiness',
+              help: moodWhy == null
+                  ? null
+                  : HelpButton(
+                      key: const ValueKey<String>('job:result:moodWhy'),
+                      tooltip: 'Почему меняется настроение',
+                      onPressed: () => showHelp(
+                          context, 'Почему меняется настроение', moodWhy))),
         if (good)
           const _Row(
               icon: Pic.chart,
@@ -425,7 +727,9 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
               value: '+1',
               valueKey: 'job:result:exp'),
         const SizedBox(height: Gap.sm),
-        _Note(icon: Icons.chat_bubble_rounded, text: r.reason),
+        _Note(
+            icon: Icons.chat_bubble_rounded,
+            text: _night(ws)?.full ?? r.reason),
       ],
       <Widget>[
         if (!land) const SizedBox(height: Gap.md),
@@ -446,18 +750,29 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
   }
 }
 
+/// «+20», «−10»; ноль — пусто (строка выбора без монет).
+String _signedCoins(int n) => n == 0
+    ? ''
+    : n > 0
+        ? '+$n'
+        : '−${-n}';
+
 class _Row extends StatelessWidget {
   const _Row({
     required this.icon,
     required this.label,
     required this.value,
     this.valueKey,
+    this.help,
   });
 
   final Pic icon;
   final String label;
   final String value;
   final String? valueKey;
+
+  /// «?» после числа — объяснение строки (модель 7 дней).
+  final Widget? help;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -467,7 +782,7 @@ class _Row extends StatelessWidget {
             Pictogram(icon, size: 24, color: WorldColors.text),
             const SizedBox(width: Gap.sm),
             Expanded(
-              child: Text(label, style: gameText(context)),
+              child: _WholeWords(label, style: gameText(context)),
             ),
             const SizedBox(width: Gap.sm),
             Text(
@@ -475,9 +790,58 @@ class _Row extends StatelessWidget {
               key: valueKey == null ? null : ValueKey<String>(valueKey!),
               style: AppType.number(20, color: WorldColors.text),
             ),
+            if (help case final Widget h) h,
           ],
         ),
       );
+}
+
+/// Везение на смене (модель 7 дней): «Сегодня повезло: …» / «Не повезло:
+/// …», под ней — что это дало, справа — монеты сверху или меньше. Так
+/// строки итога складываются в то, что пришло в монеты.
+class _LuckRow extends StatelessWidget {
+  const _LuckRow({required this.luck});
+
+  final ShiftLuckLine luck;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle style = gameText(context);
+    final int pay = luck.pay;
+    return MergeSemantics(
+      child: Padding(
+        key: const ValueKey<String>('job:result:luck'),
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Pictogram(luck.good ? Pic.spark : Pic.info,
+                size: 24, color: WorldColors.text),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(luck.line, style: style),
+                  if (luck.hint.isNotEmpty)
+                    Text(luck.hint,
+                        style: style.copyWith(color: WorldColors.textSoft)),
+                ],
+              ),
+            ),
+            if (pay != 0) ...<Widget>[
+              const SizedBox(width: Gap.sm),
+              Text(
+                pay > 0 ? '+$pay' : '−${-pay}',
+                key: const ValueKey<String>('job:result:luck:pay'),
+                style: AppType.number(20, color: WorldColors.text),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Note extends StatelessWidget {
@@ -490,7 +854,7 @@ class _Note extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: WorldColors.panel,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.line, width: 1.5),
         ),
         child: Padding(
@@ -501,10 +865,58 @@ class _Note extends StatelessWidget {
               Icon(icon, color: WorldColors.text),
               const SizedBox(width: Gap.sm),
               Expanded(
-                child: Text(text, style: gameText(context)),
+                child: PicText(text, style: gameText(context)),
               ),
             ],
           ),
         ),
+      );
+}
+
+/// Подпись строки, где слова не рвутся посреди: при крупном шрифте самое
+/// длинное слово («эффективность» рядом с «до 30») не влезало в ширину и
+/// переносилось по буквам (путь ребёнка, rc-7d, n1). Тогда шрифт подписи
+/// уменьшается ровно настолько, чтобы слово встало целиком, но не мельче
+/// 14 sp (ТЗ, `text_size_test`); остальное — как у обычного [Text].
+class _WholeWords extends StatelessWidget {
+  const _WholeWords(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  static const double minSp = 14;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints c) {
+          final TextScaler scaler = MediaQuery.textScalerOf(context);
+          // Мерить тем же шрифтом, что нарисует Text: стиль темы + свой.
+          final TextStyle full =
+              DefaultTextStyle.of(context).style.merge(style);
+          final double size = full.fontSize ?? 14;
+          final double shown = scaler.scale(size);
+          double widest = 0;
+          for (final String w in text.split(RegExp(r'\s+'))) {
+            final TextPainter p = TextPainter(
+              text: TextSpan(text: w, style: full),
+              textDirection: TextDirection.ltr,
+              textScaler: scaler,
+              maxLines: 1,
+            )..layout();
+            if (p.width > widest) widest = p.width;
+            p.dispose();
+          }
+          if (!c.hasBoundedWidth || widest <= c.maxWidth || shown <= minSp) {
+            return Text(text, style: style);
+          }
+          // С запасом на округление ширины глифов при другом кегле.
+          final double fit = shown * c.maxWidth / widest * 0.98;
+          final double target = fit < minSp ? minSp : fit;
+          return Text(
+            text,
+            style: style,
+            textScaler: TextScaler.linear(target / size),
+          );
+        },
       );
 }

@@ -115,6 +115,15 @@ Future<void> _playGardenerCalm(WidgetTester tester,
         await _tap(tester, 'gardener:bed:$i');
       }
     }
+    // Ловит (проход демо 16.10): подсказка хода зовёт «Дальше», а кнопка
+    // на последнем ходу — «Закончить».
+    final String button = tester
+        .widget<Text>(find.descendant(
+            of: find.byKey(const ValueKey<String>('gardener:next')),
+            matching: find.byType(Text)))
+        .data!;
+    expect(_textIn(tester, 'gardener:turn'), contains('«$button»'),
+        reason: 'ход ${turn + 1}');
     await _tap(tester, 'gardener:next');
   }
 }
@@ -239,7 +248,7 @@ void main() {
           find.byKey(const ValueKey<String>('gardener:summary')), findsNothing,
           reason: 'время само не идёт');
       await _playGardenerCalm(tester, tapGreenOnce: false);
-      expect(_textIn(tester, 'gardener:summary'), contains('Ты полил'));
+      expect(_textIn(tester, 'gardener:summary'), contains('Получилось полить'));
       await _tap(tester, 'gardener:done');
       await _tapNow(tester, 'gardener:done');
       expect(scores, <double>[1]);

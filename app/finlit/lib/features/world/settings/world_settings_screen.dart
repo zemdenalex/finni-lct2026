@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../app_state.dart';
+import '../../../core/music.dart';
 import '../../../core/theme.dart';
 import '../../../core/widgets.dart';
 import '../../../core/world_theme.dart';
 import '../../../domain/models/profile.dart';
 import '../../settings/settings_screen.dart' show SettingsScreen;
+import '../adult/build_line.dart';
 import '../shop/shop_kit.dart';
 import '../world_help.dart';
 import '../world_layout.dart';
+import '../world_routes.dart';
+import '../world_state.dart';
+import 'world_reset.dart';
+import '../world_dock.dart';
 
 /// S15 — настройки нового мира: звук и анимации (ТЗ 3.6.7), лицензии.
 ///
@@ -22,13 +28,31 @@ import '../world_layout.dart';
 ///   последствия), тумблер был бы мёртвой ручкой;
 /// - «Числа покрупнее» — масштаб живёт в экономике старой игры, числа мира
 ///   берутся из `assets/content/world/*.json` и от флага не зависят;
-/// - сброс и режим проверки — только за барьером «Взрослым» (🔒 в комнате).
+/// - сброс и режим проверки — за барьером «Взрослым» (🔒 в комнате); без
+///   раздела (`adult.section` false, DEN-27) — здесь: «Начать игру заново» с
+///   подтверждением и «Режим проверки» за тем же примером.
 class WorldSettingsScreen extends StatelessWidget {
   const WorldSettingsScreen({super.key});
 
   static const Key soundKey = ValueKey<String>('settings:sound');
+  static const Key musicKey = ValueKey<String>('settings:music');
   static const Key motionKey = ValueKey<String>('settings:motion');
   static const Key helpKey = ValueKey<String>('settings:help');
+  static const Key resetKey = ValueKey<String>('settings:reset');
+  static const Key demoKey = ValueKey<String>('settings:demo');
+
+  /// Строка «Сборка …» внизу блока «Игра заново и проверка».
+  static const Key buildKey = ValueKey<String>('settings:build');
+
+  /// Раздел «Взрослым» есть ([adultSectionOn]); нет мира (тест одного
+  /// экрана) — как раньше.
+  static bool adultOn(BuildContext context) {
+    try {
+      return adultSectionOn(context.watch<WorldState>().world);
+    } on ProviderNotFoundException {
+      return true;
+    }
+  }
 
   /// Профиль может ещё не прочитаться (заставка), а в тестах одного экрана
   /// провайдера нет вовсе — тогда экран честно говорит, что ждёт.
@@ -41,11 +65,18 @@ class WorldSettingsScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      WithDock(current: DockSection.more, child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final AppState? app = _appOrNull(context);
     final bool land = WorldLayout.isLandscape(context);
+    // Мелодии нет в сборке (`audio.background_music`, DEN-34) — нет и
+    // тумблера, и строки о нём в подсказке.
+    final bool music = BackgroundMusic.available(context);
+    final bool adult = adultOn(context);
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         // Альбомная — основная: низкая шапка, как у «Взрослым».
         toolbarHeight: land ? 48 : null,
@@ -62,12 +93,11 @@ class WorldSettingsScreen extends StatelessWidget {
             onPressed: () => showHelp(
                 context,
                 'Что здесь?',
-                'Здесь настраивают звук и движение.\n\n'
-                    '«Звуки» — щелчок и вибрация, когда смена получилась.\n'
-                    '«Анимации» — движутся ли Финни, питомцы и экраны. '
-                    'Выключишь — всё стоит на месте.\n\n'
-                    'Начать игру заново можно только в разделе «Взрослым» '
-                    '(замок в комнате).'),
+                'Здесь настраивают звук и движение: «Звуки» — щелчок и '
+                    'вибрация после удачной смены, '
+                    '${music ? '«Музыка» — мелодия под игрой, ' : ''}'
+                    '«Анимации» — движутся ли Финни и экраны. '
+                    '${adult ? 'Начать игру заново можно только в разделе «Взрослым» (замок в комнате).' : 'Внизу — начать игру заново и режим проверки для взрослого.'}'),
           ),
         ],
       ),
@@ -90,6 +120,8 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final GameProfile profile = app.game.profile;
     final GameSettings s = profile.settings;
+    final bool music = BackgroundMusic.available(context);
+    final bool adult = WorldSettingsScreen.adultOn(context);
     Future<void> apply(GameSettings next) =>
         app.updateProfile(profile.copyWith(settings: next));
 
@@ -101,7 +133,7 @@ class _Body extends StatelessWidget {
           key: WorldSettingsScreen.soundKey,
           title: 'Звуки',
           // По факту: игра сама звучит только щелчком с вибрацией, когда
-          // смена сделана верно (`context.cue`). Музыки и озвучки нет.
+          // смена сделана верно (`context.cue`). Мелодия — отдельный тумблер ниже.
           // 🔴 Щелчок на каждое касание кнопки на Android играет система
           // («Звук касаний»), а не игра, — тумблер его не гасит, и подпись
           // не обещает «полную тишину»: об этом сказано в блоке ниже.
@@ -109,6 +141,14 @@ class _Body extends StatelessWidget {
           value: s.soundOn,
           onChanged: (bool v) => apply(s.copyWith(soundOn: v)),
         ),
+        if (music)
+          _Toggle(
+            key: WorldSettingsScreen.musicKey,
+            title: 'Музыка',
+            text: 'Тихая мелодия, пока играешь. Без «Звуков» молчит и она.',
+            value: s.musicOn,
+            onChanged: (bool v) => apply(s.copyWith(musicOn: v)),
+          ),
         _Toggle(
           key: WorldSettingsScreen.motionKey,
           title: 'Анимации',
@@ -155,11 +195,52 @@ class _Body extends StatelessWidget {
           icon: const Icon(Icons.description_outlined),
           label: const Text('Лицензии', style: TextStyle(fontSize: 16)),
         ),
+        if (adult) ...<Widget>[
+          const SizedBox(height: Gap.sm),
+          const Text(
+              'Начать игру заново и режим проверки — в разделе «Взрослым» '
+              '(замок в комнате).',
+              style: kitSoft),
+        ],
+      ],
+    );
+    // DEN-27: раздела «Взрослым» нет — сброс и режим проверки здесь. Сброс —
+    // с тем же подтверждением, режим проверки — за тем же примером.
+    final Widget data = _Block(
+      icon: Icons.tune_rounded,
+      title: 'Игра заново и проверка',
+      children: <Widget>[
+        OutlinedButton.icon(
+          key: WorldSettingsScreen.demoKey,
+          style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(TapSize.min)),
+          onPressed: () =>
+              Navigator.of(context).pushNamed(WorldRoutes.demoGate),
+          icon: const Icon(Icons.science_rounded),
+          label: const Text('Режим проверки', style: TextStyle(fontSize: 16)),
+        ),
+        const SizedBox(height: Gap.sm),
+        OutlinedButton.icon(
+          key: WorldSettingsScreen.resetKey,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+            minimumSize: const Size.fromHeight(TapSize.min),
+          ),
+          onPressed: () => gatedWorldReset(context),
+          icon: const Icon(Icons.delete_outline_rounded),
+          label:
+              const Text('Начать игру заново', style: TextStyle(fontSize: 16)),
+        ),
         const SizedBox(height: Gap.sm),
         const Text(
-            'Начать игру заново и режим проверки — в разделе «Взрослым» '
-            '(замок в комнате).',
+            'Начать заново и режим проверки — для взрослого: сначала пример '
+            'на умножение. '
+            'Всё хранится только на этом устройстве.',
             style: kitSoft),
+        // Номер сборки: раздел «Взрослым» скрыт, а без строки здесь его не
+        // видно нигде (finni 18.10).
+        const SizedBox(height: Gap.sm),
+        const BuildLine(key: WorldSettingsScreen.buildKey),
       ],
     );
 
@@ -167,7 +248,7 @@ class _Body extends StatelessWidget {
       return ListView(
         key: const ValueKey<String>('settings:list'),
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.lg),
-        children: <Widget>[feel, note, about],
+        children: <Widget>[feel, note, about, if (!adult) data],
       );
     }
     return Row(
@@ -184,7 +265,7 @@ class _Body extends StatelessWidget {
           child: ListView(
             key: const ValueKey<String>('settings:list:more'),
             padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.md, Gap.md),
-            children: <Widget>[about, note],
+            children: <Widget>[about, note, if (!adult) data],
           ),
         ),
       ],

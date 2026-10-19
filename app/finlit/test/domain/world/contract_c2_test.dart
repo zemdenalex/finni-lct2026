@@ -1,7 +1,7 @@
 import 'package:finlit/data/onboarding_store.dart';
 import 'package:finlit/data/storage.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -143,7 +143,8 @@ void _contractC2(NewWorld newWorld) {
     w.startWeek();
     w.plan(needs: 0, wants: 0, goal: 0);
     final WorldResult r = w.sleep();
-    expect(r.reason, contains('⚡'));
+    expect(r.reason, contains('сил'),
+        reason: 'силы словом, без ⚡ посреди фразы');
     expect(r.reason, isNot(contains(RegExp(r'\d\.\d'))), reason: r.reason);
   });
 

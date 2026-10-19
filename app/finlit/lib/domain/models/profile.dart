@@ -172,8 +172,8 @@ class GameProfile {
         'settings': settings.toJson(),
         'unexpectedResolvedPeriods': unexpectedResolvedPeriods.toList(),
         'parentUnlockedTasks': parentUnlockedTasks,
-        'wishList': wishList.map((String k, int v) =>
-            MapEntry<String, Object?>(k, v)),
+        'wishList':
+            wishList.map((String k, int v) => MapEntry<String, Object?>(k, v)),
         'wishKept': wishKept,
         'wishDropped': wishDropped,
       };
@@ -193,12 +193,14 @@ class GameProfile {
         petName: json['petName']! as String,
         species: _speciesFrom(json['species'] as String?),
         palette: PetPalette.values.byName(json['palette']! as String),
-        accessories: (json['accessories']! as List<Object?>).cast<String>().toSet(),
+        accessories:
+            (json['accessories']! as List<Object?>).cast<String>().toSet(),
         goalId: json['goalId'] as String?,
         plans: (json['plans']! as Map<Object?, Object?>).map(
           (Object? k, Object? v) => MapEntry<int, Allocation>(
             int.parse(k! as String),
-            Allocation.fromJson((v! as Map<Object?, Object?>).cast<String, Object?>()),
+            Allocation.fromJson(
+                (v! as Map<Object?, Object?>).cast<String, Object?>()),
           ),
         ),
         carePoints: json['carePoints']! as int,
@@ -208,7 +210,8 @@ class GameProfile {
             (json['unlockedTerms']! as List<Object?>).cast<String>().toSet(),
         isDemo: json['isDemo']! as bool,
         settings: GameSettings.fromJson(
-            (json['settings']! as Map<Object?, Object?>).cast<String, Object?>()),
+            (json['settings']! as Map<Object?, Object?>)
+                .cast<String, Object?>()),
         unexpectedResolvedPeriods:
             (json['unexpectedResolvedPeriods']! as List<Object?>)
                 .cast<int>()
@@ -230,6 +233,7 @@ class GameProfile {
 class GameSettings {
   const GameSettings({
     this.soundOn = true,
+    this.musicOn = true,
     this.animationsOn = true,
     this.readAloud = false,
     this.bigNumbers = false,
@@ -237,6 +241,10 @@ class GameSettings {
 
   /// §3.6.7: «Звуки и анимации можно отключить».
   final bool soundOn;
+
+  /// Фоновая мелодия ([BackgroundMusic]); играет, только если включены и
+  /// «Звуки» — один общий выключатель тишины остаётся.
+  final bool musicOn;
   final bool animationsOn;
 
   /// Озвучивать объяснения. ICO для 6–9 лет: «ability or willingness to engage
@@ -252,12 +260,14 @@ class GameSettings {
 
   GameSettings copyWith({
     bool? soundOn,
+    bool? musicOn,
     bool? animationsOn,
     bool? readAloud,
     bool? bigNumbers,
   }) =>
       GameSettings(
         soundOn: soundOn ?? this.soundOn,
+        musicOn: musicOn ?? this.musicOn,
         animationsOn: animationsOn ?? this.animationsOn,
         readAloud: readAloud ?? this.readAloud,
         bigNumbers: bigNumbers ?? this.bigNumbers,
@@ -265,6 +275,7 @@ class GameSettings {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'soundOn': soundOn,
+        'musicOn': musicOn,
         'animationsOn': animationsOn,
         'readAloud': readAloud,
         'bigNumbers': bigNumbers,
@@ -272,6 +283,8 @@ class GameSettings {
 
   static GameSettings fromJson(Map<String, Object?> json) => GameSettings(
         soundOn: json['soundOn']! as bool,
+        // Сохранения до 15.10 музыки не знали — она включена.
+        musicOn: json['musicOn'] as bool? ?? true,
         animationsOn: json['animationsOn']! as bool,
         readAloud: json['readAloud']! as bool,
         bigNumbers: json['bigNumbers']! as bool,

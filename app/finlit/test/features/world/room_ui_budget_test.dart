@@ -117,18 +117,18 @@ void main() {
       // лежат на ней.
       expect(scene.top, lessThanOrEqualTo(0.5));
       expect(scene.bottom, closeTo(dock.top, 0.5));
+      // Макет Алины (18.10): показатели одним рядом; «?» — во втором ряду
+      // справа, ⋮ стало «Ещё» в нижнем меню.
       for (final String k in <String>[
         'hud:coins',
         'hud:energy',
         'hud:happiness',
         'room:help',
-        'room:menu',
       ]) {
         final Rect r = tester.getRect(find.byKey(ValueKey<String>(k)));
         expect(scene.contains(r.center), isTrue, reason: '$k поверх сцены');
         expect(r.height, greaterThanOrEqualTo(48), reason: k);
-        // Один ряд (ревью В2): фишки и «?», ⋮ на одной высоте — ряд не
-        // переносится во второй.
+        if (k == 'room:help') continue;
         expect(
             r.top,
             closeTo(
@@ -148,7 +148,6 @@ void main() {
           'hud:energy',
           'hud:happiness',
           'room:help',
-          'room:menu',
         ])
           tester.getRect(find.byKey(ValueKey<String>(k))),
       ];

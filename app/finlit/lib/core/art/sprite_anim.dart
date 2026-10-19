@@ -20,7 +20,8 @@ int pixelScaleFor(double frameHeight, double box) {
   return k < 1 ? 1 : k;
 }
 
-final RegExp _density = RegExp(r'@(\d+(?:\.\d+)?)x\.png$');
+// .webp — тот же арт без потерь (DEN-15, вариант A): плотность из имени та же.
+final RegExp _density = RegExp(r'@(\d+(?:\.\d+)?)x\.(?:png|webp)$');
 
 /// Плотность арта из имени файла: `stalinka@4x.png` — 4 пикселя исходника на
 /// логический пиксель. Без суффикса — 1 (прежний арт низкого разрешения).

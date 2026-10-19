@@ -119,14 +119,17 @@ void main() {
         roomFrame(s, box: const Size(640, 560), hires: true, topInset: 120);
     expect(f.top, 120);
     expect(f.k * 368, closeTo(440, 1e-6));
-    // Длинный портрет: масштаб ограничен (кровать и стол на ¾), но комната
-    // по центру под HUD — без пустой полосы с одной стороны.
+    // Длинный портрет (S25, Денис 15.10): комната во всю высоту под HUD —
+    // ни пустой стены сверху, ни зеркального пола снизу; шире экрана.
     final RoomFrame tall =
-        roomFrame(s, box: const Size(360, 700), hires: true, topInset: 100);
-    final double rh = tall.k * 368;
-    expect(tall.top, closeTo(100 + (700 - 100 - rh) / 2, 1e-6),
-        reason: 'по центру под HUD — поровну потолка и пола');
-    expect(tall.k * 368, lessThan(600), reason: 'масштаб ограничен');
+        roomFrame(s, box: const Size(412, 900), hires: true, topInset: 100);
+    expect(tall.top, 100);
+    expect(tall.k * 368, closeTo(800, 1e-6), reason: 'во всю высоту');
+    expect(tall.k * 368, greaterThan(412), reason: 'шире экрана — камера');
+    // Очень высокий экран: не крупнее, чем половина комнаты в ширину.
+    final RoomFrame web =
+        roomFrame(s, box: const Size(400, 2000), hires: true, topInset: 100);
+    expect(400 / (web.k * 368), closeTo(RoomScene.minVisible, 1e-6));
   });
 
   Future<void> pumpRoom(WidgetTester tester, Widget room,
@@ -199,6 +202,7 @@ void main() {
           onDeskTap: () => fired.add('jobs'),
           onPiggyTap: () => fired.add('piggy'),
           onFridgeTap: () => fired.add('food'),
+          onWalkTo: (String id) => fired.add('walk:$id'),
         ),
         noMotion: true);
     for (final MapEntry<String, LayoutSlot> e in layout.tappable) {
@@ -208,6 +212,19 @@ void main() {
       final Rect r =
           tester.getRect(f).intersect(const Rect.fromLTWH(0, 0, 360, 560));
       fired.clear();
+      // Видно меньше пальца — зона не нажимается, к предмету ведёт кнопка у
+      // края (комната по высоте, камера, Денис 15.10).
+      if (r.width < 48) {
+        await tester.tapAt(r.center);
+        await tester.pump();
+        expect(fired, isEmpty, reason: '${e.key}: полоска у края нажалась');
+        final Finder edge = find.byKey(ValueKey<String>(
+            'room:edge:${r.center.dx > 180 ? 'right' : 'left'}'));
+        await tester.tap(edge);
+        await tester.pump();
+        expect(fired.single, startsWith('walk:'), reason: e.key);
+        continue;
+      }
       await tester.tapAt(r.center);
       await tester.pump();
       expect(fired, <String>[e.value.action!], reason: e.key);
@@ -261,44 +278,9 @@ void main() {
         reason: 'без сдвига камеры геометрия уезжала на весь сдвиг');
   });
 
-  // Ловит: в высоком портрете кровать у края срезана наполовину (Денис:
-  // передний план — чуть срезан кадром, не наполовину).
-  for (final double sceneH in <double>[420, 560, 700]) {
-    testWidgets('в покое кровать и стол видны на ¾ · сцена 360×$sceneH',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(MediaQuery(
-        data: MediaQueryData(size: Size(360, sceneH), disableAnimations: true),
-        child: MaterialApp(
-          home: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(width: 360, height: sceneH, child: scene()),
-          ),
-        ),
-      ));
-      await tester.pump();
-      final double want = layout.camera.foregroundShown;
-      expect(want, greaterThan(0), reason: 'значение — из файла');
-      // Кровать и стол нарисованы в фоне: их место на экране — место
-      // слота стадии на картинке фона.
-      final Rect bg = tester.getRect(find
-          .byWidgetPredicate((Widget w) =>
-              w is PixelImage && (w.path ?? '').contains('gen-town'))
-          .last);
-      final RoomLayout town = layout.forStage(layout.stages['town']!);
-      for (final String id in <String>['bed', 'desk_chair']) {
-        final Rect f = town.slots[id]!.rect;
-        final Rect r = Rect.fromLTWH(
-            bg.left + f.left * bg.width,
-            bg.top + f.top * bg.height,
-            f.width * bg.width,
-            f.height * bg.height);
-        final Rect seen = r.intersect(Rect.fromLTWH(0, 0, 360, sceneH));
-        expect(seen.width / r.width, greaterThanOrEqualTo(want - 0.01),
-            reason: '$id: видно ${seen.width} из ${r.width}');
-      }
-    });
-  }
-
+  // «В покое кровать и стол видны на ¾» снято 15.10: Денис выбрал комнату
+  // во всю высоту с камерой за Финни. Достижимость предметов за краем —
+  // room_objects_test (кнопки у края).
   testWidgets('купленный глобус стоит на своём месте раскладки',
       (WidgetTester tester) async {
     await pumpRoom(tester, scene(decor: <String>['decor_globe']),

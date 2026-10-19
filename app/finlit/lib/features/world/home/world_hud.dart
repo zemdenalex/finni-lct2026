@@ -2,14 +2,21 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../pic_text.dart';
+import '../world_help.dart' show WorldDialogTitle;
 
 import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../core/world_theme.dart';
 import '../../../domain/world/contract.dart';
-import '../world_layout.dart';
+import '../../../domain/world/world_game.dart';
+import 'day_energy_looks.dart' show DayView;
+import 'hud_chips.dart' show NoLargerText;
+import 'hud_delta.dart';
+import 'hud_strip.dart' show HudStrip;
+import '../world_state.dart';
 
 /// Верхняя строка ресурсов нового мира: 💰 доступно · 🐷 накоплено ·
 /// ⚡ полоса + число · 😊 полоса + число + лицо.
@@ -33,8 +40,17 @@ class WorldHud extends StatelessWidget {
   /// Высота HUD в альбомной — как прежние 48 dp ячеек с полями по 4.
   static const double landscapeHeight = 56;
 
-  /// Верх шкалы ⚡ (контракт: 0..14).
+  /// Верх шкалы ⚡, если мир его не знает (фейк в тестах экранов): 0..14.
   static const double energyMax = 14;
+
+  /// Верх шкалы ⚡ этого мира: в неделе из 7 дней — 20 (economy.json,
+  /// `day_cycle.energy_max`), в недельном режиме — 14.
+  static double energyMaxOf(World? w) =>
+      w is WorldGame ? w.energyMaxNow : energyMax;
+
+  /// То же по миру над экраном (без мира — [energyMax]).
+  static double energyMaxIn(BuildContext context) =>
+      energyMaxOf(Provider.of<WorldState?>(context, listen: false)?.world);
 
   /// ⚡ дробная с шагом 0,5 — «7» или «7,5».
   static String energyText(double e) => energyShown(e);
@@ -51,7 +67,12 @@ class WorldHud extends StatelessWidget {
       double? fill,
       Color color = WorldColors.gold,
       String? reason,
+      String? extra,
       required String fallbackTitle}) async {
+    // Имя героя (BG-01): `{name}` в тексте карточки и в причине настроения.
+    final String hero =
+        Provider.of<WorldState?>(context, listen: false)?.finniName ??
+            OnboardingProgress.defaultFinniName;
     Map<String, Object?> e = const <String, Object?>{};
     try {
       final Object? root = jsonDecode(await rootBundle.loadString(textsAsset));
@@ -61,22 +82,26 @@ class WorldHud extends StatelessWidget {
     } on Object {
       // без файла — только заголовок и значение
     }
-    String fill_(Object? t) => (t is String ? t : '')
-        .replaceAll('{value}', value)
-        .replaceAll('{max}', max);
+    String fill_(Object? t) => heroText(
+        (t is String ? t : '')
+            .replaceAll('{value}', value)
+            .replaceAll('{max}', max),
+        hero);
     final String title =
         e['title'] is String ? e['title']! as String : fallbackTitle;
     final String line = e['value'] is String ? fill_(e['value']) : value;
     final String text = <String>[
-      if (reason != null && reason.isNotEmpty) reason,
+      if (reason != null && reason.isNotEmpty) heroText(reason, hero),
       fill_(e['text']),
+      if (extra != null && extra.isNotEmpty) heroText(extra, hero),
     ].where((String t) => t.isNotEmpty).join('\n\n');
     if (!context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (BuildContext c) => AlertDialog(
         key: ValueKey<String>('hud:explain:$id'),
-        title: PicText(title),
+        titlePadding: WorldDialogTitle.padding,
+        title: WorldDialogTitle(PicText(title)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,13 +147,20 @@ class WorldHud extends StatelessWidget {
       explain(context, 'saved',
           value: saved == null ? '' : '$saved', fallbackTitle: 'Копилка');
 
-  static void hintEnergy(BuildContext context, {double? energy}) =>
+  /// [satiety] — сытость 0–100, когда она в HUD второй полоской под силами
+  /// (вариант B HUD дня): подсказка говорит, что это за полоска.
+  static void hintEnergy(BuildContext context,
+          {double? energy, int? satiety}) =>
       explain(context, 'energy',
+          extra: satiety == null
+              ? null
+              : 'Нижняя полоска — сытость: $satiety из 100. Еда её наполняет; '
+                  'голодному Финни утром сил меньше.',
           value: energy == null ? '' : energyText(energy),
-          max: energyText(energyMax),
-          fill: energy == null ? null : energy / energyMax,
+          max: energyText(energyMaxIn(context)),
+          fill: energy == null ? null : energy / energyMaxIn(context),
           color: WorldColors.energy,
-          fallbackTitle: 'Энергия');
+          fallbackTitle: 'Силы');
 
   static void hintMood(BuildContext context, {int? mood, String? reason}) =>
       explain(context, 'happiness',
@@ -143,268 +175,203 @@ class WorldHud extends StatelessWidget {
   Widget build(BuildContext context) {
     final ResourceSnapshot s = snapshot;
     final String energy = energyText(s.energy);
-    final Widget coins = _Cell(
+    final double top = energyMaxIn(context);
+    final DayView day = DayView.of(s);
+    final Widget coins = _Pill(
       key: const ValueKey<String>('hud:coins'),
       icon: Pic.coin,
       iconColor: WorldColors.gold,
       value: '${s.available}',
-      caption: 'есть',
-      semantic: 'Монет доступно: ${s.available}',
+      word: 'монеты',
+      semantic: 'Монет можно тратить: ${s.available}',
       onTap: () => hintCoins(context, coins: s.available),
     );
     // Копилки в HUD нет (Денис 29.09): её сумма — над копилкой в комнате и
     // в плане недели.
-    final Widget energyMeter = _Meter(
+    final Widget energyPill = _Pill(
       key: const ValueKey<String>('hud:energy'),
       icon: Pic.bolt,
       iconColor: WorldColors.energy,
-      fill: (s.energy / energyMax).clamp(0.0, 1.0),
+      fill: (s.energy / top).clamp(0.0, 1.0),
       color: WorldColors.energy,
       value: energy,
-      semantic: 'Энергия: $energy из 14',
+      word: 'силы',
+      semantic: 'Сил: $energy из ${energyText(top)}',
       onTap: () => hintEnergy(context, energy: s.energy),
     );
-    final Widget happinessMeter = _Meter(
-      key: const ValueKey<String>('hud:happiness'),
-      icon: Pic.smile,
-      iconColor: WorldColors.mood,
-      fill: (s.happiness / 100).clamp(0.0, 1.0),
-      color: WorldColors.mood,
-      value: '${s.happiness}',
-      semantic: 'Настроение: ${s.happiness} из 100',
-      onTap: () => hintMood(context, mood: s.happiness),
+    // Сдвиг настроения «+2 / −3» на 3 с — виден на итоге смены (7 дней).
+    final Widget mood = HudDelta(
+      value: s.happiness,
+      deltaKey: 'hud:happiness:delta',
+      child: _Pill(
+        key: const ValueKey<String>('hud:happiness'),
+        icon: Pic.smile,
+        iconColor: WorldColors.mood,
+        fill: (s.happiness / 100).clamp(0.0, 1.0),
+        color: WorldColors.mood,
+        value: '${s.happiness}',
+        word: 'настроение',
+        semantic: 'Настроение: ${s.happiness} из 100',
+        onTap: () => hintMood(context, mood: s.happiness),
+      ),
     );
-    // Альбомная — основная (world_layout.dart): одна строка, чтобы сцене
-    // осталась высота. Портрет — две строки, как раньше.
-    final Widget content = WorldLayout.isLandscape(context)
-        ? Row(
+    // Стиль Алины (спека §2.7, шаг 5): одна строка без плашки поверх
+    // затемнённого фона — монеты · силы · настроение · день. У показателей
+    // свои тела r10 (её «пилюли-счётчики», радиус из шкалы, не полный
+    // круг), у сил и настроения — доля полосой по низу тела. Как строка
+    // комнаты (alina-01): кегль HUD не растёт со шрифтом системы, иначе на
+    // 360 dp при ×1,3 слово «настроение» ужималось бы ниже 14; TalkBack
+    // читает подписи целиком. Портрет и альбомная — одна раскладка высотой
+    // [landscapeHeight]: прежний портрет в две строки занимал 104 dp.
+    return NoLargerText(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: landscapeHeight - 4),
+          child: Row(
             children: <Widget>[
-              // Ячейкам монет — больше места, чем полосам: полоса
-              // тянется, а число и подпись — нет (подпись «в копилке»
-              // при 3 : 4 ужималась до 12 sp).
               Expanded(flex: 4, child: coins),
-              Expanded(flex: 3, child: energyMeter),
-              const SizedBox(width: Gap.sm),
-              Expanded(flex: 3, child: happinessMeter),
+              const SizedBox(width: Gap.xs),
+              Expanded(flex: 4, child: energyPill),
+              const SizedBox(width: Gap.xs),
+              Expanded(flex: 5, child: mood),
+              if (day.on) ...<Widget>[
+                const SizedBox(width: Gap.sm),
+                Semantics(
+                  label: 'День ${day.day} из ${day.days}',
+                  excludeSemantics: true,
+                  child: Text(
+                    'День ${day.day}\nиз ${day.days}',
+                    key: const ValueKey<String>('hud:day'),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.15,
+                      fontWeight: FontWeight.w800,
+                      color: WorldColors.goldText,
+                      shadows: HudStrip.textShadow,
+                    ),
+                  ),
+                ),
+              ],
               if (trailing != null) trailing!,
             ],
-          )
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(child: coins),
-                  if (trailing != null) trailing!,
-                ],
-              ),
-              Row(
-                children: <Widget>[
-                  Expanded(child: energyMeter),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(child: happinessMeter),
-                ],
-              ),
-            ],
-          );
-    // Альбомная: высота строки — ровно 56 dp с любым [trailing] (кнопка ⚙
-    // в комнате — 56 dp), без вертикальных полей: иначе HUD растёт, и
-    // комнате под ним не хватает высоты на масштаб ×2.
-    return Material(
-      color: WorldColors.panel,
-      child: Padding(
-        padding: WorldLayout.isLandscape(context)
-            ? const EdgeInsets.symmetric(horizontal: Gap.sm)
-            : const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.xs),
-        child: WorldLayout.isLandscape(context)
-            ? ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: landscapeHeight),
-                child: content)
-            : content,
+          ),
+        ),
       ),
     );
   }
 }
 
-class _Cell extends StatelessWidget {
-  const _Cell({
+/// Показатель HUD в её форме: тело r10 (`.meter-body`), значок и число в
+/// строку, слово под ними (≥ 14 sp, разбор финала 15.10 — не одни значки
+/// и числа); [fill] — доля полосой по низу тела. Касание — всё тело
+/// (≥ 48 dp); при нехватке ширины содержимое ужимается, а не режется.
+class _Pill extends StatelessWidget {
+  const _Pill({
     super.key,
     required this.icon,
     required this.iconColor,
     required this.value,
-    required this.caption,
+    required this.word,
     required this.semantic,
     required this.onTap,
+    this.fill,
+    this.color = WorldColors.gold,
   });
 
   final Pic icon;
   final Color iconColor;
   final String value;
-  final String caption;
+  final String word;
   final String semantic;
   final VoidCallback onTap;
 
-  static const double _iconSize = 20;
-  static TextStyle get _valueStyle =>
-      AppType.number(18, color: WorldColors.text);
-  static const TextStyle _captionStyle =
-      TextStyle(fontSize: 15, height: 1.2, color: WorldColors.textSoft);
+  /// Доля 0..1 для полосы по низу; null — без полосы (монеты).
+  final double? fill;
+  final Color color;
 
-  double _width(BuildContext context, String text, TextStyle style) {
-    final TextPainter tp = TextPainter(
-      text: TextSpan(
-          text: text, style: DefaultTextStyle.of(context).style.merge(style)),
-      textDirection: TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 1,
-    )..layout();
-    final double w = tp.width;
-    tp.dispose();
-    return w;
-  }
+  static const double _bar = 4;
 
-  /// Число не ужимается — ужимается подпись (`docs/design-system.md` §1
-  /// п. 4), но не мельче 14 sp: подпись встаёт в строку за числом, если
-  /// влезает; иначе — под число; иначе её нет (значок и число остаются,
-  /// TalkBack читает [semantic] целиком).
-  Widget _content(BuildContext context, double room) {
-    final double value = _width(context, this.value, _valueStyle);
-    final double caption = _width(context, this.caption, _captionStyle);
-    const double lead = _iconSize + Gap.xs;
-    final Widget number = Text(this.value, style: _valueStyle);
-    final Widget word =
-        Text(this.caption, maxLines: 1, softWrap: false, style: _captionStyle);
-    final Widget pic = Pictogram(icon, size: _iconSize, color: iconColor);
-    if (lead + value + Gap.xs + caption <= room) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: <Widget>[
-          pic,
-          const SizedBox(width: Gap.xs),
-          number,
-          const SizedBox(width: Gap.xs),
-          word
-        ],
-      );
-    }
-    final bool stacked = lead + (caption > value ? caption : value) <= room;
-    return Row(
+  @override
+  Widget build(BuildContext context) {
+    // Слово — первым в дереве, число — последним (его читают тесты экранов
+    // как текст показателя); на экране число сверху: столбец снизу вверх.
+    final Widget content = Column(
       mainAxisSize: MainAxisSize.min,
+      verticalDirection: VerticalDirection.up,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        pic,
-        const SizedBox(width: Gap.xs),
-        if (stacked)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[number, word],
-          )
-        else
-          number,
+        Text(word,
+            maxLines: 1,
+            softWrap: false,
+            style: const TextStyle(
+                fontSize: 14,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+                color: WorldColors.textSoft,
+                shadows: HudStrip.textShadow)),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Pictogram(icon, size: 18, color: iconColor),
+            const SizedBox(width: Gap.xs),
+            Text(value,
+                maxLines: 1,
+                softWrap: false,
+                style: AppType.number(18, color: WorldColors.text)),
+          ],
+        ),
       ],
     );
-  }
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: semantic,
-        excludeSemantics: true,
-        onTap:
-            onTap, // иначе excludeSemantics отсекает касание: TalkBack не нажмёт
+    return Semantics(
+      button: true,
+      label: semantic,
+      excludeSemantics: true,
+      onTap:
+          onTap, // иначе excludeSemantics отсекает касание: TalkBack не нажмёт
+      child: Material(
+        color: WorldColors.surface,
+        borderRadius: BorderRadius.circular(WorldRadii.tile),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(Radii.chip),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
-            child: Container(
-              alignment: Alignment.centerLeft,
-              // Зазор до соседней ячейки: подпись «есть» не упирается
-              // в значок копилки.
-              padding: const EdgeInsets.only(right: Gap.sm),
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints c) =>
-                    // Последняя страховка — если не влезает даже число
-                    // (крупный шрифт на самом узком экране).
-                    FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: _content(context, c.maxWidth),
+            child: Stack(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      Gap.sm, Gap.xs, Gap.xs, Gap.xs + _bar),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: content,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-class _Meter extends StatelessWidget {
-  const _Meter({
-    super.key,
-    required this.icon,
-    required this.iconColor,
-    required this.fill,
-    required this.color,
-    required this.value,
-    required this.semantic,
-    required this.onTap,
-  });
-
-  final Pic icon;
-  final Color iconColor;
-  final double fill;
-  final Color color;
-  final String value;
-  final String semantic;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: semantic,
-        excludeSemantics: true,
-        onTap:
-            onTap, // иначе excludeSemantics отсекает касание: TalkBack не нажмёт
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(Radii.chip),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            // Число сжимается, а не вылезает: в узкой ячейке альбомной HUD
-            // «12,5» ⚡ (обеды дома дают дробную ⚡ на неделю) шире места.
-            child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints c) => Row(
-                children: <Widget>[
-                  Pictogram(icon, size: 18, color: iconColor),
-                  const SizedBox(width: Gap.xs),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: fill,
-                        minHeight: 8,
-                        color: color,
-                        backgroundColor: WorldColors.raised,
+                if (fill case final double f)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: _bar,
+                    child: ColoredBox(
+                      color: WorldColors.raised,
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: f,
+                        child: ColoredBox(color: color),
                       ),
                     ),
                   ),
-                  const SizedBox(width: Gap.xs),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                        maxWidth: (c.maxWidth - 18 - Gap.xs * 2 - 8)
-                            .clamp(0.0, 76.0)),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(value,
-                          style: AppType.number(15, color: WorldColors.text)),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

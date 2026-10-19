@@ -30,10 +30,23 @@ abstract final class CityCamera {
   static const Duration ease = Duration(milliseconds: 250);
 
   /// Постоянный масштаб карты: здания читаются, карта крупнее окна.
-  static double scale(CityVariant v) => switch (v) {
+  ///
+  /// [shortSide] — короткая сторона экрана в dp. Телефон (до [phoneSide])
+  /// — масштаб как был. Планшет и компьютер — крупнее, по короткой стороне,
+  /// но не больше [maxGrow]: иначе вся карта влезала в окно маленькой, Финни
+  /// был в 30 px, и камере некого было вести (финал, «камера и адаптив»).
+  static double scale(CityVariant v, {double shortSide = 0}) =>
+      switch (v) {
         CityVariant.vertical => 1.25,
         CityVariant.iso => 1.1,
-      };
+      } *
+      (shortSide / phoneSide).clamp(1.0, maxGrow);
+
+  /// Короткая сторона самого крупного телефона (S25 Ultra ≈ 412 dp).
+  static const double phoneSide = 412;
+
+  /// Во сколько раз карта может вырасти на большом экране.
+  static const double maxGrow = 2.2;
 }
 
 /// Клетка сетки: (столбец, ряд).
@@ -85,7 +98,22 @@ class CityGeometry {
     required this.roads,
     required this.skyline,
     required Map<WorldStage, List<CityDecor>> decor,
+    this.grid = 0,
+    required this.walkSpan,
+    this.doorLeft = const <String>{},
   }) : _decor = decor;
+
+  /// Сторона поля в клетках (B — квадрат `grid × grid`); A — 0.
+  final int grid;
+
+  /// Путь этой длины (px при 1×) идётся за самое долгое время перехода:
+  /// ширина прежней карты. Карта выросла — переходы между прежними
+  /// зданиями идут прежнее время, а не быстрее.
+  final double walkSpan;
+
+  /// Здания, у которых дверь слева от переднего угла ([CityWalk.door]):
+  /// Магазин стоял у правого края прежнего поля — дверь там и остаётся.
+  final Set<String> doorLeft;
 
   final CityVariant variant;
   final double tileW;
@@ -171,6 +199,7 @@ const CityGeometry verticalGeometry = CityGeometry._(
   topPad: 8,
   originX: 160,
   base: Size(320, 8 + 3 * 170 + 8),
+  walkSpan: 320,
   cells: _cellsA,
   ground: <CityCell>[(1, 1), (1, 2), (0, 1), (2, 1), (0, 0), (1, 0), (2, 2)],
   roads: <CityCell>{},
@@ -248,10 +277,12 @@ const List<CityDecor> _decorAMoscow = <CityDecor>[
 
 // ─── B · как Clash of Clans ───────────────────────────────────────────────
 
-/// B: поле 5 × 5 ромбов 128 × 64 (2 : 1). Дороги — ряд 2 и столбец 2
-/// крестом плюс две дорожки к дальним зданиям; здания — по два в каждой
-/// четверти, рядом на одной высоте (так они не заслоняют друг друга);
-/// пятая «четверть» у Дома — площадь.
+/// B: поле 8 × 8 ромбов 128 × 64 (2 : 1). Прежний квартал 5 × 5 (здания,
+/// дороги, декор) — клетки 0…4 без изменений; вокруг него — новые кварталы
+/// (Денис, ночь 18.10: «town is too small»): главная улица (ряд 2) и
+/// проспект (столбец 2) продлены до края, кольцо — ряд 6 и столбец 6,
+/// площадь у перекрёстка, парк и скверы. Здания — по два в каждой
+/// четверти прежнего квартала (так они не заслоняют друг друга).
 const Map<String, CityCell> _cellsB = <String, CityCell>{
   'park': (0, 1),
   'cinema': (1, 0),
@@ -264,51 +295,96 @@ const Map<String, CityCell> _cellsB = <String, CityCell>{
 
 const double _bTopPad = 56;
 
+/// Сторона поля B в клетках.
+const int _bGrid = 8;
+
+/// Прежний квартал 5 × 5 сдвинут вправо на столько: поле выросло и влево.
+const double _bShift = (_bGrid - 5) * 64.0;
+
+const double _bOriginX = _bGrid * 64.0;
+
+/// Центр ромба клетки B (px при 1×) — для декора новых кварталов.
+Offset _bAt(int c, int r, [double dx = 0, double dy = 0]) => Offset(
+    _bOriginX + (c - r) * 64 + dx, _bTopPad + 64 + (c + r) * 32 - 32 + dy);
+
+/// Дороги прежнего квартала.
+const Set<CityCell> _roadsOld = <CityCell>{
+  (0, 2), (1, 2), (2, 2), (3, 2), (4, 2), //
+  (2, 0), (2, 1), (2, 3), (2, 4),
+  (4, 1), // дорожка к Магазину
+  (0, 3), // дорожка к Копилке
+};
+
+/// Дороги новых кварталов: главная улица и проспект до края, кольцо
+/// (ряд 6 и столбец 6), площадь у перекрёстка (4, 5) · (5, 5).
+final Set<CityCell> _roadsNew = <CityCell>{
+  for (int i = 5; i < _bGrid; i++) ...<CityCell>{(i, 2), (2, i)},
+  for (int i = 0; i < _bGrid; i++) ...<CityCell>{(i, 6), (6, i)},
+  (4, 5), (5, 5), // площадь
+};
+
 final CityGeometry isoGeometry = CityGeometry._(
   variant: CityVariant.iso,
   tileW: 128,
   tileH: 64,
   topPad: _bTopPad,
-  originX: 320,
-  base: Size(640, _bTopPad + 5 * 64 + 8),
+  originX: _bOriginX,
+  base: const Size(_bGrid * 128, _bTopPad + _bGrid * 64 + 8),
+  grid: _bGrid,
+  walkSpan: 640,
+  doorLeft: const <String>{'grocery'},
   cells: _cellsB,
   ground: <CityCell>[
-    for (int c = 0; c < 5; c++)
-      for (int r = 0; r < 5; r++) (c, r),
+    for (int c = 0; c < _bGrid; c++)
+      for (int r = 0; r < _bGrid; r++) (c, r),
   ],
-  roads: <CityCell>{
-    for (int i = 0; i < 5; i++) (i, 2),
-    for (int i = 0; i < 5; i++) (2, i),
-    (4, 1), // дорожка к Магазину
-    (0, 3), // дорожка к Копилке
-  },
-  skyline: <(String, Offset)>[
-    ('moscow-city-a', Offset(150, 132)),
-    ('moscow-city-b', Offset(492, 130)),
+  roads: <CityCell>{..._roadsOld, ..._roadsNew},
+  skyline: const <(String, Offset)>[
+    ('moscow-city-a', Offset(150 + _bShift, 132)),
+    ('moscow-city-b', Offset(492 + _bShift, 130)),
   ],
   decor: <WorldStage, List<CityDecor>>{
-    WorldStage.village: _decorBVillage,
-    WorldStage.town: _decorBTown,
-    WorldStage.moscow: _decorBMoscow,
+    for (final WorldStage s in WorldStage.values)
+      s: <CityDecor>[
+        for (final CityDecor d in switch (s) {
+          WorldStage.village => _decorBVillage,
+          WorldStage.town => _decorBTown,
+          WorldStage.moscow => _decorBMoscow,
+        })
+          CityDecor(d.kind, d.x + _bShift, d.y),
+        ..._edgeBig,
+        ..._decorNew(s),
+      ],
   },
 );
 
-// Свободные клетки травы B (центр): (0,0) 320,88 · (1,1) 320,152 ·
-// (3,0) 512,184 · (1,4) 128,248 · (3,3) 320,280 · (4,3) 384,312 — площадь
-// у Дома · (4,4) 320,344. Перекрёсток (2,2) — 320,216. Плюс опушка вне поля.
+// Прежний квартал (px при 1× до сдвига на [_bShift]). Свободные клетки
+// травы: (0,0) 320,88 · (1,1) 320,152 · (3,0) 512,184 · (1,4) 128,248 ·
+// (3,3) 320,280 · (4,3) 384,312 · (4,4) 320,344. Перекрёсток (2,2) — 320,216.
 const List<CityDecor> _edgeB = <CityDecor>[
-  // Опушка за полем: слева-сверху и справа-сверху.
+  // Опушка над прежним кварталом: слева-сверху и справа-сверху.
   CityDecor(DecorKind.tree, 40, 120),
   CityDecor(DecorKind.tree, 96, 92),
   CityDecor(DecorKind.bush, 190, 50),
   CityDecor(DecorKind.tree, 600, 120),
   CityDecor(DecorKind.tree, 546, 92),
   CityDecor(DecorKind.bush, 452, 50),
-  // Снизу-слева и снизу-справа, перед полем.
-  CityDecor(DecorKind.bush, 70, 350),
-  CityDecor(DecorKind.tree, 150, 380),
-  CityDecor(DecorKind.bush, 572, 350),
-  CityDecor(DecorKind.tree, 494, 380),
+];
+
+/// Опушка вокруг всего поля 8 × 8: в треугольниках карты вне ромба,
+/// слева и зеркально справа.
+final List<CityDecor> _edgeBig = <CityDecor>[
+  for (final (DecorKind k, double x, double y) in <(DecorKind, double, double)>[
+    (DecorKind.tree, 70, 150),
+    (DecorKind.bush, 150, 110),
+    (DecorKind.tree, 40, 470),
+    (DecorKind.bush, 110, 520),
+    (DecorKind.tree, 200, 556),
+    (DecorKind.bushSmall, 60, 400),
+  ]) ...<CityDecor>[
+    CityDecor(k, x, y),
+    CityDecor(k, _bGrid * 128 - x, y),
+  ],
 ];
 
 const List<CityDecor> _decorBVillage = <CityDecor>[
@@ -316,7 +392,7 @@ const List<CityDecor> _decorBVillage = <CityDecor>[
   CityDecor(DecorKind.tree, 320, 100),
   CityDecor(DecorKind.flowers, 304, 160),
   CityDecor(DecorKind.bush, 338, 172),
-  CityDecor(DecorKind.fenceDown, 494, 152),
+  CityDecor(DecorKind.fenceDown, 502, 164), // на траве (3, 0), не на дороге (2, 0)
   CityDecor(DecorKind.bushSmall, 530, 162),
   CityDecor(DecorKind.tree, 128, 278),
   CityDecor(DecorKind.bush, 330, 292),
@@ -353,6 +429,58 @@ const List<CityDecor> _decorBMoscow = <CityDecor>[
   CityDecor(DecorKind.lamp, 256, 216),
   CityDecor(DecorKind.lamp, 384, 216),
   CityDecor(DecorKind.lamp, 320, 250),
-  CityDecor(DecorKind.lamp, 128, 186),
-  CityDecor(DecorKind.lamp, 512, 250),
+  // Не на дорожках к Копилке (0, 3) и к Магазину (4, 1): на траве рядом.
+  CityDecor(DecorKind.lamp, 128, 224),
+  CityDecor(DecorKind.lamp, 526, 280),
 ];
+
+/// Декор новых кварталов — по клеткам травы, только уже готовые виды.
+/// Парк — клетки (7, 0) · (7, 1) · (7, 3) · (7, 4); сквер — (0, 5) · (1, 5)
+/// · (0, 7) · (1, 7). Площадь (4, 5) · (5, 5) — дорога, декора на ней нет.
+List<CityDecor> _decorNew(WorldStage s) {
+  final bool v = s == WorldStage.village, m = s == WorldStage.moscow;
+  CityDecor d(DecorKind k, int c, int r, [double dx = 0, double dy = 0]) {
+    final Offset p = _bAt(c, r, dx, dy);
+    return CityDecor(k, p.dx, p.dy);
+  }
+
+  return <CityDecor>[
+    // Парк за кольцом справа.
+    d(DecorKind.tree, 7, 0, -26, 4),
+    d(v ? DecorKind.bush : DecorKind.bench, 7, 0, 24, 10),
+    d(DecorKind.tree, 7, 1, 20, 2),
+    d(m ? DecorKind.fountain : DecorKind.flowers, 7, 1, -22, 14),
+    d(DecorKind.tree, 7, 3, -18, 6),
+    d(DecorKind.bushSmall, 7, 3, 26, 12),
+    d(v ? DecorKind.flowers : DecorKind.flowerbed, 7, 4, 0, 10),
+    d(DecorKind.tree, 7, 5, 16, 8),
+    // Между прежним кварталом и кольцом справа.
+    d(DecorKind.bush, 5, 0, 34, 12),
+    d(v ? DecorKind.fenceDown : DecorKind.lamp, 5, 1, 30, 4),
+    d(DecorKind.tree, 5, 3, -10, 8),
+    d(v ? DecorKind.flowers : DecorKind.kiosk, 5, 4, 14, 12),
+    // Сквер слева внизу.
+    d(DecorKind.tree, 0, 5, 0, 8),
+    d(DecorKind.bushSmall, 1, 5, 20, 12),
+    d(v ? DecorKind.fenceUp : DecorKind.lamp, 1, 5, -28, 6),
+    d(DecorKind.tree, 0, 7, 10, 6),
+    d(v ? DecorKind.bush : DecorKind.bench, 1, 7, -10, 12),
+    d(DecorKind.flowers, 3, 5, 0, 10),
+    // Нижние кварталы.
+    d(m ? DecorKind.busstop : DecorKind.bush, 3, 7, 0, 10),
+    d(DecorKind.tree, 4, 7, -20, 6),
+    d(DecorKind.bushSmall, 4, 7, 24, 12),
+    d(DecorKind.tree, 5, 7, 18, 4),
+    d(v ? DecorKind.flowers : DecorKind.flowerbed, 5, 7, -24, 14),
+    d(DecorKind.tree, 7, 7, 0, 6),
+    // Были на площади (4, 5) · (5, 5) — это дорога (скрин Дениса 18.10:
+    // клумба посреди дороги под Домом). Теперь на траве рядом: клумба или
+    // фонтан — у парка за кольцом, фонари — по краям площади.
+    d(s == WorldStage.town ? DecorKind.fountain : DecorKind.flowerbed, 7, 5,
+        -34, 0),
+    if (!v) ...<CityDecor>[
+      d(DecorKind.lamp, 3, 5, 14, 18),
+      d(DecorKind.lamp, 5, 4, -40, 4),
+    ],
+  ];
+}

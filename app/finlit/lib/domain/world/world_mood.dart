@@ -1,7 +1,8 @@
 import 'contract.dart';
 
 /// Причина настроения Финни (карточка A12, ТЗ 2.5.10.3) — общая для
-/// `WorldGame` и `FakeWorld`.
+/// `WorldGame` и `FakeWorld`. Имя героя в тексте — `{name}` (только в
+/// именительном падеже), подставляет экран: [MoodReason.textFor] (BG-01).
 ///
 /// Правило: последнее, что **изменило** 😊 или **закрыло неделю**, объясняет
 /// настроение. [causeCode] — код причины, [causeDelta] — на сколько 😊
@@ -33,16 +34,16 @@ MoodReason moodReasonFor({
     final bool changed = causeDelta != 0;
     final MoodReason? cause = switch (causeCode) {
       // Называются всегда.
-      'week.energy_out' =>
-        const MoodReason('mood.tired', 'Силы кончились — Финни устал.'),
+      'week.energy_out' => const MoodReason(
+          'mood.tired', 'Силы кончились — от усталости настроение ниже.'),
       'bills.family_help' => const MoodReason('mood.family_help',
-          'Семье пришлось помочь со счетами — Финни неловко.'),
+          'Семье пришлось помочь со счетами — неловко вышло.'),
       'bills.from_goal' => const MoodReason('mood.shortfall_goal',
-          'На счета не хватило — пришлось взять из копилки. Финни переживает.'),
+          'На счета не хватило — пришлось взять из копилки. {name} переживает.'),
       'bills.downgraded' => const MoodReason(
-          'mood.shortfall_food', 'На счета не хватило — Финни ел простую еду.'),
+          'mood.shortfall_food', 'На счета не хватило — еда была простой.'),
       'week.tired' => const MoodReason('mood.tired_week',
-          'Силы кончились раньше сна — Финни не отдохнул как следует.'),
+          'Силы кончились раньше сна — отдохнуть как следует не вышло.'),
       // Рост и застой называются, только если не спорят с лицом Финни:
       // неделя роста, после которой 😊 всё же упало, — «остыла»; застой, после
       // которого 😊 выросло, — «удалась». Итог роста всё равно есть в
@@ -51,68 +52,70 @@ MoodReason moodReasonFor({
           ? _weekGood
           : const MoodReason(
               'mood.stagnation',
-              'Неделя прошла так же, как прошлая, — Финни заскучал. Заработать '
-                  'больше, отложить на цель или купить мечту — и станет '
+              'Неделя прошла так же, как прошлая, — скучновато. Заработать '
+                  'больше, отложить на цель или купить то, на что копишь, — и станет '
                   'веселее.'),
       'week.growth' => causeDelta < 0
           ? _cooling
           : const MoodReason('mood.growth',
-              'Финни растёт: эта неделя лучше прошлой — и это радует!'),
+              '{name} растёт: эта неделя лучше прошлой — и это радует!'),
       // Остальные — только если 😊 изменилось.
       _ when !changed => null,
       // Последствия выбора в событии (`event.*`) — те же причины, что у
       // обычных досуга и покупок: последней 😊 меняет именно эта запись.
       'leisure.done' ||
       'event.leisure' =>
-        const MoodReason('mood.leisure', 'Финни отдохнул — настроение лучше.'),
+        const MoodReason('mood.leisure', 'Отдых удался — настроение лучше.'),
       'buy.goal' ||
       'event.goal_discount' =>
-        const MoodReason('mood.goal', 'Цель достигнута — Финни очень рад!'),
+        const MoodReason('mood.goal', 'Цель достигнута — вот это радость!'),
       'buy.item' ||
+      'buy.room_item' ||
       'event.buy' =>
-        const MoodReason('mood.new_thing', 'Обновка радует Финни.'),
-      'pet.tap' =>
-        const MoodReason('mood.pet', 'Питомец рядом — Финни веселее.'),
+        const MoodReason('mood.new_thing', 'Обновка — настроение лучше.'),
+      'pet.tap' => const MoodReason('mood.pet', 'Питомец рядом — веселее.'),
+      'achievement.earned' =>
+        const MoodReason('mood.award', 'Новая награда — радостно!'),
+      'finni.pet' =>
+        const MoodReason('mood.petted', 'Погладили — как приятно!'),
       'meal.eaten' => up
-          ? const MoodReason(
-              'mood.meal', 'Финни вкусно поел — настроение лучше.')
+          ? const MoodReason('mood.meal', 'Вкусная еда — настроение лучше.')
           : null,
       'day.passed' => const MoodReason(
           'mood.days',
           'Дни идут — радость понемногу тратится, как силы. Отдых, питомец '
               'или обновка её вернут.'),
       'sleep.bonus' =>
-        const MoodReason('mood.slept', 'Финни выспался — настроение лучше.'),
+        const MoodReason('mood.slept', 'Хороший сон — настроение лучше.'),
       'job.payout' => up
           ? null
           : const MoodReason(
-              'mood.hard_shift', 'Финни постарался на смене и немного устал.'),
+              'mood.hard_shift', 'Трудная смена — настроение чуть ниже.'),
       'week.closed' => up ? _weekGood : _cooling,
       'event.choice' => up
-          ? const MoodReason(
-              'mood.event_good', 'Финни доволен тем, как всё вышло.')
-          : const MoodReason('mood.event_bad',
-              'Финни немного расстроен из-за того, что случилось.'),
+          ? const MoodReason('mood.event_good', 'Всё вышло хорошо — радостно!')
+          : const MoodReason(
+              'mood.event_bad', 'Из-за того, что случилось, немного грустно.'),
       _ => null,
     };
     if (cause != null) return cause;
   }
   if (phase == WeekPhase.onboarding) {
     return const MoodReason(
-        'mood.new_home', 'Финни только переехал — всё новое и интересно.');
+        'mood.new_home', 'Новый дом — всё новое и интересно.');
   }
   if (happiness >= 70) {
-    return const MoodReason('mood.high', 'Финни в отличном настроении.');
+    return const MoodReason('mood.high', '{name} в отличном настроении.');
   }
   if (happiness <= 30) {
     return const MoodReason('mood.low',
-        'Финни грустно. Отдых, питомец или обновка поднимут настроение.');
+        '{name} грустит. Отдых, питомец или обновка поднимут настроение.');
   }
   return MoodReason.neutral;
 }
 
-const MoodReason _weekGood = MoodReason(
-    'mood.week_good', 'Неделя удалась: еда, дом и питомцы радуют Финни.');
+const MoodReason _weekGood =
+    MoodReason('mood.week_good', 'Неделя удалась: еда, дом и питомцы радуют.');
 
 const MoodReason _cooling = MoodReason(
     'mood.cooling',

@@ -2,7 +2,15 @@ import 'dart:convert';
 
 import '../domain/world/contract.dart';
 import 'content_loader.dart' show ReadAsset;
-import '../domain/world/world_config.dart' show WorldLesson, WorldLessonChoice;
+import '../domain/world/world_config.dart'
+    show
+        DayCycle,
+        MoodKind,
+        MoodLive,
+        ShiftLuck,
+        SleepRule,
+        WorldLesson,
+        WorldLessonChoice;
 
 /// Контент нового мира Финни: `economy.json`, `jobs.json`, `events.json`
 /// из корня репозитория `content/`, копия — в `assets/content/world/`.
@@ -26,6 +34,7 @@ class WorldContentLoader {
         economy: await read('$base/economy.json'),
         jobs: await read('$base/jobs.json'),
         events: await read('$base/events.json'),
+        roomItems: await read('$base/room_items.json'),
       );
 }
 
@@ -284,11 +293,15 @@ class JobRate {
     required this.unlocked,
     required this.tiers,
     this.unlockedBy,
+    this.moodKind,
   });
 
   final String id;
   final String name;
   final bool unlocked;
+
+  /// `mood_kind`: тип работы для настроения в режиме дней.
+  final String? moodKind;
 
   /// `transport`, id питомца или возможность техники (`computer`), если
   /// работа закрыта со старта.
@@ -375,6 +388,8 @@ class EconomyContent {
     required this.startGiftTo,
     required this.maxShiftsPerJobPerWeek,
     required this.maxShiftsPerWeek,
+    this.adultWeeklyBonus = false,
+    this.adultWeeklyBonusCoins = 20,
     required this.energyBasePerWeek,
     required this.energyMaxPerWeek,
     required this.livingDrainPerAction,
@@ -401,11 +416,24 @@ class EconomyContent {
     required this.food,
     required this.mealsPerWeek,
     this.stageByRent = false,
+    this.shareParent = false,
+    this.bankTransfer = false,
     required this.homeStart,
     required this.homes,
+    this.adultSection = false,
     required this.petsHappinessTotalCap,
     required this.petsOneActive,
     required this.petDailyTouchHappiness,
+    this.dayCycle = const DayCycle(),
+    this.shiftChoicesUi = false,
+    this.dogWalkGame = dogWalkGameDefault,
+    this.tutorialUi = tutorialUiDefault,
+    this.backgroundMusic = true,
+    this.achievements = const <AchievementDef>[],
+    this.achievementsDays = achievementsDaysDefault,
+    this.cityLabelScale = cityLabelScaleDefault,
+    this.achievementsDaysItems = const <AchievementDef>[],
+    required this.finniPetHappiness,
     required this.pets,
     required this.transport,
     required this.tech,
@@ -443,6 +471,11 @@ class EconomyContent {
   final int maxShiftsPerJobPerWeek;
   final int maxShiftsPerWeek;
 
+  /// Бонус взрослого монетами (DEN-27, вариант A): `adult.weekly_bonus` —
+  /// флаг, `adult.weekly_bonus_coins` — сколько монет раз в неделю.
+  final bool adultWeeklyBonus;
+  final int adultWeeklyBonusCoins;
+
   final double energyBasePerWeek;
   final double energyMaxPerWeek;
   final double livingDrainPerAction;
@@ -479,11 +512,82 @@ class EconomyContent {
 
   /// `growth.stage_by_rent`: стадия — это жильё, которое Финни снимает.
   final bool stageByRent;
+
+  /// `progress.share_parent` (EXP-9, Денис 18.10: вариант 0 «не делаем»):
+  /// кнопка «Отправить родителю» на «Прогрессе». Флаг экрана; нет ключа —
+  /// false, как в файле.
+  final bool shareParent;
+
+  /// `bank.transfer` (ТЗ Насти 18.10, экраны 10–11; DEN-41 не решено):
+  /// карточка «Что такое банк?» и экран «Перевод монет». Флаг экрана и
+  /// действия; нет ключа — false, как в файле.
+  final bool bankTransfer;
   final String homeStart;
   final List<HomeOption> homes;
+
+  /// `adult.section` (DEN-27, Денис 18.10: «Взрослых мы вообще убираем пока
+  /// как раздел»): входа «Взрослым» в комнате нет, сброс и режим проверки —
+  /// в «Настройках». Нет ключа — false, как в файле.
+  final bool adultSection;
   final int petsHappinessTotalCap;
   final bool petsOneActive;
   final int petDailyTouchHappiness;
+
+  /// `day_cycle` (необязательный раздел): день по энергии и сытость.
+  final DayCycle dayCycle;
+
+  /// `day_cycle.shift_choices_ui`: экран смены показывает мини-решение
+  /// (`JobOffer.choice`). Флаг экрана, не правило мира: движок вопрос
+  /// задаёт и без него. Нет ключа — false (экран как раньше).
+  final bool shiftChoicesUi;
+
+  /// `day_cycle.dog_walk_game`: у выгульщика собак мини-игра «прогулка»
+  /// (`jobs.json → jobs.dog_walker`); false — прежняя заглушка «Сделать».
+  /// Флаг экрана, не правило мира. Нет ключа — [dogWalkGameDefault].
+  final bool dogWalkGame;
+
+  /// Значение [dogWalkGame] без ключа в файле — то же, что в сборке.
+  static const bool dogWalkGameDefault = true;
+
+  /// Обучалка первого захода (C4, `day_cycle.tutorial_ui`); вид при
+  /// включённом — T1 ([tutorialLookFor]). Нет ключа — [tutorialUiDefault].
+  final bool tutorialUi;
+
+  /// Значение [tutorialUi] без ключа в файле — то же, что в сборке (DEN-4
+  /// T1, Денис 18.10).
+  static const bool tutorialUiDefault = true;
+
+  /// `day_cycle.xp_stages` без ключа в файле — то же, что в сборке (DEN-35
+  /// B, Денис 18.10). Прямой `DayCycle()` в домене — по-прежнему без ступеней.
+  static const bool xpStagesDefault = true;
+
+  /// `city.label_scale` (DEN-30 A, Денис 18.10): подписи зданий на карте —
+  /// радиус шкалы проекта, не «пилюля». Флаг экрана: `main.dart` передаёт его
+  /// городу (`applyContentScreenFlags`). Нет ключа — [cityLabelScaleDefault].
+  final bool cityLabelScale;
+
+  /// Значение [cityLabelScale] без ключа в файле — то же, что в сборке.
+  static const bool cityLabelScaleDefault = true;
+
+  /// `audio.background_music`: фоновая мелодия есть в игре (DEN-34). false —
+  /// плеер не создаётся, «Музыки» нет ни в настройках, ни в меню комнаты;
+  /// звуки и вибрация не меняются. Нет ключа — true (как до флага).
+  final bool backgroundMusic;
+
+  /// `achievements` (необязательный): награды и прогресс.
+  final List<AchievementDef> achievements;
+
+  /// C7 (`achievements_days`): в режиме дней к [achievements] добавляются
+  /// [achievementsDaysItems] — награды под 7 дней и работы.
+  final bool achievementsDays;
+  final List<AchievementDef> achievementsDaysItems;
+
+  /// Значение [achievementsDays] без ключа в файле — то же, что в сборке
+  /// (DEN-6 A, Денис 18.10).
+  static const bool achievementsDaysDefault = true;
+
+  /// `happiness.finni_pet`.
+  final int finniPetHappiness;
   final List<PetOption> pets;
   final TransportRule transport;
 
@@ -621,9 +725,14 @@ class WorldContent {
     required this.events,
     this.university = UniversityContent.empty,
     this.lessons = const <WorldLesson>[],
+    this.room = RoomCatalog.empty,
   });
 
   final EconomyContent economy;
+
+  /// Кастомизация комнаты: `room_items.json` и флаг `economy.json →
+  /// room.customize`. Нет файла — вещей нет.
+  final RoomCatalog room;
   final Map<String, JobGameContent> jobs;
   final List<WorldEvent> events;
 
@@ -640,14 +749,16 @@ class WorldContent {
           e.key: e.value.data,
       };
 
-  /// Разбирает три файла. Бросает [WorldContentError] с путём до поля.
+  /// Разбирает файлы мира. Бросает [WorldContentError] с путём до поля.
+  /// [roomItems] — `room_items.json`; null — вещей комнаты нет.
   static WorldContent parse({
     required String economy,
     required String jobs,
     required String events,
+    String? roomItems,
   }) {
     final EconomyContent eco = _parseEconomy(
-      _Node.root('economy.json', economy),
+      _Node.root('economy.json', applyBalanceProfile(economy)),
     );
     final Map<String, JobGameContent> games = _parseJobs(
       _Node.root('jobs.json', jobs),
@@ -662,8 +773,90 @@ class WorldContent {
       events: evs,
       university: _parseUniversity(_Node.root('jobs.json', jobs)),
       lessons: _parseLessons(_Node.root('jobs.json', jobs), eco),
+      room: _parseRoom(
+        roomItems == null ? null : _Node.root('room_items.json', roomItems),
+        enabled: _Node.root('economy.json', economy)
+                .opt('room')
+                ?.opt('customize')
+                ?.boolean ??
+            false,
+        eventBadge: _Node.root('economy.json', economy)
+                .opt('room')
+                ?.opt('event_badge')
+                ?.boolean ??
+            false,
+        petName: _Node.root('economy.json', economy)
+                .opt('room')
+                ?.opt('pet_name')
+                ?.boolean ??
+            RoomCatalog.petNameDefault,
+      ),
     );
   }
+}
+
+/// `room_items.json`: сетка комнаты и вещи для неё. Ошибка — с путём.
+RoomCatalog _parseRoom(_Node? r,
+    {required bool enabled,
+    bool eventBadge = false,
+    bool petName = RoomCatalog.petNameDefault}) {
+  if (r == null) {
+    return RoomCatalog(
+        enabled: enabled, eventBadge: eventBadge, petName: petName);
+  }
+  final _Node g = r['grid'];
+  final int cols = g['cols'].integer, rows = g['rows'].integer;
+  final _Node cells = g['cells'];
+  final List<String> map = cells.strings;
+  if (map.length != rows) {
+    throw WorldContentError(
+        'room_items.json', 'grid.cells', 'рядов ${map.length}, а rows $rows');
+  }
+  for (int y = 0; y < map.length; y++) {
+    if (map[y].length != cols || !RegExp(r'^[fwt.]*$').hasMatch(map[y])) {
+      throw WorldContentError('room_items.json', 'grid.cells[$y]',
+          'нужно $cols букв из f, w, t, «.»: «${map[y]}»');
+    }
+  }
+  final List<RoomItemSpec> items = <RoomItemSpec>[];
+  final List<_Node> list = r['items'].items;
+  for (int i = 0; i < list.length; i++) {
+    final _Node o = list[i];
+    final String slotName = o['slot_type'].string;
+    final RoomSlotType slot = RoomSlotType.byName(slotName) ??
+        (throw WorldContentError('room_items.json', 'items[$i].slot_type',
+            'неизвестное место «$slotName» (floor, wall, table)'));
+    final int w = o['size_cells']['w'].integer,
+        h = o['size_cells']['h'].integer;
+    if (w < 1 || h < 1 || w > cols || h > rows) {
+      throw WorldContentError('room_items.json', 'items[$i].size_cells',
+          '$w × $h не встаёт в сетку $cols × $rows');
+    }
+    items.add(RoomItemSpec(
+      id: o['id'].string,
+      name: o['name'].string,
+      w: w,
+      h: h,
+      price: o['price'].integer,
+      sprite: o['sprite'].string,
+      slot: slot,
+    ));
+  }
+  return RoomCatalog(
+    enabled: enabled,
+    eventBadge: eventBadge,
+    petName: petName,
+    happinessOnce: r.opt('happiness_once')?.integer ?? 0,
+    grid: RoomGrid(
+      cols: cols,
+      rows: rows,
+      originX: g['origin']['x'].number,
+      originY: g['origin']['y'].number,
+      cell: g['cell'].number,
+      map: map,
+    ),
+    items: items,
+  );
 }
 
 EconomyContent _parseEconomy(_Node r) {
@@ -839,6 +1032,7 @@ EconomyContent _parseEconomy(_Node r) {
       unlocked: j['unlocked'].boolean,
       unlockedBy: j.opt('unlocked_by')?.string,
       tiers: tiers,
+      moodKind: j.opt('mood_kind')?.string,
     );
   }
 
@@ -917,6 +1111,9 @@ EconomyContent _parseEconomy(_Node r) {
     startGiftTo: gift['to'].oneOf(const <String>['goal']),
     maxShiftsPerJobPerWeek: week['max_shifts_per_job_per_week'].integer,
     maxShiftsPerWeek: week['max_shifts_per_week'].integer,
+    adultWeeklyBonus: r.opt('adult')?.opt('weekly_bonus')?.boolean ?? false,
+    adultWeeklyBonusCoins:
+        r.opt('adult')?.opt('weekly_bonus_coins')?.integer ?? 20,
     energyBasePerWeek: en['base_per_week'].number,
     energyMaxPerWeek: en['max_per_week'].number,
     livingDrainPerAction: en['living_drain_per_action'].number,
@@ -948,11 +1145,29 @@ EconomyContent _parseEconomy(_Node r) {
     food: food,
     mealsPerWeek: _mealsPerWeek(r['food']['meals_per_week']),
     stageByRent: r['growth'].opt('stage_by_rent')?.boolean ?? false,
+    shareParent: r.opt('progress')?.opt('share_parent')?.boolean ?? false,
+    bankTransfer: r.opt('bank')?.opt('transfer')?.boolean ?? false,
     homeStart: homeStartNode.string,
     homes: homes,
+    adultSection: r.opt('adult')?.opt('section')?.boolean ?? false,
     petsHappinessTotalCap: pets['happiness_total_cap'].integer,
     petsOneActive: pets['one_active'].boolean,
     petDailyTouchHappiness: pets['daily_touch_happiness'].integer,
+    dayCycle: _dayCycle(r.opt('day_cycle')),
+    shiftChoicesUi:
+        r.opt('day_cycle')?.opt('shift_choices_ui')?.boolean ?? false,
+    dogWalkGame: r.opt('day_cycle')?.opt('dog_walk_game')?.boolean ??
+        EconomyContent.dogWalkGameDefault,
+    tutorialUi: r.opt('day_cycle')?.opt('tutorial_ui')?.boolean ??
+        EconomyContent.tutorialUiDefault,
+    backgroundMusic: r.opt('audio')?.opt('background_music')?.boolean ?? true,
+    achievements: _achievements(r.opt('achievements')),
+    achievementsDays: r.opt('achievements_days')?.boolean ??
+        EconomyContent.achievementsDaysDefault,
+    cityLabelScale: r.opt('city')?.opt('label_scale')?.boolean ??
+        EconomyContent.cityLabelScaleDefault,
+    achievementsDaysItems: _achievements(r.opt('achievements_days_items')),
+    finniPetHappiness: hap['finni_pet'].integer,
     pets: roster,
     transport: transport,
     tech: tech,
@@ -1022,51 +1237,64 @@ int _mealsPerWeek(_Node n) {
   return v;
 }
 
-/// `jobs.json → lessons.<job>`: урок после смены (критерии ночи §4). 2–3
-/// варианта, у каждого — последствие и реплика Финни; доли — от 0 до 1.
+/// `jobs.json → lessons.<job>`: урок после смены (критерии ночи §4) —
+/// объект или список уроков (C8 / DEN-35 B: 2–3 на работу, чередуются; у
+/// каждого в списке свой `id`). 2–3 варианта, у каждого — последствие и
+/// реплика Финни; доли — от 0 до 1.
 List<WorldLesson> _parseLessons(_Node r, EconomyContent eco) {
   final _Node ls = r['lessons'];
   final List<WorldLesson> out = <WorldLesson>[];
+  final Set<String> ids = <String>{};
   for (final String job in ls.keys) {
-    final _Node l = ls[job];
+    final _Node node = ls[job];
     if (!eco.jobs.containsKey(job)) {
-      l.fail('профессии нет в economy.json → jobs');
+      node.fail('профессии нет в economy.json → jobs');
     }
-    final List<_Node> cs = l['choices'].items;
-    if (cs.length < 2 || cs.length > 3) {
-      l['choices'].fail('нужно 2–3 варианта, а их ${cs.length}');
+    final bool many = node.value is List<Object?>;
+    for (final _Node l in many ? node.items : <_Node>[node]) {
+      final String? id = many ? l['id'].string : l.opt('id')?.string;
+      if (id != null && !ids.add(id)) l['id'].fail('id урока повторяется');
+      out.add(_parseLesson(job, id, l));
     }
-    double share(_Node e, String k) {
-      final _Node? n = e.opt(k);
-      if (n == null) return 0;
-      final double v = n.number;
-      if (v < 0 || v > 1) n.fail('доля от 0 до 1');
-      return v;
-    }
-
-    out.add(WorldLesson(
-      jobId: job,
-      topic: l['topic'].oneOf(const <String>['budget', 'savings', 'payments']),
-      title: l['title'].string,
-      situation: l['situation'].string,
-      understood: l['understood'].string,
-      word: l['word'].string,
-      wordTerm: l['word_term'].string,
-      choices: <WorldLessonChoice>[
-        for (final _Node c in cs)
-          WorldLessonChoice(
-            id: c['id'].string,
-            label: c['label'].string,
-            finni: c['finni'].string,
-            goalShare: share(c['effects'], 'goal_share'),
-            needShare: share(c['effects'], 'need_share'),
-            spend: c['effects'].opt('spend')?.integer ?? 0,
-            happiness: c['effects'].opt('happiness')?.integer ?? 0,
-          ),
-      ],
-    ));
   }
   return out;
+}
+
+WorldLesson _parseLesson(String job, String? id, _Node l) {
+  final List<_Node> cs = l['choices'].items;
+  if (cs.length < 2 || cs.length > 3) {
+    l['choices'].fail('нужно 2–3 варианта, а их ${cs.length}');
+  }
+  double share(_Node e, String k) {
+    final _Node? n = e.opt(k);
+    if (n == null) return 0;
+    final double v = n.number;
+    if (v < 0 || v > 1) n.fail('доля от 0 до 1');
+    return v;
+  }
+
+  return WorldLesson(
+    id: id,
+    jobId: job,
+    topic: l['topic'].oneOf(const <String>['budget', 'savings', 'payments']),
+    title: l['title'].string,
+    situation: l['situation'].string,
+    understood: l['understood'].string,
+    word: l['word'].string,
+    wordTerm: l['word_term'].string,
+    choices: <WorldLessonChoice>[
+      for (final _Node c in cs)
+        WorldLessonChoice(
+          id: c['id'].string,
+          label: c['label'].string,
+          finni: c['finni'].string,
+          goalShare: share(c['effects'], 'goal_share'),
+          needShare: share(c['effects'], 'need_share'),
+          spend: c['effects'].opt('spend')?.integer ?? 0,
+          happiness: c['effects'].opt('happiness')?.integer ?? 0,
+        ),
+    ],
+  );
 }
 
 /// `jobs.json → university`. Ссылка в тексте карточки — ошибка: из игры
@@ -1107,138 +1335,12 @@ Map<String, JobGameContent> _parseJobs(_Node r, EconomyContent eco) {
     if (!eco.jobs.containsKey(id)) {
       j.fail('профессии нет в economy.json → jobs');
     }
-    // Схема каждой игры: то, без чего экран не соберётся.
-    switch (id) {
-      case 'consultant' || 'accountant':
-        for (final String k in <String>[
-          'sort_intro',
-          'check',
-          'check_wait',
-          'all_ok',
-          'pick',
-        ]) {
-          j.opt('texts')?.opt(k)?.string;
-        }
-        if (j['tier_labels'].strings.length != 3) {
-          j['tier_labels'].fail('нужно три подписи полок');
-        }
-        for (final _Node s in j['sets'].items) {
-          s['id'].string;
-          s['category'].string;
-          if (s['items'].items.length != 3) {
-            s['items'].fail('нужно три товара — по одному на полку');
-          }
-          final List<String> ids = <String>[];
-          for (final _Node i in s['items'].items) {
-            ids.add(i['id'].string);
-            i['name'].string;
-            i['price'].integer;
-            i['why'].string;
-            i['traits'].strings;
-          }
-          final _Node c = s['customer'];
-          c['line'].string;
-          c['budget'].integer;
-          c['best_fit'].oneOf(ids);
-          for (final String k in const <String>[
-            'feedback_fit',
-            'feedback_cheaper',
-            'feedback_pricier',
-          ]) {
-            c[k].string;
-          }
-        }
-      case 'cashier':
-        j['coins'].integers;
-        j['bills'].integers;
-        if (j['customers_per_shift'].integer < 1) {
-          j['customers_per_shift'].fail('нужен хотя бы один покупатель');
-        }
-        final List<_Node> purchases = j['purchases'].items;
-        if (purchases.isEmpty) j['purchases'].fail('список пуст');
-        for (final _Node p in purchases) {
-          p['id'].string;
-          p['item'].string;
-          if (p['paid_with'].integer <= p['price'].integer) {
-            p.fail('покупатель платит не больше цены — сдачи нет');
-          }
-        }
-        for (final String k in const <String>[
-          'right',
-          'too_little',
-          'too_much',
-        ]) {
-          j['feedback'][k].string;
-        }
-      case 'gardener':
-        j['beds'].integer;
-        final List<int> grid = j['grid'].integers;
-        if (grid.length != 2 || grid[0] * grid[1] != j['beds'].integer) {
-          j['grid'].fail('нужно [столбцы, строки], и их произведение = beds');
-        }
-        j['taps_to_water'].integer;
-        j['max_dry_at_once'].integer;
-        j['great_share'].number;
-        j['ok_share'].number;
-        if (j['calm_turns'].integer < 1) j['calm_turns'].fail('нужен ход');
-        if (j['calm_wilt_turns'].integer < 1) {
-          j['calm_wilt_turns'].fail('нужен хотя бы один ход');
-        }
-        for (final String k in const <String>['great', 'ok', 'low']) {
-          j['result_lines'][k].string;
-        }
-      case 'courier':
-        final List<String> tiers =
-            eco.jobs[id]!.tiers.map((JobTier t) => t.id).toList();
-        final _Node walls = j['walls'];
-        for (final String k in walls.keys) {
-          if (k.length != 1 || 'SG.'.contains(k)) {
-            walls.fail('«$k» — стена обозначается одной буквой, не S, G или .');
-          }
-          walls[k].string;
-        }
-        j['wrong_turn_rule'].string;
-        for (final _Node o in j['orders'].items) {
-          o['id'].string;
-          o['tier'].oneOf(tiers);
-          o['title'].string;
-          final List<int> maze = o['maze'].integers;
-          _checkMap(o['map'], maze, walls.keys.toSet());
-          o['order_card']['to'].string;
-          o['order_card']['what'].string;
-          o['order_card']['special'].string;
-          int correct = 0;
-          for (final _Node p in o['parcels'].items) {
-            p['id'].string;
-            p['label'].string;
-            if (p['correct'].boolean) {
-              correct++;
-            } else {
-              p['why'].string;
-            }
-          }
-          if (correct != 1) {
-            o['parcels'].fail('нужна ровно одна верная посылка');
-          }
-        }
-      case 'programmer':
-        final List<String> tiers =
-            eco.jobs[id]!.tiers.map((JobTier t) => t.id).toList();
-        for (final _Node t in j['tasks'].items) {
-          t['id'].string;
-          t['tier'].oneOf(tiers);
-          t['device'].string;
-          t['goal'].string;
-          t['hint_on_error'].string;
-          final List<String> blocks = <String>[];
-          for (final _Node b in t['blocks'].items) {
-            blocks.add(b['id'].string);
-            b['label'].string;
-          }
-          for (final _Node s in t['solution'].items) {
-            s.oneOf(blocks);
-          }
-        }
+    _checkGame(id, j, eco);
+    // Ступени сложности (C2): база + переопределения ступени, та же схема.
+    final List<_Node> stages = j.opt('stages')?.items ?? const <_Node>[];
+    for (final _Node s in stages) {
+      _checkGame(
+          id, _Node(s.file, s.path, mergeJobStage(j.object, s.object)), eco);
     }
     out[id] = JobGameContent(
       id: id,
@@ -1248,6 +1350,222 @@ Map<String, JobGameContent> _parseJobs(_Node r, EconomyContent eco) {
     );
   }
   return out;
+}
+
+/// Схема каждой игры: то, без чего экран не соберётся. [j] — поля игры
+/// (база или ступень, слитая с базой).
+void _checkGame(String id, _Node j, EconomyContent eco) {
+  // Схема каждой игры: то, без чего экран не соберётся.
+  switch (id) {
+    case 'consultant' || 'accountant':
+      for (final String k in <String>[
+        'sort_intro',
+        'check',
+        'check_wait',
+        'all_ok',
+        'pick',
+      ]) {
+        j.opt('texts')?.opt(k)?.string;
+      }
+      if (j['tier_labels'].strings.length != 3) {
+        j['tier_labels'].fail('нужно три подписи полок');
+      }
+      if (j['anchor_shifts'].integer < 0) {
+        j['anchor_shifts'].fail('смен с ценником-якорем не меньше 0');
+      }
+      for (final String k in const <String>['shelf_penalty', 'pick_penalty']) {
+        final double v = j[k].number;
+        if (v < 0 || v > 1) j[k].fail('штраф — доля оценки от 0 до 1');
+      }
+      for (final _Node s in j['sets'].items) {
+        s['id'].string;
+        s['category'].string;
+        if (s['items'].items.length != 3) {
+          s['items'].fail('нужно три товара — по одному на полку');
+        }
+        final List<String> ids = <String>[];
+        for (final _Node i in s['items'].items) {
+          ids.add(i['id'].string);
+          i['name'].string;
+          i['price'].integer;
+          i['why'].string;
+          i['traits'].strings;
+          final _Node? review = i.opt('review');
+          if (review != null && review.string.length > 140) {
+            review.fail('отзыв — одно короткое предложение (до 140 знаков)');
+          }
+        }
+        final _Node c = s['customer'];
+        c['line'].string;
+        c['budget'].integer;
+        c['best_fit'].oneOf(ids);
+        for (final String k in const <String>[
+          'feedback_fit',
+          'feedback_cheaper',
+          'feedback_pricier',
+        ]) {
+          c[k].string;
+        }
+      }
+    case 'cashier':
+      j['coins'].integers;
+      j['bills'].integers;
+      if (j['customers_per_shift'].integer < 1) {
+        j['customers_per_shift'].fail('нужен хотя бы один покупатель');
+      }
+      final List<_Node> purchases = j['purchases'].items;
+      if (purchases.isEmpty) j['purchases'].fail('список пуст');
+      for (final _Node p in purchases) {
+        p['id'].string;
+        p['item'].string;
+        if (p['paid_with'].integer <= p['price'].integer) {
+          p.fail('покупатель платит не больше цены — сдачи нет');
+        }
+      }
+      for (final String k in const <String>[
+        'right',
+        'retry',
+        'too_little',
+        'too_much',
+      ]) {
+        j['feedback'][k].string;
+      }
+      j['count_up'].string;
+      if (j['diff_hint_from'].integer < 1) {
+        j['diff_hint_from']
+            .fail('с какой ошибки подряд видно «на сколько»: от 1');
+      }
+    case 'gardener':
+      j['beds'].integer;
+      final List<int> grid = j['grid'].integers;
+      if (grid.length != 2 || grid[0] * grid[1] != j['beds'].integer) {
+        j['grid'].fail('нужно [столбцы, строки], и их произведение = beds');
+      }
+      // Поля по сменам (C3): у каждого свои грядки и сетка.
+      for (final _Node f in j.opt('fields')?.items ?? const <_Node>[]) {
+        f['id'].string;
+        final List<int> fg = f['grid'].integers;
+        if (fg.length != 2 || fg[0] * fg[1] != f['beds'].integer) {
+          f['grid'].fail('нужно [столбцы, строки], и их произведение = beds');
+        }
+      }
+      j['taps_to_water'].integer;
+      j['max_dry_at_once'].integer;
+      j['great_share'].number;
+      j['ok_share'].number;
+      if (j['calm_turns'].integer < 1) j['calm_turns'].fail('нужен ход');
+      if (j['calm_wilt_turns'].integer < 1) {
+        j['calm_wilt_turns'].fail('нужен хотя бы один ход');
+      }
+      for (final String k in const <String>['great', 'ok', 'low']) {
+        j['result_lines'][k].string;
+      }
+    case 'courier':
+      final List<String> tiers =
+          eco.jobs[id]!.tiers.map((JobTier t) => t.id).toList();
+      final _Node walls = j['walls'];
+      for (final String k in walls.keys) {
+        if (k.length != 1 || 'SG.'.contains(k)) {
+          walls.fail('«$k» — стена обозначается одной буквой, не S, G или .');
+        }
+        walls[k].string;
+      }
+      j['wrong_turn_rule'].string;
+      for (final _Node o in j['orders'].items) {
+        o['id'].string;
+        o['tier'].oneOf(tiers);
+        o['title'].string;
+        final List<int> maze = o['maze'].integers;
+        _checkMap(o['map'], maze, walls.keys.toSet());
+        o['order_card']['to'].string;
+        o['order_card']['what'].string;
+        o['order_card']['special'].string;
+        int correct = 0;
+        for (final _Node p in o['parcels'].items) {
+          p['id'].string;
+          p['label'].string;
+          if (p['correct'].boolean) {
+            correct++;
+          } else {
+            p['why'].string;
+          }
+        }
+        if (correct != 1) {
+          o['parcels'].fail('нужна ровно одна верная посылка');
+        }
+      }
+    case 'dog_walker':
+      final Set<String> items = j['items'].keys.toSet();
+      final Set<String> blocks = j['blocks'].keys.toSet();
+      for (final String k in <String>{...items, ...blocks}) {
+        if (k.length != 1 || 'SG.'.contains(k)) {
+          j.fail('«$k» — клетка обозначается одной буквой, не S, G или .');
+        }
+      }
+      if (items.intersection(blocks).isNotEmpty) {
+        j['blocks'].fail('буква и предмет, и препятствие');
+      }
+      for (final String k in items) {
+        j['items'][k]['name'].string;
+        j['items'][k]['found'].string;
+      }
+      for (final String k in blocks) {
+        j['blocks'][k]['name'].string;
+        j['blocks'][k]['note'].string;
+      }
+      final List<_Node> levels = j['levels'].items;
+      if (levels.isEmpty) j['levels'].fail('нужна хотя бы одна прогулка');
+      final Set<String> levelIds = <String>{};
+      for (final _Node l in levels) {
+        if (!levelIds.add(l['id'].string)) {
+          l['id'].fail('повтор id прогулки');
+        }
+        l['title'].string;
+        _checkMap(l['map'], l['maze'].integers, <String>{...items, ...blocks});
+        if (!l['map'].strings.join().split('').any(items.contains)) {
+          l['map'].fail('на тропинке нечего собрать');
+        }
+        if (l['best_steps'].integer < 1) {
+          l['best_steps'].fail('нужен хотя бы один шаг');
+        }
+      }
+    case 'programmer':
+      final List<String> tiers =
+          eco.jobs[id]!.tiers.map((JobTier t) => t.id).toList();
+      for (final _Node t in j['tasks'].items) {
+        t['id'].string;
+        t['tier'].oneOf(tiers);
+        t['device'].string;
+        t['goal'].string;
+        t['hint_on_error'].string;
+        final List<String> blocks = <String>[];
+        for (final _Node b in t['blocks'].items) {
+          blocks.add(b['id'].string);
+          b['label'].string;
+        }
+        for (final _Node s in t['solution'].items) {
+          s.oneOf(blocks);
+        }
+      }
+  }
+}
+
+/// Ступень сложности (C2): поля ступени поверх базовых — словари
+/// сливаются, списки и числа заменяются; `stages` в результат не идёт.
+Map<String, Object?> mergeJobStage(
+    Map<String, Object?> base, Map<String, Object?> patch) {
+  Map<String, Object?> merge(Map<String, Object?> a, Map<String, Object?> b) {
+    final Map<String, Object?> out = <String, Object?>{...a};
+    b.forEach((String k, Object? v) {
+      final Object? old = out[k];
+      out[k] = old is Map<String, Object?> && v is Map<String, Object?>
+          ? merge(old, v)
+          : v;
+    });
+    return out;
+  }
+
+  return merge(base, patch)..remove('stages');
 }
 
 List<WorldEvent> _parseEvents(_Node r) {
@@ -1380,5 +1698,233 @@ class _Node {
     }
     if (v is List<Object?>) return v.map(_strip).toList();
     return v;
+  }
+}
+
+/// Лимит смен режима дней: нет ключа — недельный лимит (`null`), ключ со
+/// значением `null` — лимита нет ([kNoShiftLimit]), число — оно.
+int? _limit(_Node n, String key) {
+  final _Node? v = n.opt(key);
+  if (v == null) return null;
+  return v.value == null ? kNoShiftLimit : v.integer;
+}
+
+/// Профиль баланса (finni по решению Дениса «продумать экономику заново»,
+/// 17.10): `balance_profile` выбирает один из `balance_profiles`, и его
+/// значения поверх файла — словари сливаются, числа и строки заменяются.
+/// Нет `balance_profile` или режим «неделя» (`days_per_week` ≤ 1) — файл
+/// как есть. Неизвестный профиль — ошибка.
+String applyBalanceProfile(String economyJson) {
+  final Object? root = jsonDecode(economyJson);
+  if (root is! Map<String, Object?>) return economyJson;
+  final Object? name = root['balance_profile'];
+  if (name == null) return economyJson;
+  // Профили — для экономики дней; запасной режим «неделя» — как сдано.
+  final Object? dc = root['day_cycle'];
+  final Object? days = dc is Map<String, Object?> ? dc['days_per_week'] : null;
+  if (days is! num || days <= 1) return economyJson;
+  final Object? all = root['balance_profiles'];
+  final Object? patch = all is Map<String, Object?> ? all[name] : null;
+  if (patch is! Map<String, Object?>) {
+    throw WorldContentError(
+        'economy.json', 'balance_profile', 'нет профиля «$name»');
+  }
+  Map<String, Object?> merge(Map<String, Object?> a, Map<String, Object?> b) {
+    final Map<String, Object?> out = <String, Object?>{...a};
+    b.forEach((String k, Object? v) {
+      final Object? old = out[k];
+      out[k] = old is Map<String, Object?> && v is Map<String, Object?>
+          ? merge(old, v)
+          : v;
+    });
+    return out;
+  }
+
+  return jsonEncode(merge(root, patch));
+}
+
+/// `day_cycle`: нет раздела — прежняя неделя (`days_per_week` 1).
+DayCycle _dayCycle(_Node? n) {
+  if (n == null) return const DayCycle();
+  const DayCycle d = DayCycle();
+  int i(String k, int def) => n.opt(k)?.integer ?? def;
+  double x(String k, double def) => n.opt(k)?.number ?? def;
+  return DayCycle(
+    daysPerWeek: i('days_per_week', d.daysPerWeek),
+    sleepLevel: x('sleep_level', d.sleepLevel),
+    carryMax: x('carry_max', d.carryMax),
+    satietyStart: i('satiety_start', d.satietyStart),
+    satietyPerAction: i('satiety_per_action', d.satietyPerAction),
+    satietyNight: i('satiety_night', d.satietyNight),
+    fullAt: i('satiety_full_at', d.fullAt),
+    fullBonus: x('satiety_full_bonus', d.fullBonus),
+    hungryAt: i('satiety_hungry_at', d.hungryAt),
+    hungryMalus: x('satiety_hungry_malus', d.hungryMalus),
+    hungryHappiness: i('satiety_hungry_happiness', d.hungryHappiness),
+    mealBase: i('satiety_meal_base', d.mealBase),
+    mealPerEnergy: i('satiety_meal_per_energy', d.mealPerEnergy),
+    dailyActivities: n.opt('daily_activities')?.boolean ?? d.dailyActivities,
+    explainUi: n.opt('explain_ui')?.boolean ?? d.explainUi,
+    moodPayDaily: n.opt('mood_pay_daily')?.boolean ?? d.moodPayDaily,
+    moodPayLive: n.opt('mood_pay_live')?.boolean ?? d.moodPayLive,
+    moodLive: switch (n.opt('mood_live')) {
+      null => d.moodLive,
+      final _Node m => () {
+          final MoodLive v = MoodLive(
+            payPerPoint: m['pay_per_point'].number,
+            payMin: m['pay_min'].number,
+            payMax: m['pay_max'].number,
+            sadAt: m['sad_at'].integer,
+            happyAt: m['happy_at'].integer,
+            energyStep: m['energy_step'].number,
+            minJobEnergy: m.opt('min_job_energy')?.number ?? 1,
+          );
+          if (v.payMin > 1 || v.payMax < 1 || v.sadAt >= v.happyAt) {
+            m.fail('mood_live: pay_min ≤ 1 ≤ pay_max и sad_at < happy_at');
+          }
+          return v;
+        }(),
+    },
+    xpStages: n.opt('xp_stages')?.boolean ?? EconomyContent.xpStagesDefault,
+    xpStageMin: switch (n.opt('xp_stage_min')) {
+      null => d.xpStageMin,
+      final _Node m => () {
+          final List<int> v = m.integers;
+          for (int k = 0; k < v.length; k++) {
+            if (k == 0 ? v[k] != 0 : v[k] <= v[k - 1]) {
+              m.fail('пороги ступеней: с 0 и строго по возрастанию');
+            }
+          }
+          return v;
+        }(),
+    },
+    xpStageJobs: n.opt('xp_stage_jobs')?.strings ?? d.xpStageJobs,
+    payScale: x('pay_scale', d.payScale),
+    homeMealShare: x('home_meal_satiety_share', d.homeMealShare),
+    eventMoneyBase: n.opt('event_money_base')?.integer,
+    homeMealDaily: n.opt('home_meal_daily')?.boolean ?? d.homeMealDaily,
+    maxShiftsPerDay: n.opt('max_shifts_per_day')?.integer,
+    maxEventsPerDay: n.opt('max_events_per_day')?.integer,
+    shopEnergy: x('shop_energy', d.shopEnergy),
+    restEnergy: x('rest_energy', d.restEnergy),
+    restHappiness: i('rest_happiness', d.restHappiness),
+    sleepRule: switch (n.opt('sleep_rule')) {
+      null => null,
+      final _Node s => SleepRule(
+          floor: s.opt('floor')?.number ?? 10,
+          cap: s.opt('cap')?.number ?? 20,
+          fraction: s.opt('fraction')?.number ?? 0.2,
+        ),
+    },
+    energyMax: n.opt('energy_max')?.number,
+    energyScale: x('energy_scale', d.energyScale),
+    mealsPerWeek: n.opt('meals_per_week')?.integer,
+    maxShiftsPerWeek: _limit(n, 'max_shifts_per_week'),
+    maxShiftsPerJobPerWeek: _limit(n, 'max_shifts_per_job_per_week'),
+    moodKinds: <String, MoodKind>{
+      if (n.opt('mood_kinds') case final _Node m)
+        for (final MapEntry<String, Object?> e in m._map.entries)
+          if (!e.key.startsWith('_'))
+            e.key: MoodKind(
+              happiness: m[e.key]['happiness'].integer,
+              text: m[e.key]['text'].string,
+            ),
+    },
+    moodRevert: x('mood_revert', d.moodRevert),
+    luckChance: n.opt('shift_luck')?.opt('chance')?.number ?? 0,
+    luck: <ShiftLuck>[
+      if (n.opt('shift_luck')?.opt('scenarios') case final _Node list)
+        for (final _Node s in list.items)
+          ShiftLuck(
+            id: s['id'].string,
+            job: s['work'].string,
+            good: s['kind'].string == 'good',
+            text: s['text'].string,
+            weight: s.opt('weight')?.number ?? 1,
+            payX: s.opt('pay_x')?.number ?? 1,
+            // ⚡ — до масштаба: × energy_scale.
+            energyBack:
+                (s.opt('energy_back')?.number ?? 0) * x('energy_scale', 1),
+          ),
+    ],
+    shiftChoiceChance: n.opt('shift_choices')?.opt('chance')?.number ?? 0,
+    shiftChoices: <ShiftChoice>[
+      if (n.opt('shift_choices')?.opt('items') case final _Node list)
+        for (final _Node q in list.items) _shiftChoice(q, x('energy_scale', 1)),
+    ],
+    eventsPerWeek: n.opt('events_per_week')?.integer,
+    eventEachMorning: n.opt('event_each_morning')?.boolean ?? false,
+  );
+}
+
+/// `day_cycle.shift_choices.items[]`: вопрос и 2–3 варианта с разными id.
+/// ⚡ варианта — до масштаба: × [energyScale].
+ShiftChoice _shiftChoice(_Node q, double energyScale) {
+  final List<_Node> os = q['options'].items;
+  if (os.length < 2 || os.length > 3) {
+    q['options'].fail('нужно 2–3 варианта, а их ${os.length}');
+  }
+  final List<ShiftChoiceOption> options = <ShiftChoiceOption>[
+    for (final _Node o in os)
+      ShiftChoiceOption(
+        id: o['id'].string,
+        label: o['label'].string,
+        payX: o.opt('pay_x')?.number ?? 1,
+        energy: (o.opt('energy')?.number ?? 0) * energyScale,
+        happiness: o.opt('happiness')?.integer ?? 0,
+        effectHint: o.opt('effect_hint')?.string,
+      ),
+  ];
+  if (options.map((ShiftChoiceOption o) => o.id).toSet().length !=
+      options.length) {
+    q['options'].fail('id вариантов повторяются');
+  }
+  return ShiftChoice(
+    id: q['id'].string,
+    work: q['work'].string,
+    question: q['question'].string,
+    options: options,
+  );
+}
+
+/// `achievements`: нет раздела — наград нет. Неизвестная метрика — ошибка
+/// контента, а не молчаливо пропущенная награда.
+List<AchievementDef> _achievements(_Node? n) {
+  if (n == null) return const <AchievementDef>[];
+  return <AchievementDef>[
+    for (final _Node a in n.items)
+      AchievementDef(
+        id: a['id'].string,
+        title: a['title'].string,
+        topic: a['topic'].string,
+        hint: a['hint'].string,
+        metric: AchievementMetric.byKey(a['metric'].string) ??
+            (throw FormatException(
+                'achievements: метрика ${a['metric'].string} не известна')),
+        target: a['target'].integer,
+        effect: _achievementEffect(a.opt('effect')),
+      ),
+  ];
+}
+
+/// `effect` награды (DEN-32): `{"type": "mood", "happiness": 3, "days": 3}`
+/// или `{"type": "energy_max", "value": 1}`. Границы — чтобы опечатка в
+/// файле не сломала баланс: 😊 1–10, дней 1–7, ⚡ 1–3.
+AchievementEffect? _achievementEffect(_Node? n) {
+  if (n == null) return null;
+  switch (n['type'].string) {
+    case 'mood':
+      final int h = n['happiness'].integer;
+      final int d = n['days'].integer;
+      if (h < 1 || h > 10 || d < 1 || d > 7) {
+        n.fail('effect mood: happiness 1–10, days 1–7');
+      }
+      return MoodBuff(happiness: h, days: d);
+    case 'energy_max':
+      final double v = n['value'].number;
+      if (v < 1 || v > 3) n.fail('effect energy_max: value 1–3');
+      return EnergyMaxBuff(value: v);
+    default:
+      n.fail('effect: type mood | energy_max');
   }
 }

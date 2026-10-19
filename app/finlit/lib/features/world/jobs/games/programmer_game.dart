@@ -463,7 +463,7 @@ class _ProgrammerGameState extends State<ProgrammerGame>
         Text(_task.goal, style: land ? gameText(context) : text.bodyMedium);
     final Widget device =
         _DeviceView(task: _task, frame: frame, cell: land ? 36 : 48);
-    final Widget programTitle = Text('Программа: ${_program.length} из $_slots',
+    final Widget programTitle = Text('Блоков: ${_program.length} из $_slots',
         style: text.titleSmall);
     final List<Widget> slots = <Widget>[
       for (int i = 0; i < _slots; i++)
@@ -670,13 +670,13 @@ class _Slot extends StatelessWidget {
           ? WorldColors.wantsBg
           : (c == null ? WorldColors.raised : WorldColors.panel),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         side: BorderSide(
             color: wrong ? WorldColors.wants : WorldColors.line,
             width: wrong ? 3 : 1.5),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         onTap: onTap,
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -861,7 +861,7 @@ class _Box extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.line, width: 1.5),
         ),
         child: Padding(padding: const EdgeInsets.all(Gap.sm), child: child),

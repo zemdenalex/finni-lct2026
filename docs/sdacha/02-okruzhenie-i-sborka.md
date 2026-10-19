@@ -23,7 +23,7 @@
 | Пакет | `ru.lct2026.finlit` | там же |
 
 Проект также проходит `flutter analyze` и `flutter test` на Flutter 3.47.4: второй версией
-пользуется один из разработчиков. Сборка, которую получают эксперты, делается на 3.41.7.
+пользуется один из разработчиков. Версия Flutter выложенной сборки записана в разделе 4 (из отчёта гейта).
 
 🔴 **В пути к репозиторию не должно быть кириллицы.** Analysis server Flutter на таком пути
 падает с `FormatException … exited with code 255`, и про путь в сообщении ничего нет.
@@ -47,7 +47,7 @@ keytool -genkeypair -v \
   -dname "CN=LCT 2026 Team, O=LCT, L=Moscow, C=RU"
 ```
 
-Ключ подключается файлом `app/finlit/android/key.properties`. Заготовка без значений лежит
+Ключ подключается файлом `key.properties` в каталоге `app/finlit/android/`. Заготовка без значений лежит
 рядом, `key.properties.example`:
 
 ```bash
@@ -66,14 +66,16 @@ git check-ignore -v key.properties          # должна что-то напе�
 cd app/finlit
 flutter pub get
 flutter clean
-rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+find android -name GeneratedPluginRegistrant.java -delete
 
 flutter build apk --release                  # universal APK — для экспертов и RuStore
 #   → build/app/outputs/flutter-apk/app-release.apk
 flutter build appbundle --release            # AAB — дополнительный формат по §3.3
 #   → build/app/outputs/bundle/release/app-release.aab
-flutter build apk --release --split-per-abi  # по архитектурам — только для скачивания вручную
+flutter build apk --release --split-per-abi  # по архитектурам — только для справки о размере
 ```
+
+Экспертам отдаётся universal APK: он ставится на любой телефон, поэтому именно он выложен как `finni.apk`.
 
 ⚠ В RuStore грузится только universal APK. У сплитов Flutter меняет `versionCode`
 (`ABI × 1000 + versionCode`), и после них universal с меньшим номером магазин уже не примет.
@@ -99,19 +101,28 @@ aapt2 dump badging app-release.apk | head -5        # пакет, версия, 
 Её добавляет `androidx.core` при targetSdk 33+. Уровень защиты у неё `signature`, у пользователя
 она не запрашивается (подробно — в [09-razresheniya-i-dannye.md](09-razresheniya-i-dannye.md)).
 
-**Замеры сборки нового мира** (28.09, коммит `b2abade`, universal release-APK):
+**Замеры выложенной сборки.** Числа ниже вписываются только из отчётов той сборки, которая выложена
+(`tools/release_gate.sh` → `release-gate.txt`, `tools/stage_release.sh` → `finni.apk.sha256`), скриптом
+`tools/fill_release_facts.py`; руками их не набирают. Сборки не воспроизводятся побайтно, поэтому SHA-256 и размер
+относятся ровно к выложенному файлу. МБ = 10⁶ байт.
 
 | Параметр | Значение |
 |---|---|
-| Размер `app-release.apk` | 72 828 659 байт (69,5 МБ) |
-| Подпись (`apksigner verify --print-certs`) | `CN=LCT 2026 Team` (ключ команды, не `Android Debug`) |
-| `aapt2 dump badging` | `package: ru.lct2026.finlit`, `versionCode 1`, `versionName 0.1.0`, `minSdkVersion 26`, `targetSdkVersion 36`, `application-label 'Питомец Финни'`, `native-code arm64-v8a armeabi-v7a x86_64` |
+| Коммит сборки (строка «Сборка …» в «Настройках», файл `finni.apk.build`) | `6af7ef7` (`6af7ef72b616115acd52250006181c7e3baee7c3`) |
+| Версия (`version:` в `pubspec.yaml` = `versionName+versionCode`) | `0.1.2+3`: `versionName` 0.1.2, `versionCode` 3 |
+| Flutter, на котором прошёл гейт (`flutter analyze` + полный `flutter test`) | 3.41.7, 19.10.2026 |
+| Размер universal APK (`finni.apk`) | **103,9 МБ** (103 913 730 байт) |
+| SHA-256 `finni.apk` | `808fd56bc0b84a38cddc3b028d288fb4f88c903dcd43ec2adff9d8d162c6a7a6` |
+| Подпись (`apksigner verify --print-certs`) | `CN=LCT 2026 Team` (ключ команды, не `Android Debug`); `tool/check_manifest.sh` сверяет SHA-256 сертификата |
+| `aapt2 dump badging` | `package: ru.lct2026.finlit`, `versionCode 3`, `versionName 0.1.2`, `minSdkVersion 26`, `targetSdkVersion 36`, `application-label 'Питомец Финни'`, `native-code arm64-v8a armeabi-v7a x86_64` |
 
-Рост с 50,5 МБ (19.09, старый интерфейс) — пиксель-арт высокого разрешения (~13 МБ, `assets/art/hires/`) и три ABI в одном файле.
-🟡 Перед загрузкой: пересобрать с коммита заморозки и обновить строку.
+`versionCode` выложенной сборки больше, чем у сданной 29.09 (1), поэтому она ставится обновлением поверх, без удаления
+(`tool/check_manifest.sh` требует `versionCode` ≥ 3). Основной вес APK — пиксель-арт высокого разрешения
+(`assets/art/hires/`) и три архитектуры в одном файле: движок Flutter и код игры лежат в трёх копиях.
 
-**Контрольная сумма для релиза.** В описание релиза рядом с APK — SHA-256 того же файла, чтобы эксперт сверил скачанное:
-`sha256sum app-release.apk` (Windows — `certutil -hashfile app-release.apk SHA256`).
+**Контрольная сумма.** Рядом с APK в https://finni.archifex.space/eksperty/files/ лежит SHA-256 того же файла
+(`finni.apk.sha256`), чтобы эксперт сверил скачанное: `sha256sum app-release.apk`
+(Windows — `certutil -hashfile app-release.apk SHA256`).
 
 ## 5. Грабли
 
@@ -120,7 +131,7 @@ aapt2 dump badging app-release.apk | head -5        # пакет, версия, 
 | AAB: «failed to strip debug symbols from native libraries» | Нет `cmdline-tools` в Android SDK: AAB проверяется утилитой `apkanalyzer` | SDK Manager → Android SDK Command-line Tools (latest). CI проверяет это отдельным шагом |
 | Сборка падает на старом `GeneratedPluginRegistrant.java` | Сгенерированный файл остался от прошлой версии плагинов | Удалить его перед сборкой (шаг в разделе 3) |
 | Сборка успешна, а подпись `Android Debug` | Нет `key.properties` | Раздел 2 |
-| Google Play Защита блокирует установку (проверено 28.09 на телефоне участника) | APK не из магазина, ключ команды Google не знаком | «Подробнее» → «Всё равно установить»; порядок — [01-readme.md](01-readme.md#установка-apk-на-телефон) |
+| Google Play Защита блокирует установку (так было на телефоне участника команды 28.09) | APK не из магазина, ключ команды Google не знаком | «Подробнее» → «Всё равно установить»; порядок — [01-readme.md](01-readme.md#установка-apk-на-телефон) |
 | `flutter analyze` падает с `FormatException` | Кириллица в пути | Перенести репозиторий |
 
 ## 6. Минификация — не обфускация
@@ -145,8 +156,8 @@ Flutter в release включает R8, и это минификация Java/Ko
 
 Публиковать приложение во время хакатона не требуется (§2.7.4), нужна готовность к
 публикации (§3.3): уникальный пакет `ru.lct2026.finlit`, подписанный universal APK, minSdk 26,
-разрешений нет. Черновик карточки — `docs/karta-rustore.md` (внутренний документ команды): название «Питомец Финни»,
+разрешений нет. Черновик карточки (рабочий документ команды, в этот репозиторий не входит): название «Питомец Финни»,
 категория «Образование» (дополнительная — «Родителям»), краткое и подробное описание, возрастная маркировка 0+
-с обоснованием в `docs/vozrastnaya-markirovka.md` (внутренний документ команды); рекламы, покупок и сбора данных
+с обоснованием: рекламы, покупок и сбора данных
 нет. Иконка 512 × 512 и скриншоты — `app/finlit/assets/store/` (нового интерфейса — `world/`, отрисованы
-автотестом; снимки с телефона — в плане до финала).
+автотестом; снимков с телефона в комплекте нет).

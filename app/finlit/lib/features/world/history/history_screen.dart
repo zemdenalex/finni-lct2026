@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/world_theme.dart';
+import '../../../domain/phrases.dart';
 import '../../../domain/world/contract.dart';
+import '../achievements/achievements_screen.dart';
 import '../home/world_hud.dart';
 import '../review/plan_fact_view.dart';
 import '../review/week_review_screen.dart';
@@ -13,6 +15,8 @@ import '../world_routes.dart';
 import '../world_state.dart';
 import '../pic_text.dart';
 import '../review/learned_view.dart';
+import 'parent_share.dart';
+import '../world_dock.dart';
 
 /// S12 · Прогресс и история (`docs/game/screens-other.md`, ТЗ 2.5.11.1).
 ///
@@ -23,7 +27,14 @@ import '../review/learned_view.dart';
 ///
 /// Альбомная: прогресс слева узкой колонкой, недели справа списком.
 class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({
+    super.key,
+    this.showAchievements,
+  });
+
+  /// Кнопка «Награды»; null — по флагу мира `achievements_days`
+  /// ([achievementsScreenOn]).
+  final bool? showAchievements;
 
   void _back(BuildContext context) {
     final NavigatorState nav = Navigator.of(context);
@@ -38,16 +49,17 @@ class HistoryScreen extends StatelessWidget {
     showHelp(
         context,
         'Что здесь?',
-        'Прогресс Финни и все недели.\n\n'
-            '⭐ Очки роста копятся каждую неделю — за счета своими '
-            'деньгами, неделю без нехватки и отложенные монеты.\n'
-            'По каждой неделе видно, сколько мы положили в конверты '
-            'по плану и сколько вышло на деле.\n'
-            '💼 Смены, 🛍 покупки и ❗ события — тоже здесь.');
+        'Здесь прогресс Финни и все прошлые недели. По каждой неделе '
+            'видно план и то, что вышло на деле. 💼 Смены, 🛍 покупки и '
+            '❗ события тоже здесь.');
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      WithDock(current: DockSection.progress, child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final WorldState ws = context.watch<WorldState>();
     final ResourceSnapshot now = ws.snapshot;
     final List<WeekPlanFact> weeks = ws.world.weekHistory.reversed.toList();
@@ -56,15 +68,35 @@ class HistoryScreen extends StatelessWidget {
         ? null
         : ws.world.catalogItem(now.activeGoalId!);
 
+    final Widget? share = parentShareButton(
+      context,
+      week: shareWeek(ws.world.weekHistory),
+      petName: ws.profile.finniName,
+      enabled: parentShareOn(ws.world),
+    );
     final Widget summary = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (share != null) ...<Widget>[share, const SizedBox(height: Gap.sm)],
         _Summary(
-            now: now,
-            goal: goal,
-            weeks: weeks.length,
-            catalog: ws.world.catalog),
+          now: now,
+          goal: goal,
+          weeks: weeks.length,
+          catalog: ws.world.catalog,
+        ),
         const SizedBox(height: Gap.sm),
+        if (showAchievements ?? achievementsScreenOn(ws.world)) ...<Widget>[
+          OutlinedButton(
+            key: const ValueKey<String>('history:achievements'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const WorldTheme(child: AchievementsScreen()),
+              ),
+            ),
+            child: const PicText('🏆 Награды'),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
         LearnedPanel(learning: ws.world.learning),
       ],
     );
@@ -72,7 +104,7 @@ class HistoryScreen extends StatelessWidget {
       if (weeks.isEmpty)
         const Text(
           key: ValueKey<String>('history:empty'),
-          'Историю начнём с первой недели: разложи карманные по конвертам — '
+          'Историю начнём с первой недели: раздели стипендию на три части — '
           'и здесь появится план и что вышло на деле.',
           style: TextStyle(fontSize: 16, color: WorldColors.textSoft),
         ),
@@ -108,27 +140,33 @@ class HistoryScreen extends StatelessWidget {
               SizedBox(
                 width: side,
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.xs, Gap.sm),
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.md,
+                    Gap.sm,
+                    Gap.xs,
+                    Gap.sm,
+                  ),
                   child: summary,
                 ),
               ),
               Expanded(
-                child: list(cards,
-                    const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.md, Gap.md)),
+                child: list(
+                  cards,
+                  const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.md, Gap.md),
+                ),
               ),
             ],
           );
         },
       ),
-      portrait: (BuildContext context) => list(
-        <Widget>[summary, const SizedBox(height: Gap.md), ...cards],
-        const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md),
-      ),
+      portrait: (BuildContext context) => list(<Widget>[
+        summary,
+        const SizedBox(height: Gap.md),
+        ...cards,
+      ], const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md)),
     );
 
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         toolbarHeight: land ? 48 : null,
         leading: IconButton(
@@ -162,11 +200,12 @@ class HistoryScreen extends StatelessWidget {
 
 /// Где Финни сейчас: очки, стадия, до переезда, цель.
 class _Summary extends StatelessWidget {
-  const _Summary(
-      {required this.now,
-      required this.goal,
-      required this.weeks,
-      required this.catalog});
+  const _Summary({
+    required this.now,
+    required this.goal,
+    required this.weeks,
+    required this.catalog,
+  });
 
   final List<WorldCatalogItem> catalog;
 
@@ -185,12 +224,13 @@ class _Summary extends StatelessWidget {
     return _Panel(
       key: const ValueKey<String>('history:summary'),
       children: <Widget>[
-        PicText('⭐ Очки роста: ${now.growthPoints}',
+        PicText('⭐ Звёзды: ${now.growthPoints}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: Gap.xs),
-        _line('🏠 Финни живёт: ${WeekReviewScreen.stageName(now.stage)}'),
+        _line('🏠 ${context.read<WorldState>().finniName} живёт: '
+            '${WeekReviewScreen.stageName(now.stage)}'),
         _line(WeekReviewScreen.moveLine(now, catalog) ??
-            '🏁 Это последняя стадия.'),
+            '🏁 Дальше переездов нет.'),
         _line(goalLine),
         if (g != null && g.price > 0) ...<Widget>[
           const SizedBox(height: Gap.xs),
@@ -217,6 +257,15 @@ class _WeekCard extends StatelessWidget {
   final WeekPlanFact week;
   final int? pendingBill;
 
+  /// Бонус взрослого в неделе (BG-02): монеты при `adult.weekly_bonus`,
+  /// иначе дополнительная смена.
+  static String _parentLine(BuildContext context) {
+    final int coins = context.read<WorldState>().world.parentBonusCoins;
+    return coins > 0
+        ? '💼 от взрослого: +$coins ${Phrases.coinWord(coins)}'
+        : '💼 от взрослого: дополнительная смена';
+  }
+
   @override
   Widget build(BuildContext context) {
     final WeekPlanFact w = week;
@@ -228,16 +277,31 @@ class _WeekCard extends StatelessWidget {
             ? '🐷 Цель «${w.goalTitle}»: ${w.savedAtEnd} из ${w.goalPrice}'
             : '🐷 Цель «${w.goalTitle}»: накоплено ${w.savedAtEnd}';
     final List<Widget> details = <Widget>[
-      _line(w.shifts.isEmpty
-          ? '💼 Смен не было'
-          : '💼 Смены: ${items(w.shifts, '+')}'),
-      _line(w.purchases.isEmpty
-          ? '🛍 Покупок не было'
-          : '🛍 Покупки: ${items(w.purchases, '')}'),
-      _line(w.events.isEmpty
-          ? '❗ Событий не было'
-          : '❗ События: ${w.events.join(', ')}'),
-      if (w.parentBonus) _line('💼 от взрослого: дополнительная смена'),
+      _line(
+        w.shifts.isEmpty
+            ? '💼 Смен не было'
+            : '💼 Смены: ${items(w.shifts, '+')}',
+      ),
+      _line(
+        w.purchases.isEmpty
+            ? '🛍 Покупок не было'
+            : '🛍 Покупки: ${items(w.purchases, '')}',
+      ),
+      _line(
+        w.events.isEmpty
+            ? '❗ Событий не было'
+            : '❗ События: ${w.events.join(', ')}',
+      ),
+      // Переводы в банке (флаг `bank.transfer`): не покупки и не события,
+      // своей строкой; нет переводов — строки нет, неделя как раньше.
+      for (int i = 0; i < w.transfers.length; i++)
+        Padding(
+          key: ValueKey<String>('history:w${w.weekNo}:transfer:$i'),
+          padding: const EdgeInsets.only(top: Gap.xs),
+          child: Text(w.transfers[i],
+              style: const TextStyle(fontSize: 16, color: WorldColors.text)),
+        ),
+      if (w.parentBonus) _line(_parentLine(context)),
       if (w.goalsReached.isNotEmpty)
         _line('🎉 Цель достигнута: ${w.goalsReached.join(', ')}'),
       _line(goalLine),
@@ -246,12 +310,15 @@ class _WeekCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         PlanFactRows(
-            week: w,
-            keyPrefix: 'history:w${w.weekNo}',
-            pendingBill: pendingBill),
+          week: w,
+          keyPrefix: 'history:w${w.weekNo}',
+          pendingBill: pendingBill,
+        ),
         const SizedBox(height: Gap.xs),
-        PicText('🙂 ${planFactTakeaway(w)}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        PicText(
+          '🙂 ${planFactTakeaway(w)}',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
       ],
     );
     return _Panel(
@@ -260,13 +327,18 @@ class _WeekCard extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(
-              child: Text('Неделя ${w.weekNo}',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w800)),
+              child: Text(
+                'Неделя ${w.weekNo}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            PicText(w.billsPaid ? '✅ итоги' : '⏳ идёт',
-                style:
-                    const TextStyle(fontSize: 16, color: WorldColors.textSoft)),
+            PicText(
+              w.billsPaid ? '✅ итоги' : '⏳ идёт',
+              style: const TextStyle(fontSize: 16, color: WorldColors.textSoft),
+            ),
           ],
         ),
         const SizedBox(height: Gap.xs),
@@ -298,8 +370,10 @@ class _WeekCard extends StatelessWidget {
 
 Widget _line(String text) => Padding(
       padding: const EdgeInsets.only(top: Gap.xs),
-      child: PicText(text,
-          style: const TextStyle(fontSize: 16, color: WorldColors.text)),
+      child: PicText(
+        text,
+        style: const TextStyle(fontSize: 16, color: WorldColors.text),
+      ),
     );
 
 /// Панель на тёмном фоне: текст никогда не лежит на картинке.

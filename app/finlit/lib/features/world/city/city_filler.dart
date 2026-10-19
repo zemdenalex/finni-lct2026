@@ -161,9 +161,10 @@ class CityGroundPainter extends CustomPainter {
   /// B: поле — плато, у нижних кромок виден бок земли (как у острова).
   void _plate(Canvas canvas, CityGround g) {
     const double side = 6;
-    final Offset left = geo.center((0, 4)) - Offset(geo.tileW / 2, 0);
-    final Offset bottom = geo.anchor((4, 4));
-    final Offset right = geo.center((4, 0)) + Offset(geo.tileW / 2, 0);
+    final int n = geo.grid - 1;
+    final Offset left = geo.center((0, n)) - Offset(geo.tileW / 2, 0);
+    final Offset bottom = geo.anchor((n, n));
+    final Offset right = geo.center((n, 0)) + Offset(geo.tileW / 2, 0);
     final Path p = Path()
       ..moveTo(left.dx * k, left.dy * k)
       ..lineTo(bottom.dx * k, bottom.dy * k)

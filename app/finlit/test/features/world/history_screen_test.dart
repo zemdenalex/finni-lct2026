@@ -23,7 +23,7 @@ void main() {
       ok(w.resolveEvent('simulate'));
       ok(w.completeJob('gardener', score: 1));
       ok(w.buy('snack'));
-      ok(w.sleep());
+      ok(sleepWeek(w));
       ok(w.payBills());
       ok(w.startWeek());
       ok(w.plan(needs: 300, wants: 0, goal: 100));
@@ -95,7 +95,7 @@ void main() {
         ok(w.startWeek());
         ok(w.plan(needs: 300, wants: 0, goal: 100));
         ok(w.completeJob('consultant', score: 0.5));
-        ok(w.sleep());
+        ok(sleepWeek(w));
         // Отложено ≥ 10 % — итог говорит, зачем (ревью df2164a §1.7).
         expect(ok(w.payBills()).reason, contains('к цели приходят раньше'));
       }
@@ -104,7 +104,7 @@ void main() {
       expect(w.snapshot.stage, WorldStage.village);
       await pumpWorldScreen(tester, const HistoryScreen(), world: w);
       final String summary = textOf(tester, 'history:summary');
-      expect(summary, contains('Очков хватает — можно переезжать'));
+      expect(summary, contains('Звёзд хватает — можно переезжать'));
       expect(summary, contains('В копилке'));
       expect(summary, isNot(matches(RegExp(r'ещё [−-]'))));
     });

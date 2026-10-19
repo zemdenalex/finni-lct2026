@@ -68,6 +68,9 @@ void main() {
       testWidgets('комната · ${o.key}: $key — Финни идёт, потом действие',
           (WidgetTester tester) async {
         await pump(tester, const RoomScreen(), size: o.value);
+        // Предмет за краем — Финни подвели кнопкой у края; дальше проверка
+        // хода — если он ещё не у предмета.
+        final bool walked = await bringIntoReach(tester, key);
         Offset target() => tester
             .widget<FinniWalker>(
                 find.byKey(const ValueKey<String>('room:finni:spot')))
@@ -76,6 +79,7 @@ void main() {
         await tester.tapAt(pointOn(tester, key));
         await tester.pump(); // кадр, с которого идёт ход
         await tester.pump(const Duration(milliseconds: 150));
+        if (walked && done().evaluate().isNotEmpty) return;
         expect(done(), findsNothing, reason: 'сначала Финни идёт, потом $key');
         expect(target(), isNot(before), reason: 'Финни пошёл к $key');
         await tester.pump(RoomScene.roomWalk);

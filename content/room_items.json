@@ -1,0 +1,88 @@
+{
+  "_note": "Кастомизация комнаты на сетке (каркас 17.10, ветка final/room-customize). Вещи покупаются в магазине (вкладка «Комната», платим из «Хочу», потом из заработка — как прочие вещи) и ставятся в клетки сетки. Экран — за флагом economy.json → room.customize. Копия в сборке: app/finlit/assets/content/world/room_items.json.",
+  "version": 1,
+  "_prices_note": "цены — заглушка, решает back/Денис. Взяты из диапазона декора economy.json → decor (200–750).",
+  "happiness_once": 3,
+  "_happiness_note": "Как у декора (economy.json → decor.happiness_once): +3 настроения за каждую новую вещь, один раз. Давать ли настроение вещам комнаты — решает Денис.",
+  "grid": {
+    "_note": "Сетка поверх фона комнаты: origin — левый верхний угол сетки, cell — сторона клетки; всё в долях стороны квадратного фона (368 px). cell 0,17 — клетка не меньше 48 dp и в альбомной ориентации (640×360: 0,17 × 368 × 0,78 ≈ 49 dp; 0,16 давало 46). cells — карта по рядам сверху вниз: f — пол, w — стена, t — стол или подоконник, «.» — места нет (дверь, окно, нарисованная мебель). Ряды подогнаны под фоны gen-*@3x: низ 2-го ряда — подоконник (0,32), низ 3-го — линия пола (0,49), низ последнего — низ фона (1,0: в альбомной ниже обрезано экраном); новый пустой фон — правится только здесь.",
+    "cols": 5,
+    "rows": 6,
+    "origin": { "x": 0.1, "y": -0.02 },
+    "cell": 0.17,
+    "cells": [
+      ".w..w",
+      "..tt.",
+      "..ww.",
+      ".fff.",
+      ".fff.",
+      ".fff."
+    ]
+  },
+  "_items_note": "id — с префиксом room_ и не совпадают с id декора и реестра арта. sprite — путь к имеющейся картинке (заглушка): новый арт подключается одной строкой. size_cells — сколько клеток занимает вещь (w по ширине, h по высоте), slot_type — floor | wall | table.",
+  "items": [
+    {
+      "id": "room_armchair",
+      "name": "Кресло",
+      "size_cells": { "w": 1, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 600,
+      "sprite": "assets/art/hires/night/room/room_armchair@4x.png",
+      "slot_type": "floor"
+    },
+    {
+      "id": "room_shelf",
+      "name": "Книжный шкаф",
+      "size_cells": { "w": 1, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 700,
+      "sprite": "assets/art/hires/gen/items/room_bookshelf@4x.webp",
+      "slot_type": "floor"
+    },
+    {
+      "id": "room_toybox",
+      "name": "Ящик с игрушками",
+      "size_cells": { "w": 2, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 350,
+      "sprite": "assets/art/hires/night/room/room_toybox@4x.png",
+      "slot_type": "floor"
+    },
+    {
+      "id": "room_clock",
+      "name": "Часы на стену",
+      "size_cells": { "w": 1, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 250,
+      "sprite": "assets/art/hires/night/room/room_clock@4x.png",
+      "slot_type": "wall"
+    },
+    {
+      "id": "room_picture",
+      "name": "Картина с морем",
+      "size_cells": { "w": 2, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 300,
+      "sprite": "assets/art/hires/night/items/poster_sea@4x.png",
+      "slot_type": "wall"
+    },
+    {
+      "id": "room_lamp",
+      "name": "Настольная лампа",
+      "size_cells": { "w": 1, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 300,
+      "sprite": "assets/art/hires/night/items/light_star@4x.png",
+      "slot_type": "table"
+    },
+    {
+      "id": "room_sprout",
+      "name": "Росток в горшке",
+      "size_cells": { "w": 1, "h": 1 },
+      "_note": "цены — заглушка, решает back/Денис",
+      "price": 200,
+      "sprite": "assets/art/hires/night/items/plant_fern@4x.png",
+      "slot_type": "table"
+    }
+  ]
+}

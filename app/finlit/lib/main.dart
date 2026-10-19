@@ -7,11 +7,14 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'app_state.dart';
+import 'core/music.dart';
 import 'core/speaker.dart';
 import 'data/storage.dart';
 import 'data/world_save.dart';
 import 'features/world/jobs/job_games.dart';
 import 'features/world/onboarding/onboarding_script.dart';
+import 'features/world/screen_flags.dart';
+import 'features/world/world_explain.dart';
 import 'features/world/world_state.dart';
 
 Future<void> main() async {
@@ -31,29 +34,48 @@ Future<void> main() async {
   );
   // Содержание мини-игр профессий — из того же прочитанного jobs.json.
   final JobGames jobGames = JobGames.fromData(saved.content.jobData,
-      university: saved.content.university);
+      university: saved.content.university,
+      shiftChoicesUi: saved.content.economy.shiftChoicesUi,
+      dogWalkGame: saved.content.economy.dogWalkGame);
+  // Обучалка первого захода (`day_cycle.tutorial_ui`, C4) и подписи города
+  // (`city.label_scale`, DEN-30) — флаги экранов из файла.
+  applyContentScreenFlags(saved.content.economy);
   // Реплики сценок знакомства (`onboarding.json`) — тоже до первого кадра:
   // первый запуск идёт прямо в знакомство.
   // Битый файл не останавливает запуск — будет знакомство без реплик.
   final OnboardingScript script =
       await OnboardingScript.load(rootBundle.loadString);
+  // Объяснения 7 дней (`explain.json`, флаг `day_cycle.explain_ui`) — тоже
+  // до первого кадра; битый файл — экраны без объяснений.
+  final WorldExplain explain = await WorldExplain.load(rootBundle.loadString,
+      dayCycle: saved.content.economy.dayCycle);
   runApp(
     Provider<JobGames>.value(
       value: jobGames,
       child: Provider<OnboardingScript>.value(
         value: script,
-        child: MultiProvider(
-          providers: <ChangeNotifierProvider<ChangeNotifier>>[
-            ChangeNotifierProvider<AppState>(create: (_) => AppState(storage)),
-            ChangeNotifierProvider<WorldState>(
-              create: (_) => WorldState.persistent(
-                saved.world,
-                freshWorld: saved.freshWorld,
-                onReset: saved.forget,
+        child: Provider<WorldExplain>.value(
+          value: explain,
+          child: MultiProvider(
+            providers: <ChangeNotifierProvider<ChangeNotifier>>[
+              ChangeNotifierProvider<AppState>(
+                  create: (_) => AppState(storage)),
+              ChangeNotifierProvider<WorldState>(
+                create: (_) => WorldState.persistent(
+                  saved.world,
+                  freshWorld: saved.freshWorld,
+                  onReset: saved.forget,
+                ),
               ),
+            ],
+            // Флаг `audio.background_music` (DEN-34): false — плеера нет,
+            // «Музыка» скрыта в настройках и в меню комнаты.
+            child: BackgroundMusic(
+              enabled: saved.content.economy.backgroundMusic,
+              createSink: AudioplayersSink.new,
+              child: const FinniApp(),
             ),
-          ],
-          child: const FinniApp(),
+          ),
         ),
       ),
     ),

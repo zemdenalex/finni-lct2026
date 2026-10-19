@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -147,7 +147,8 @@ void main() {
     expect(laptop.perk, contains('Окупится примерно за $shifts'));
     // Недели — смены по потолку одной работы в неделю (ревью 2b58bdb §3.4).
     final int cap = contentConfig.maxShiftsPerJobPerWeek;
-    expect(laptop.perk, contains('то есть за ${(shifts + cap - 1) ~/ cap} недел'));
+    expect(
+        laptop.perk, contains('то есть за ${(shifts + cap - 1) ~/ cap} недел'));
     expect(laptop.perk, contains('на $gain больше'));
   });
 
@@ -175,5 +176,47 @@ void main() {
         WorldGame(config: c).catalogItem('tech_laptop')!;
     expect(laptop.perk, contains('Только оплатой не окупится'));
     expect(laptop.perk, isNot(contains('Окупится примерно')));
+  });
+
+  // Защищает: срок окупаемости в неделях на мире 7 дней (релиз). Уронит:
+  // деление смен на «нет лимита» (kNoShiftLimit) — любой вещи «за 1 неделю».
+  // Без лимита смен одной работы считаем одну смену в день (не обещать
+  // раньше, чем получится): ⚡ на большее хватает редко.
+  test('7 дней: окупаемость в неделях — по сменам в день, не «за 1 неделю»',
+      () {
+    final WorldConfig c = contentDayConfig;
+    expect(c.dayCycle.enabled, isTrue);
+    expect(c.maxShiftsPerJobPerWeek, greaterThanOrEqualTo(kNoShiftLimit ~/ 2));
+    int base = 0;
+    for (final WorldJob j in c.jobs) {
+      if (j.needs == null && j.pay > base) base = j.pay;
+    }
+    final int perWeek = (c.dayCycle.maxShiftsPerDay ?? 1) * c.daysPerWeek;
+    final WorldGame w = contentDayWorld();
+    for (final (String id, int price, int best) in <(String, int, int)>[
+      (
+        'tech_laptop',
+        c.techs.firstWhere((WorldTech t) => t.id == 'tech_laptop').price,
+        c.job('programmer', 'medium')!.pay
+      ),
+      (
+        'transport_scooter',
+        c.transportPrice,
+        c.jobs
+            .where((WorldJob j) => j.needs == 'transport')
+            .map((WorldJob j) => j.pay)
+            .reduce((int a, int b) => a > b ? a : b)
+      ),
+    ]) {
+      final String perk = w.catalogItem(id)!.perk!;
+      final int gain = best - base;
+      final int shifts = (price + gain - 1) ~/ gain;
+      final int weeks = (shifts + perWeek - 1) ~/ perWeek;
+      expect(shifts, greaterThan(perWeek), reason: '$id: проверка без смысла');
+      expect(perk, contains('Окупится примерно за $shifts '), reason: id);
+      expect(perk, contains('то есть за $weeks недел'), reason: '$id: $perk');
+      expect(perk, isNot(contains('то есть за 1 неделю')),
+          reason: '$id: $perk');
+    }
   });
 }

@@ -1,6 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:finlit/core/theme.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/features/world/jobs/board/job_offer_card.dart';
 import 'package:finlit/features/world/jobs/job_board_screen.dart';
 import 'package:finlit/features/world/pic_text.dart';
@@ -88,17 +90,21 @@ void main() {
         final String k = offerKey(o);
         expect(find.byKey(ValueKey<String>('jobs:card:$k')), findsOneWidget,
             reason: k);
-        expect(
-            tester
-                .widget<Text>(find.byKey(ValueKey<String>('jobs:pay:$k')))
-                .data,
-            'Заплатят ${o.pay}',
+        // DEN-9 B: «После смены» — монеты и силы «было → станет».
+        String after(String key) => tester
+            .widget<Text>(find.descendant(
+                of: find.byKey(ValueKey<String>(key)),
+                matching: find.byKey(const ValueKey<String>('jobs:change:to'))))
+            .data!;
+        final ResourceSnapshot s = w.snapshot;
+        expect(after('jobs:pay:$k'), '${s.available + o.pay}', reason: k);
+        expect(after('jobs:energy:$k'),
+            energyShown(math.max(0, s.energy - o.energyCost)),
             reason: k);
-        expect(textOf(tester, 'jobs:energy:$k'),
-            'энергия ${energyShown(o.energyCost)}',
-            reason: k);
-        expect(textOf(tester, 'jobs:exp:$k'), 'опыт +${o.experiencePercent} %',
-            reason: k);
+        // Опыт без процентов (Денис 19.10): словами и монетами мира.
+        final String xp =
+            experiencePayText(pay: o.pay, coins: o.experienceCoins);
+        expect(textOf(tester, 'jobs:exp:$k'), xp, reason: k);
         final String good = textOf(tester, 'jobs:bonus:$k');
         expect(good, contains('до +${o.efficiencyBonusMax}'), reason: k);
         expect(good, contains('⚡ ${energyShown(o.goodEnergyExtra)}'),
@@ -108,6 +114,38 @@ void main() {
         expect(
             textOf(tester, 'jobs:left:$k'), 'смен на неделе: ${o.shiftsLeft}',
             reason: k);
+        // Проход демо 16.10: TalkBack читал «ещё 2 смен». Число и слово
+        // согласованы: 1 смену · 2 смены · 5 смен.
+        final String word = switch (o.shiftsLeft % 10) {
+          1 when o.shiftsLeft % 100 != 11 => 'смену',
+          2 ||
+          3 ||
+          4 when o.shiftsLeft % 100 < 12 || o.shiftsLeft % 100 > 14 =>
+            'смены',
+          _ => 'смен',
+        };
+        expect(
+            find.bySemanticsLabel(
+                RegExp('Можно взять ещё ${o.shiftsLeft} $word на этой неделе')),
+            findsWidgets,
+            reason: k);
+        // BG-05 = D27 (баг-прогон 18.10): TalkBack читал «Заплатят 141
+        // монет», «Прибавка за опыт: 1 процентов». «Заплатят» — винительный:
+        // «141 монетку».
+        String pick(int n, String one, String few, String many) =>
+            n % 100 >= 11 && n % 100 <= 14
+                ? many
+                : n % 10 == 1
+                    ? one
+                    : n % 10 >= 2 && n % 10 <= 4
+                        ? few
+                        : many;
+        expect(
+            find.bySemanticsLabel(RegExp('^Заплатят ${o.pay} '
+                '${pick(o.pay, 'монетку', 'монетки', 'монеток')}[.]')),
+            findsWidgets,
+            reason: k);
+        expect(find.bySemanticsLabel(xp), findsWidgets, reason: k);
       }
       expect(energyCostText(2.9), '2,9');
       expect(energyCostText(3), '3');
@@ -274,6 +312,46 @@ void main() {
       expect(tester.getSize(take).height, greaterThanOrEqualTo(48));
     });
   });
+
+  // BG-05 = D27: число на 1 (141) — «Заплатят 141 монетку» (винительный).
+  // Опыт вслух — без процентов, монетами (Денис 19.10): «+21 монета».
+  // Доска мира в тестах таких чисел не даёт — карточка с ними.
+  testWidgets('озвучка карточки: 141 монетку, опыт +21 монета',
+      (WidgetTester tester) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    const JobOffer o = JobOffer(
+      jobId: 'consultant',
+      title: 'Продавец-консультант',
+      basePay: 140,
+      experiencePercent: 18,
+      experienceCoins: 21,
+      stageStep: 1,
+      pay: 141,
+      efficiencyBonusMax: 30,
+      energyCost: 6,
+      shiftsLeft: 1,
+      goodScoreMin: 0.7,
+      goodEnergyExtra: 1,
+      goodHappiness: -1,
+    );
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAppTheme(),
+      home: Scaffold(
+          body: SingleChildScrollView(
+              child: JobOfferCard(
+                  offer: o, onTake: () {}, coins: 760, energy: 8))),
+    ));
+    expect(
+        find.bySemanticsLabel(
+            'Заплатят 141 монетку. Монет было 760, станет 901'),
+        findsOneWidget);
+    expect(
+        find.bySemanticsLabel(
+            'за опыт оплата больше примерно на пятую часть (+21 монета)'),
+        findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('процент|%')), findsNothing);
+    h.dispose();
+  });
 }
 
 /// Мир с подменённой доской: ступень ×1,25 и отказ «мало ⚡» у кассира —
@@ -292,6 +370,7 @@ class _BoardWorld extends FakeWorld {
               title: o.title,
               basePay: o.basePay,
               experiencePercent: o.experiencePercent,
+              experienceCoins: o.experienceCoins,
               stageStep: o.jobId == 'cashier' ? 1.25 : 1,
               pay: o.pay,
               efficiencyBonusMax: o.efficiencyBonusMax,

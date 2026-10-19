@@ -46,6 +46,12 @@ void main() {
         reason: 'вывод — сразу под «чеком»',
       );
       expect(takeaway.bottom, lessThanOrEqualTo(newWeek.top));
+      // Список обрезается у своего нижнего края (над полем кнопки), а не у
+      // кнопки: вывод должен быть целиком внутри видимой части списка.
+      final Rect list =
+          tester.getRect(find.byKey(const ValueKey<String>('review:list')));
+      expect(takeaway.bottom, lessThanOrEqualTo(list.bottom),
+          reason: 'вывод $takeaway, список $list');
       expect(tester.takeException(), isNull);
     });
   }

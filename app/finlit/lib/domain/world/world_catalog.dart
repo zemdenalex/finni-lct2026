@@ -17,9 +17,9 @@ List<WorldCatalogItem> catalogFromConfig(
   final List<WorldJob> transportJobs =
       c.jobs.where((WorldJob j) => j.needs == 'transport').toList();
   final String transportPerk = transportJobs.isEmpty
-      ? 'Смены на ⚡ легче'
+      ? 'Смены тратят меньше сил'
       : 'Открывает работу «${_baseTitle(transportJobs.first.title)}», '
-          'смены на ⚡ легче. ${_payback(c, c.transportPrice, transportJobs)}';
+          'смены тратят меньше сил. ${_payback(c, c.transportPrice, transportJobs)}';
 
   return <WorldCatalogItem>[
     for (final WorldPet p in c.pets)
@@ -136,8 +136,8 @@ String? _movePerk(WorldConfig c, WorldHome h) {
       s.index < c.stageMinPoints.length ? c.stageMinPoints[s.index] : 0;
   final String pay =
       step == 1 ? '' : ', оплата смен ×${step.toString().replaceAll('.', ',')}';
-  return 'Переезд ${place[s]}: аренда, залог и первая неделя — ${h.price}$pay. '
-      'Откроется при $points очках роста';
+  return 'Переезд ${place[s]}: переезд и первая неделя — ${h.price}$pay. '
+      'Откроется, когда звёзд будет $points';
 }
 
 /// Что открывает техника — из замков работ конфига, которые исполняет мир:
@@ -183,7 +183,16 @@ String _payback(WorldConfig c, int price, List<WorldJob> opened) {
   final int shifts = (price + gain - 1) ~/ gain;
   // В неделях — чтобы срок был виден на шкале игры: одну работу берут не
   // чаще `max_shifts_per_job_per_week` раз в неделю (ревью 2b58bdb §3.4).
-  final int cap = math.max(1, c.maxShiftsPerJobPerWeek);
+  // Режим дней: лимита смен может не быть (kNoShiftLimit) — тогда срок
+  // вырождался в «за 1 неделю». Берём меньшее из лимитов и смен в день ×
+  // дни; без лимита в день — одна смена в день (не обещать раньше, чем
+  // получится: ⚡ на большее хватает редко).
+  final int cap = c.dayCycle.enabled
+      ? math.max(
+          1,
+          math.min(math.min(c.maxShiftsPerJobPerWeek, c.maxShiftsPerWeek),
+              (c.dayCycle.maxShiftsPerDay ?? 1) * c.daysPerWeek))
+      : math.max(1, c.maxShiftsPerJobPerWeek);
   final int weeks = (shifts + cap - 1) ~/ cap;
   // Словами, не «≈»: в Onest нет U+2248 (font_glyphs_test).
   return 'Окупится примерно за $shifts ${_shiftWord(shifts)}, то есть '
@@ -222,7 +231,7 @@ String? _petPerk(WorldConfig c, String petId) {
     }
     final int pct = ((pay.mult - 1) * 100).round();
     out.add('${job == null ? pay.jobId : _baseTitle(job.title)}: '
-        'оплата +$pct %');
+        'оплата больше на ${shareWords(pct).acc}');
   }
   if (c.sleepHappinessPerks.containsKey(petId)) {
     out.add('ранний сон радует больше');

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../domain/world/contract.dart';
+import '../day_end.dart';
 import '../home/world_hud.dart';
 import '../world_help.dart';
 import '../shop/shop_kit.dart' show catalogOf, isPhaseBlock, requirementMet;
@@ -12,6 +13,7 @@ import '../world_routes.dart';
 import '../world_state.dart';
 import '../../../core/world_theme.dart';
 import '../pic_text.dart';
+import '../world_dock.dart';
 
 /// S8 · Парк / Кино и кафе (`docs/game/leisure.md`).
 ///
@@ -62,6 +64,12 @@ class _LeisureScreenState extends State<LeisureScreen> {
   WorldResult? _result;
   String? _resultKind;
 
+  /// День и силы до отдыха: если отдых закончил день (силы ниже самого
+  /// дешёвого дела), внизу — строка «Уже утро» ([DayEndStrip]), как на
+  /// итоге смены (путь ребёнка rc-7d, D2 и k43).
+  int? _dayBefore;
+  double _energyBefore = 0;
+
   String? get _place {
     if (widget.place != null) return widget.place;
     final Object? a = ModalRoute.of(context)?.settings.arguments;
@@ -81,27 +89,30 @@ class _LeisureScreenState extends State<LeisureScreen> {
     showHelp(
         context,
         'Что здесь?',
-        'Здесь Финни отдыхает. Отдых тратит силы, но поднимает '
-            'настроение.\n\n'
-            '💰 — сколько монет стоит. Платим из ХОЧУ, потом из заработка. '
-            'Парк — бесплатно.\n'
-            '⚡ — сколько сил уйдёт, вместе с «на жизнь». С плохим '
-            'настроением сил уходит больше — на карточке уже с этим.\n'
-            '😊 — насколько станет веселее. Если за неделю отдыхать много, '
-            'радость бывает меньше — точно покажем после выбора.');
+        'Здесь Финни отдыхает: отдых тратит силы, но поднимает '
+            'настроение. Платим из «Хочу», потом из заработка, а парк — '
+            'бесплатно. Если отдыхать очень много, радости становится меньше.');
   }
 
   void _go(String kind) {
-    final WorldResult r =
-        context.read<WorldState>().act((World w) => w.leisure(kind));
+    final WorldState ws = context.read<WorldState>();
+    final int dayBefore = ws.snapshot.dayInWeek;
+    final double energyBefore = ws.snapshot.energy;
+    final WorldResult r = ws.act((World w) => w.leisure(kind));
     setState(() {
       _result = r;
       _resultKind = kind;
+      _dayBefore = dayBefore;
+      _energyBefore = energyBefore;
     });
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      WithDock(current: DockSection.city, child: _screen(context));
+
+  /// Экран без нижнего меню ([WithDock] — снаружи).
+  Widget _screen(BuildContext context) {
     final WorldState ws = context.watch<WorldState>();
     // Каталог живой: ⚡ досуга зависит от 😊 — читаем при каждой перерисовке.
     final World w = ws.world;
@@ -135,10 +146,18 @@ class _LeisureScreenState extends State<LeisureScreen> {
     };
 
     final bool land = WorldLayout.isLandscape(context);
+    final ({String short, String full})? night = dayEndText(
+        result: _result,
+        dayBefore: _dayBefore,
+        energyBefore: _energyBefore,
+        now: snap);
     final Widget? result = _result == null
         ? null
         : _ResultCard(
-            result: _result!, title: w.catalogItem(_resultKind!)?.title ?? '');
+            result: _result!,
+            reason: night?.full,
+            title: w.catalogItem(_resultKind!)?.title ?? '');
+    const TextStyle body = TextStyle(fontSize: 16, color: WorldColors.text);
     final Widget? bannerNote = banner == null
         ? null
         : _Note(
@@ -169,7 +188,6 @@ class _LeisureScreenState extends State<LeisureScreen> {
         );
 
     return Scaffold(
-      backgroundColor: WorldColors.night,
       appBar: AppBar(
         // Альбомная — основная: низкая шапка, высота нужна карточкам.
         toolbarHeight: land ? 48 : null,
@@ -232,6 +250,13 @@ class _LeisureScreenState extends State<LeisureScreen> {
                       ),
                     ),
             ),
+            // «Уже утро» — под прокруткой, всегда на экране; в альбомной во
+            // всю ширину: в колонке итога (184 dp) строка рвалась на три.
+            if (night != null)
+              DayEndStrip(
+                  key: const ValueKey<String>('leisure:night'),
+                  text: night.short,
+                  style: body),
           ],
         ),
       ),
@@ -386,7 +411,7 @@ class _OptionCard extends StatelessWidget {
       padding: EdgeInsets.all(compact ? Gap.sm : Gap.sm + Gap.xs),
       decoration: BoxDecoration(
         color: WorldColors.panel,
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         border: Border.all(color: WorldColors.line),
       ),
       child: Column(
@@ -461,10 +486,13 @@ class _OptionCard extends StatelessWidget {
 
 /// Итог выбора: что изменилось и почему — числа мира, не превью.
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.result, required this.title});
+  const _ResultCard({required this.result, required this.title, this.reason});
 
   final WorldResult result;
   final String title;
+
+  /// Текст итога вместо [WorldResult.reason] (отдых закончил день).
+  final String? reason;
 
   static String _signed(num v, String Function(num) f) =>
       v > 0 ? '+${f(v)}' : (v < 0 ? '−${f(-v)}' : '0');
@@ -477,7 +505,7 @@ class _ResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(Gap.sm + Gap.xs),
       decoration: BoxDecoration(
         color: r.ok ? WorldColors.needsBg : WorldColors.wantsBg,
-        borderRadius: BorderRadius.circular(Radii.chip),
+        borderRadius: BorderRadius.circular(WorldRadii.button),
         border: Border.all(color: r.ok ? WorldColors.needs : WorldColors.wants),
       ),
       child: Column(
@@ -496,7 +524,7 @@ class _ResultCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.xs),
-          Text(r.reason,
+          PicText(reason ?? r.reason,
               key: const ValueKey<String>('leisure:reason'),
               style: const TextStyle(fontSize: 16)),
           if (r.ok) ...<Widget>[
@@ -532,7 +560,7 @@ class _Note extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.sm + Gap.xs),
         decoration: BoxDecoration(
           color: WorldColors.goalBg,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.goal),
         ),
         child: Row(

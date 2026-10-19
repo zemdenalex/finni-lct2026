@@ -2,13 +2,17 @@ import 'contract.dart';
 
 /// Примерный срок до цели по среднему пополнению копилки (ТЗ 2.5.7.4).
 ///
-/// Правило — `docs/spec-igry.md` («Срок до цели», приёмка 2.5.7.4):
-/// **остаток / средний взнос за последние 3 недели с взносом, включая
-/// ползунок; до первого взноса — объяснение вместо срока.**
+/// Правило (решение владельца 17.10, вариант A; `docs/sdacha/06-formuly.md`
+/// §5.1): **остаток / средний взнос за последние 3 законченные недели с
+/// взносом, включая ползунок; до первой такой недели — объяснение вместо
+/// срока.**
 ///
 /// - Неделя «с взносом» — та, где чистое отложенное [WeekPlanFact.goal].actual
-///   (взносы в ЦЕЛЬ по плану и ползунком минус снятое) больше нуля. Идущая
-///   неделя считается тоже: ребёнок только что отложил — срок уже виден.
+///   (взносы в ЦЕЛЬ по плану и ползунком минус снятое) больше нуля.
+/// - Неделя «законченная» — итоги подведены ([WeekPlanFact.billsPaid]; запись
+///   `periodClosed`, в режиме дней — после сна последнего дня). Идущая неделя
+///   в среднее не входит: в ней ещё копят ползунком, и один взнос по плану
+///   выдал бы срок как будто это вся неделя.
 /// - Недели без взноса или со снятием в среднее не входят: срок показывает
 ///   темп, когда ребёнок копит, а не штрафует за пропуск.
 /// - Недели = ⌈осталось ÷ среднее⌉ целочисленно:
@@ -34,19 +38,28 @@ class GoalEta {
 enum GoalEtaGap {
   /// Ни одной недели с взносом в копилку.
   noDeposit,
+
+  /// Взнос есть, но только в идущей неделе: ни одна неделя с взносом ещё не
+  /// закончилась, среднего пополнения пока нет.
+  weekNotOver,
 }
 
-/// Сколько последних недель с взносом усредняется.
+/// Сколько последних законченных недель с взносом усредняется.
 const int goalEtaWindow = 3;
 
 /// Срок до цели: [remaining] — сколько ещё не хватает (цена − копилка).
 /// При [remaining] ≤ 0 — null: цель уже можно купить, срок не нужен.
 GoalEta? goalEta(List<WeekPlanFact> history, int remaining) {
   if (remaining <= 0) return null;
-  final List<WeekPlanFact> withDeposit =
-      history.where((WeekPlanFact w) => w.goal.actual > 0).toList();
+  final List<WeekPlanFact> withDeposit = history
+      .where((WeekPlanFact w) => w.billsPaid && w.goal.actual > 0)
+      .toList();
   if (withDeposit.isEmpty) {
-    return const GoalEta._(reason: GoalEtaGap.noDeposit);
+    final bool depositThisWeek =
+        history.any((WeekPlanFact w) => !w.billsPaid && w.goal.actual > 0);
+    return GoalEta._(
+        reason:
+            depositThisWeek ? GoalEtaGap.weekNotOver : GoalEtaGap.noDeposit);
   }
   final List<WeekPlanFact> last = withDeposit.length <= goalEtaWindow
       ? withDeposit

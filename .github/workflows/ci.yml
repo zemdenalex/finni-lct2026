@@ -144,7 +144,12 @@ jobs:
           "$APKSIGNER" verify --print-certs -v build/app/outputs/flutter-apk/app-release.apk \
             | grep -E "Verified using|certificate DN|key size"
 
-      - uses: actions/upload-artifact@v4
+      # Artifact storage quota was hit on 17.10.2026 (every final/* branch uploaded
+      # ~170 MB for 14 days). Upload only for the release candidate branch and
+      # tags; every other branch still builds and verifies the signature, it just
+      # does not keep the files. The jury's build is made locally anyway.
+      - if: github.ref_name == 'trial/rc-7d' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
         with:
           # The name is the warning. These are release-mode builds signed with
           # the Android debug key: fine for smoke-testing a branch on a phone,
@@ -154,4 +159,5 @@ jobs:
             ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
             ${{ env.APP_DIR }}/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
+          compression-level: 9

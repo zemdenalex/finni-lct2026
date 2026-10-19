@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:finlit/data/onboarding_store.dart';
 import 'package:finlit/data/storage.dart';
 import 'package:finlit/data/world_content.dart';
-import 'package:finlit/data/world_game_loader.dart';
+import 'support/world_game_loader.dart';
 import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/domain/world/world_game.dart';
 import 'package:flutter_test/flutter_test.dart';

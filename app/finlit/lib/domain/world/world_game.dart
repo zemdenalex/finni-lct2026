@@ -5,6 +5,7 @@ import '../phrases.dart';
 import 'contract.dart';
 import 'lesson_rules.dart';
 import 'onboarding_keeper.dart';
+import 'skin_id.dart';
 import 'week_bills.dart';
 import 'week_history.dart';
 import 'world_catalog.dart';
@@ -136,8 +137,32 @@ class WorldGame implements World {
     );
     _journal.add(e);
     _state.apply(e);
+    if (kind != WorldLedgerKind.achievementEarned) _awardAchievements();
     onJournalChanged?.call();
   }
+
+  /// Награды (D3): цель достигнута, записи ещё нет — пишем одну. Повторно не
+  /// пишется: полученные берутся из журнала.
+  void _awardAchievements() {
+    for (final AchievementDef d in config.achievements) {
+      if (_state.achievementsEarned.containsKey(d.id)) continue;
+      if (_state.achievementProgress(d.metric) < d.target) continue;
+      final AchievementEffect? fx = d.effect;
+      _write(WorldLedgerKind.achievementEarned, 'achievement.earned',
+          // DEN-32: временный бафф радует сразу.
+          happiness: fx is MoodBuff ? _happinessDelta(fx.happiness) : 0,
+          args: <String, Object?>{
+            'id': d.id,
+            'title': d.title,
+            // День получения (экран наград: «день N недели M»); в режиме
+            // «неделя» дней нет — поля нет.
+            if (config.dayCycle.enabled) 'day': _state.dayInWeek,
+          });
+    }
+  }
+
+  /// Предел ⚡ сейчас: из конфига плюс постоянные баффы наград (DEN-32).
+  double get energyMaxNow => config.energyMax + _state.energyMaxBonus;
 
   /// Изменение 😊, которое реально случится с учётом границ 0–100.
   int _happinessDelta(int raw) =>
@@ -150,9 +175,220 @@ class WorldGame implements World {
   /// ребёнка, даже если событие пишет несколько записей. На нуле 😊 — ничего.
   void _dayPassed() {
     final int dh = _happinessDelta(-config.happinessDayDrain);
-    if (dh == 0) return;
+    final DayCycle dc = config.dayCycle;
+    if (dh == 0 && !dc.enabled) return;
     _write(WorldLedgerKind.dayPassed, 'day.passed',
-        happiness: dh, args: <String, Object?>{'day': _state.day + 1});
+        happiness: dh,
+        args: <String, Object?>{
+          'day': _state.day + 1,
+          if (dc.enabled) 'satiety': _satietyDelta(-dc.satietyPerAction),
+        });
+  }
+
+  /// Перемена сытости, которая реально случится в границах 0–100.
+  int _satietyDelta(int raw) =>
+      (_state.satiety + raw).clamp(0, 100) - _state.satiety;
+
+  /// Утро дня по энергии: ночь тратит сытость, сон даёт ⚡ «до уровня» плюс
+  /// перенос остатка не больше `carryMax`, сытость добавляет ⚡, голод отнимает
+  /// ⚡ и 😊. [home] — бонус жилья (только в первое утро недели).
+  ({double energy, int happiness, int satiety, bool hungry}) _morning(
+      {double home = 0, bool night = true, int pre = 0}) {
+    final DayCycle dc = config.dayCycle;
+    // [pre] — сытость вечера до ночи (домашний ужин), в границах 0–100.
+    final int evening = (_state.satiety + pre).clamp(0, 100);
+    final int after =
+        night ? (evening - dc.satietyNight).clamp(0, 100) : evening;
+    final int sat = after - _state.satiety;
+    final SleepRule? rule = dc.sleepRule;
+    // Сон по таблице (DEN-26) — от ⚡ до сна; иначе «до уровня» + перенос.
+    // Сытость, голод и бонус жилья — поверх сна в обоих случаях.
+    double e = rule != null
+        ? rule.after(math.max(0.0, _state.energy),
+                capBonus: _state.energyMaxBonus) +
+            home
+        : dc.sleepLevel +
+            math.min(math.max(0.0, _state.energy), dc.carryMax) +
+            home;
+    int dh = 0;
+    final bool hungry = after < dc.hungryAt;
+    if (after >= dc.fullAt) e += dc.fullBonus;
+    if (hungry) {
+      e -= dc.hungryMalus;
+      dh = _happinessDelta(dc.hungryHappiness);
+    }
+    e = roundEnergy(math.max(0.0, math.min(energyMaxNow, e)));
+    // Настроение не копится (DEN-18): за ночь — часть пути к нейтральному.
+    if (dc.moodRevert > 0) {
+      final int h = _state.happiness + dh;
+      final int back = ((config.happinessNeutral - h) * dc.moodRevert).round();
+      dh = _happinessDelta(dh + back);
+    }
+    // DEN-32: временные баффы наград — после ночного возврата, чтобы он их
+    // не съел.
+    final int buff = _state.moodBuffMorning;
+    if (buff != 0) dh = _happinessDelta(dh + buff);
+    return (energy: e, happiness: dh, satiety: sat, hungry: hungry);
+  }
+
+  /// Почему сейчас нельзя закупить [count] порций [foodId] в холодильник —
+  /// общее у [stockFridge] и [canDo].
+  BlockReason? _fridgeBlock(String foodId, int count) {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || !dc.dailyActivities) return _activitiesOffBlock;
+    if (_state.phase != WeekPhase.living) return _phaseBlock('eat');
+    final WorldFood? f = config.food(foodId);
+    if (f == null || count <= 0) {
+      return const BlockReason('food.unknown', 'Такой еды нет.');
+    }
+    final int price = f.price * count;
+    if (_state.pockets < price) {
+      return BlockReason(
+          'fridge.short', 'Не хватает ${price - _state.pockets}.');
+    }
+    final double cost = roundEnergy(dc.shopEnergy);
+    if (_state.energy + _eps < cost) {
+      return BlockReason('fridge.energy', energyShortText(cost, _state.energy));
+    }
+    return null;
+  }
+
+  /// Почему сейчас нельзя «отдохнуть дома» — общее у [restAtHome] и [canDo].
+  BlockReason? _restBlock() {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || !dc.dailyActivities) return _activitiesOffBlock;
+    if (_state.phase != WeekPhase.living) return _phaseBlock('leisure');
+    final double cost = roundEnergy(dc.restEnergy);
+    if (_state.energy + _eps < cost) {
+      return BlockReason('rest.energy', energyShortText(cost, _state.energy));
+    }
+    return null;
+  }
+
+  static const BlockReason _activitiesOffBlock =
+      BlockReason('feature.off', 'Скоро: это дело ещё не открыто.');
+
+  @override
+  WorldResult stockFridge(String foodId, int count) {
+    final BlockReason? block = _fridgeBlock(foodId, count);
+    if (block != null) return block.refusal;
+    final DayCycle dc = config.dayCycle;
+    final WorldFood f = config.food(foodId)!;
+    final int price = f.price * count;
+    final double cost = roundEnergy(dc.shopEnergy);
+    _dayPassed();
+    int left = price;
+    final int fromNeed = math.min(_state.need, left);
+    left -= fromNeed;
+    final int fromFree = math.min(_state.free, left);
+    left -= fromFree;
+    _write(WorldLedgerKind.fridgeStocked, 'fridge.stocked',
+        need: -fromNeed,
+        free: -fromFree,
+        want: -left,
+        energy: -cost,
+        args: <String, Object?>{
+          'foodId': f.id,
+          'count': count,
+          'price': price,
+        });
+    final String tail = _afterEnergySpent();
+    return WorldResult(
+      ok: true,
+      reasonCode: 'fridge.stocked',
+      reason: '${f.title} × $count в холодильнике: $_hero будет есть сам по '
+          'утрам.$tail',
+      coins: -price,
+      energy: -cost,
+    );
+  }
+
+  @override
+  WorldResult restAtHome() {
+    final BlockReason? block = _restBlock();
+    if (block != null) return block.refusal;
+    final DayCycle dc = config.dayCycle;
+    final double cost = roundEnergy(dc.restEnergy);
+    _dayPassed();
+    final int dh = _happinessDelta(dc.restHappiness);
+    _write(WorldLedgerKind.restAtHome, 'rest.done',
+        energy: -cost, happiness: dh);
+    final String tail = _afterEnergySpent();
+    return WorldResult(
+      ok: true,
+      reasonCode: 'rest.done',
+      reason: 'Отдых дома удался — настроение лучше.$tail',
+      energy: -cost,
+      happiness: dh,
+    );
+  }
+
+  /// Утро с холодильником: Финни ест сам, если сегодня ещё можно и есть что.
+  void _breakfastFromFridge() {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.dailyActivities || _state.fridge.isEmpty) return;
+    if (_state.mealsLeft == 0 || _state.mealsToday >= _state.mealsPerDay) {
+      return;
+    }
+    final WorldFood? f = config.food(_state.fridge.keys.first);
+    if (f == null) return;
+    final double gain = roundEnergy(math.max(0.0,
+        math.min(energyMaxNow, _state.energy + f.energyNow) - _state.energy));
+    _write(WorldLedgerKind.mealEaten, 'meal.fridge',
+        energy: gain,
+        happiness: _happinessDelta(f.happiness),
+        args: <String, Object?>{
+          'foodId': f.id,
+          'price': 0,
+          'energyNow': f.energyNow,
+          'fromFridge': true,
+          'satiety': _satietyDelta(
+              dc.mealBase + (dc.mealPerEnergy * f.energyNow).round()),
+        });
+  }
+
+  /// Домашний ужин: день прошёл без своей еды, а приёмы недели ещё есть —
+  /// Финни ест меню недели дома ([DayCycle.homeMealDaily]). Сытость, не монеты.
+  int _homeMealSatiety() {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || !dc.homeMealDaily) return 0;
+    if (_state.mealsToday > 0 || _state.mealsLeft == 0) return 0;
+    final WorldFood? f = config.food(_state.foodId);
+    if (f == null) return 0;
+    return ((dc.mealBase + (dc.mealPerEnergy * f.energyNow).round()) *
+            dc.homeMealShare)
+        .round();
+  }
+
+  /// День кончился, неделя идёт: новое утро той же недели.
+  WorldResult _endDay(String code) {
+    final int next = _state.dayInWeek + 1;
+    final int homeMeal = _homeMealSatiety();
+    final ({double energy, int happiness, int satiety, bool hungry}) m =
+        _morning(pre: homeMeal);
+    final double de = roundEnergy(m.energy - _state.energy);
+    _write(WorldLedgerKind.dayEnded, code,
+        energy: de,
+        happiness: m.happiness,
+        args: <String, Object?>{
+          'dayInWeek': next,
+          'satiety': m.satiety,
+          if (homeMeal > 0) 'homeMeal': true,
+          'morningEnergy': m.energy,
+        });
+    _breakfastFromFridge();
+    // DEN-23: событие — до одного в день, каждое утро (если есть подходящее).
+    if (config.dayCycle.eventEachMorning) _maybeShowEvent(weekOpening: true);
+    final String hungry =
+        m.hungry ? ' От голода сил меньше — еда поможет.' : '';
+    return WorldResult(
+      ok: true,
+      reasonCode: 'day.next',
+      reason: 'Наступило утро — день $next из ${config.daysPerWeek}. '
+          'Силы после сна: ${energyShown(m.energy)}.$hungry',
+      energy: de,
+      happiness: m.happiness,
+    );
   }
 
   // ─────────────────────────────── чтение ───────────────────────────────
@@ -174,25 +410,41 @@ class WorldGame implements World {
   @override
   WeekPhase get phase => _state.phase;
 
-  /// Множитель цены в ⚡ — по 😊 на начало недели (P7).
+  /// 😊, от которого считаются оплата и ⚡ смены: начало недели (P7) или,
+  /// при `day_cycle.mood_pay_daily` в режиме дней, утро этого дня (C6, A).
+  int get _payMood => config.dayCycle.enabled && config.dayCycle.moodPayDaily
+      ? _state.happinessAtDayStart
+      : _state.happinessAtWeekStart;
+
+  /// Множитель цены в ⚡ — по 😊 на начало недели (P7) или утра дня (C6).
   double get _energyMult {
     final double m = 1 -
-        config.energyCostMultPerPoint *
-            (_state.happinessAtWeekStart - config.happinessNeutral);
+        config.energyCostMultPerPoint * (_payMood - config.happinessNeutral);
     return m.clamp(config.energyCostMultMin, config.energyCostMultMax);
   }
 
-  /// Множитель оплаты — по 😊 на начало недели (P7).
+  /// Оплата и ⚡ смены — от настроения на момент смены (DEN-36 A).
+  bool get _moodLive => config.dayCycle.enabled && config.dayCycle.moodPayLive;
+
+  /// Множитель оплаты — по 😊 сейчас (DEN-36 A), утра дня (C6) или начала
+  /// недели (P7).
   double get _payMult {
-    final double m = 1 +
-        config.payMultPerPoint *
-            (_state.happinessAtWeekStart - config.happinessNeutral);
+    if (_moodLive) {
+      return config.dayCycle.moodLive
+          .payMult(_state.happiness, config.happinessNeutral);
+    }
+    final double m =
+        1 + config.payMultPerPoint * (_payMood - config.happinessNeutral);
     return m.clamp(config.payMultMin, config.payMultMax);
   }
 
   /// Цена работы в ⚡ целиком: база × настроение − транспорт + «на жизнь».
   double _jobEnergy(WorldJob job) {
-    double cost = job.energy * _energyMult;
+    final MoodLive live = config.dayCycle.moodLive;
+    double cost = _moodLive
+        ? math.max(
+            live.minJobEnergy, job.energy + live.energyDelta(_state.happiness))
+        : job.energy * _energyMult;
     if (_state.hasTransport) {
       cost = math.max(
           config.transportMinJobEnergy, cost - config.transportDiscount);
@@ -232,11 +484,22 @@ class WorldGame implements World {
   }
 
   JobOffer _offerFor(WorldJob job) {
-    final double growth =
-        math.pow(config.experienceGrowth, _state.experience).toDouble();
+    final bool days = config.dayCycle.enabled;
+    final double growth = experiencePayMult(
+        base: config.experienceGrowth,
+        experience: _state.experience,
+        daysPerWeek: config.daysPerWeek);
     final double step = _state.stageStep;
-    final int pay =
-        roundTens(job.pay * growth * step * _payMult * _payPerk(job.id));
+    final double perk = _payPerk(job.id);
+    final double neutral = job.pay * growth * step * perk;
+    // Дни: вверх до монеты (DEN-21 A); неделя — до десятка, как сдано.
+    final int pay = shiftPayCoins(
+        basePay: job.pay,
+        growth: growth,
+        step: step,
+        perk: perk,
+        moodMult: _payMult,
+        days: days);
     final int left = math.max(
         0,
         math.min(
@@ -251,7 +514,16 @@ class WorldGame implements World {
       variant: job.variant,
       title: job.title,
       basePay: job.pay,
-      experiencePercent: ((growth - 1) * 100).round(),
+      experiencePercent: days
+          ? ((growth - 1) * 100 - 1e-9).ceil()
+          : ((growth - 1) * 100).round(),
+      experienceCoins: experienceBonusCoins(
+          basePay: job.pay,
+          growth: growth,
+          step: step,
+          perk: perk,
+          moodMult: _payMult,
+          days: days),
       stageStep: step,
       pay: pay,
       efficiencyBonusMax: roundTens(pay * config.efficiencyShare),
@@ -262,6 +534,14 @@ class WorldGame implements World {
       goodHappiness: config.goodShiftHappiness,
       lockedReason: locked,
       blockReason: _jobBlock(locked, left, energyCost),
+      choice: _shiftChoice(job),
+      moodKind: config.dayCycle.enabled &&
+              config.dayCycle.moodKinds.containsKey(job.moodKind)
+          ? job.moodKind
+          : null,
+      moodNow: _moodLive
+          ? _moodNow(job, pay, days ? ceilPay(neutral) : roundTens(neutral))
+          : null,
     );
   }
 
@@ -278,6 +558,14 @@ class WorldGame implements World {
               : 'На этой неделе смен здесь больше нет.',
           nextStep: 'Попробуй другую работу или отдохни');
     }
+    final int? perDay = config.dayCycle.maxShiftsPerDay;
+    if (config.dayCycle.enabled &&
+        perDay != null &&
+        _state.shiftsToday >= perDay) {
+      return BlockReason('job.day_limit',
+          'Сегодня $_hero уже поработал — следующая смена завтра.',
+          nextStep: 'Отдохни или ложись спать — утром снова можно работать');
+    }
     if (_state.energy + _eps < energyCost) {
       return BlockReason(
           'job.energy', energyShortText(energyCost, _state.energy),
@@ -289,8 +577,36 @@ class WorldGame implements World {
   @override
   List<JobOffer> get jobBoard => config.jobs.map(_offerFor).toList();
 
+  /// Что настроение сейчас делает со сменой (DEN-36 A): для строки карточки.
+  /// [pay] — оплата с настроением, [neutralPay] — та же без него.
+  MoodPayNow _moodNow(WorldJob job, int pay, int neutralPay) {
+    final MoodLive live = config.dayCycle.moodLive;
+    final int mood = _state.happiness;
+    final double cost =
+        math.max(live.minJobEnergy, job.energy + live.energyDelta(mood));
+    return MoodPayNow(
+      mood: mood,
+      payPercent:
+          ((live.payMult(mood, config.happinessNeutral) - 1) * 100).round(),
+      energyDelta: roundEnergy(cost - job.energy),
+      payCoins: pay - neutralPay,
+    );
+  }
+
+  @override
+  int? xpStage(String jobId) {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || !dc.xpStages || !dc.xpStageJobs.contains(jobId)) {
+      return null;
+    }
+    final int open =
+        dc.xpStageMin.where((int m) => _state.experience >= m).length;
+    return math.max(1, open);
+  }
+
   /// Бонус взрослого (ТЗ 2.5.12.3): 1 на неделе, когда он открыт, иначе 0.
-  int get _parentExtra => _state.parentBonusThisWeek ? 1 : 0;
+  int get _parentExtra =>
+      _state.parentBonusThisWeek && !config.adultWeeklyBonus ? 1 : 0;
 
   @override
   int get shiftsLimitThisWeek => config.maxShiftsPerWeek + _parentExtra;
@@ -299,9 +615,27 @@ class WorldGame implements World {
   bool get parentBonusThisWeek => _state.parentBonusThisWeek;
 
   @override
+  int get parentBonusCoins =>
+      config.adultWeeklyBonus ? config.adultWeeklyBonusCoins : 0;
+
+  @override
   WorldResult parentExtraShift() {
     final BlockReason? block = canDo(WorldAction.parentBonus);
     if (block != null) return block.refusal;
+    if (config.adultWeeklyBonus) {
+      // DEN-27, вариант A: монеты в кошелёк, раз в игровую неделю.
+      final int coins = config.adultWeeklyBonusCoins;
+      _write(WorldLedgerKind.parentBonus, parentCoinsCode,
+          free: coins,
+          args: <String, Object?>{'coins': coins, 'reason': parentCoinsReason});
+      return WorldResult(
+        ok: true,
+        reasonCode: parentCoinsCode,
+        // ЗАГЛУШКА: текст итога временный.
+        reason: '$parentCoinsReason: +$coins монет.',
+        nextStep: 'Комната (S1)',
+      );
+    }
     _write(WorldLedgerKind.parentBonus, parentBonusCode,
         args: <String, Object?>{
           'extraShifts': 1,
@@ -332,6 +666,63 @@ class WorldGame implements World {
       reason: 'Все профессии открыты: программист, курьер и выгульщик — без '
           'покупок. Монеты, ⚡ и 😊 не менялись.',
       nextStep: 'Доска «Требуется…» (S6)',
+    );
+  }
+
+  /// Жильё города (стадия [WorldStage.town]) из конфига, если есть.
+  WorldHome? get _cityHome {
+    for (final WorldHome h in config.homes) {
+      if (h.stage == WorldStage.town) return h;
+    }
+    return null;
+  }
+
+  @override
+  WorldResult demoOpenCity() {
+    final WorldHome? home = _cityHome;
+    if (home == null) {
+      return const WorldResult.refused('demo.city.none', 'Города в мире нет.');
+    }
+    if (_state.stage.index >= WorldStage.town.index) {
+      return const WorldResult.refused(
+          'demo.city.done', 'Финни уже живёт в городе или дальше.');
+    }
+    final int need = config.stageMinPoints.length > WorldStage.town.index
+        ? config.stageMinPoints[WorldStage.town.index]
+        : 0;
+    final int add = need > _state.growthPoints ? need - _state.growthPoints : 0;
+    final WorldStage before = _state.stage;
+    _write(WorldDemoKind.openCity, 'demo.city',
+        args: <String, Object?>{'homeId': home.id, 'points': add});
+    if (_state.stage != before) {
+      _write(WorldLedgerKind.stageChanged, 'stage.changed',
+          args: <String, Object?>{'stage': _state.stage.name});
+    }
+    final String moved = heroGendered(_heroGender,
+        neutral: 'Новый дом в городе',
+        boy: '$_hero переехал в город',
+        girl: '$_hero переехала в город');
+    return WorldResult(
+      ok: true,
+      reasonCode: 'demo.city',
+      reason: '$moved: ${home.title}, без монет. Аренда — '
+          '${home.weeklyCost} в неделю.',
+      nextStep: 'Город (S5)',
+    );
+  }
+
+  @override
+  WorldResult demoGiveCoins(int amount) {
+    if (amount <= 0) {
+      return const WorldResult.refused('demo.coins.zero', 'Нечего давать.');
+    }
+    _write(WorldDemoKind.coins, 'demo.coins',
+        free: amount, args: <String, Object?>{'amount': amount});
+    return WorldResult(
+      ok: true,
+      reasonCode: 'demo.coins',
+      reason: 'Демо: +$amount свободных монет.',
+      coins: amount,
     );
   }
 
@@ -443,7 +834,12 @@ class WorldGame implements World {
       id: e.id,
       topic: e.topic,
       title: e.title,
-      text: e.situation,
+      text: heroText(
+          heroGendered(_heroGender,
+              neutral: e.situation,
+              boy: e.situationBoy ?? e.situation,
+              girl: e.situationGirl ?? e.situation),
+          _hero),
       buildingId: e.buildingId,
       choices: <PendingEventChoice>[
         for (final WorldEventOptionSpec o in _visibleOptions(e))
@@ -527,7 +923,13 @@ class WorldGame implements World {
     final List<WorldEventSpec> all = config.events;
     final int n = all.length;
     if (n == 0) return const <WorldEventSpec>[];
-    final int start = (math.max(1, _state.weekNo) - 1) % n;
+    // Дни: круг сдвигается каждый день, а не раз в неделю.
+    final int slot = config.dayCycle.enabled
+        ? (math.max(1, _state.weekNo) - 1) * config.daysPerWeek +
+            _state.dayInWeek -
+            1
+        : math.max(1, _state.weekNo) - 1;
+    final int start = slot % n;
     final List<WorldEventSpec> ring = <WorldEventSpec>[
       for (int i = 0; i < n; i++) all[(start + i) % n],
     ];
@@ -545,6 +947,12 @@ class WorldGame implements World {
       return;
     }
     if (_state.eventsShownThisWeek >= config.eventsPerWeekMax) return;
+    final int? perDay = config.dayCycle.maxEventsPerDay;
+    if (config.dayCycle.enabled &&
+        perDay != null &&
+        _state.eventsShownToday >= perDay) {
+      return;
+    }
     for (final WorldEventSpec e in _eventOrder) {
       if (!weekOpening && !allowRing && !e.conditions.reactive) continue;
       if (!_eligible(e)) continue;
@@ -557,7 +965,71 @@ class WorldGame implements World {
     }
   }
 
-  int _pocketShare(double x) => (config.pocketMoney * x).round();
+  int _pocketShare(double x) => ((config.dayCycle.enabled
+              ? config.dayCycle.eventMoneyBase ?? config.pocketMoney
+              : config.pocketMoney) *
+          x)
+      .round();
+
+  /// Перемешивание зерна (финализатор murmur3): соседние номера записей
+  /// дают несвязанные зёрна.
+  static int _mix32(int v) {
+    int x = (v + 0x9e3779b9) & 0xffffffff;
+    x ^= x >> 16;
+    x = (x * 0x85ebca6b) & 0xffffffff;
+    x ^= x >> 13;
+    x = (x * 0xc2b2ae35) & 0xffffffff;
+    x ^= x >> 16;
+    return x & 0x7fffffff;
+  }
+
+  /// Сценарий везения смены [jobId] или null. Детерминирован: зерно — номер
+  /// записи журнала, как у симуляций событий; перезапуск из журнала даёт тот
+  /// же итог (эффект записан в `jobPayout`).
+  ShiftLuck? _shiftLuck(String jobId) {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || dc.luckChance <= 0) return null;
+    final List<ShiftLuck> pool =
+        dc.luck.where((ShiftLuck l) => l.job == jobId).toList();
+    if (pool.isEmpty) return null;
+    // Перемешать зерно: у math.Random с соседними малыми зёрнами первые
+    // значения коррелируют (доля сценариев выходила 0,21 вместо 0,35).
+    final math.Random rng = math.Random(_mix32(_journal.length));
+    if (rng.nextDouble() >= dc.luckChance) return null;
+    final double total =
+        pool.fold(0.0, (double a, ShiftLuck l) => a + l.weight);
+    double r = rng.nextDouble() * total;
+    for (final ShiftLuck l in pool) {
+      r -= l.weight;
+      if (r < 0) return l;
+    }
+    return pool.last;
+  }
+
+  /// Мини-решение смены [job] или null. Детерминировано: зерно — длина
+  /// журнала и id работы, поэтому карточка и `completeJob` (он берёт
+  /// карточку до `_dayPassed`) видят один вопрос, а разные работы в один день
+  /// — разные вопросы. Хеш свой: `String.hashCode` между запусками не обещан.
+  ShiftChoice? _shiftChoice(WorldJob job) {
+    final DayCycle dc = config.dayCycle;
+    if (!dc.enabled || dc.shiftChoiceChance <= 0) return null;
+    final List<ShiftChoice> pool =
+        dc.shiftChoices.where((ShiftChoice q) => q.work == job.id).toList();
+    if (pool.isEmpty) return null;
+    final math.Random rng =
+        math.Random(_mix32(_journal.length * 131 + _stableHash(job.id)));
+    if (rng.nextDouble() >= dc.shiftChoiceChance) return null;
+    return pool[rng.nextInt(pool.length)];
+  }
+
+  /// FNV-1a по кодам символов: одинаков на всех платформах и запусках.
+  static int _stableHash(String s) {
+    int h = 0x811c9dc5;
+    for (final int c in s.codeUnits) {
+      h = ((h ^ c) * 0x01000193) & 0xffffffff;
+    }
+    return h;
+  }
 
   int _eventBuyPrice(EventEffects f) =>
       (_priceOf(f.buy!) * (1 - f.discount)).round();
@@ -623,7 +1095,7 @@ class WorldGame implements World {
         return BlockReason('buy.unknown', 'Такого в магазине нет: $item.');
       }
       if (_state.owned.containsKey(item)) {
-        return const BlockReason('buy.owned', 'Это у Финни уже есть.');
+        return const BlockReason('buy.owned', 'Это уже есть.');
       }
       final int price = _eventBuyPrice(f);
       if (pockets < price) {
@@ -650,7 +1122,7 @@ class WorldGame implements World {
         return BlockReason('goal.unknown', 'Такой цели нет: $target.');
       }
       if (_alreadyHas(target)) {
-        return const BlockReason('buy.owned', 'Это у Финни уже есть.');
+        return const BlockReason('buy.owned', 'Это уже есть.');
       }
       goal += _eventGoalPrice(f, target);
     }
@@ -687,6 +1159,9 @@ class WorldGame implements World {
     final int saved = _pocketShare(f.savingsX);
     goal += saved;
     if (saved > 0 && f.savingsFrom != SavingsSource.gift) coins -= saved;
+    // Потеря (мошенники): доля того, что лежит.
+    coins -= (f.lossX * (_state.need + _state.want + _state.free)).round();
+    goal -= (f.lossSavingsX * _state.goal).round();
 
     final String? kind = f.leisure;
     final WorldLeisure? l = kind == null ? null : config.leisureKind(kind);
@@ -799,9 +1274,20 @@ class WorldGame implements World {
         spend(saved);
       }
     }
+    // Потеря (мошенники): доля того, что лежит, — из «Хочу», затем
+    // свободных; из копилки — доля копилки.
+    final int lost =
+        (f.lossX * (_state.need + _state.want + _state.free + want + free))
+            .round();
+    final int fromPockets =
+        math.min(lost, wantLeft + math.max(0, _state.free + free));
+    if (fromPockets > 0) spend(fromPockets);
+    // Не хватило «Хочу» и свободных — остаток из «Нужно» (на счета).
+    final int needLost = math.min(lost - fromPockets, _state.need);
+    goal -= (f.lossSavingsX * (_state.goal + goal)).round();
     final double de = roundEnergy(f.energy < 0
         ? -math.min(-f.energy, _state.energy)
-        : math.min(f.energy, math.max(0.0, config.energyMax - _state.energy)));
+        : math.min(f.energy, math.max(0.0, energyMaxNow - _state.energy)));
     final int extra = _pocketShare(f.requiredExtraX);
     final EventEffects? rec = f.recurring;
     // Цены досуга и смены — как на кнопке, до записи выбора: 😊 выбора
@@ -816,6 +1302,7 @@ class WorldGame implements World {
     // P7: выбор, который тратит ⚡, — игровой день; один раз на выбор.
     if (de < 0 || l != null || shift != null) _dayPassed();
     _write(WorldLedgerKind.eventChoice, 'event.choice',
+        need: -needLost,
         want: want,
         free: free,
         goal: goal,
@@ -1035,6 +1522,12 @@ class WorldGame implements World {
   @override
   OnboardingProgress get onboarding => _onboarding.progress;
 
+  /// Имя героя для текстов (BG-01, [heroText]).
+  String get _hero => _onboarding.progress.finniName;
+
+  /// Пол героя из знакомства — род фраз о нём ([heroGendered]).
+  FinniGender? get _heroGender => _onboarding.progress.finniGender;
+
   @override
   Future<WorldResult> setNickname(String nickname) =>
       _onboarding.setNickname(nickname);
@@ -1050,6 +1543,12 @@ class WorldGame implements World {
 
   @override
   Future<WorldResult> setOnboardingStep(int step) => _onboarding.setStep(step);
+
+  @override
+  bool seen(String id) => _onboarding.progress.seen.contains(id);
+
+  @override
+  Future<WorldResult> markSeen(String id) => _onboarding.markSeen(id);
 
   /// A13. Правила отказа — одни на проверку заранее и на само действие:
   /// действия начинаются с `canDo`, поэтому расхождения быть не может.
@@ -1074,7 +1573,7 @@ class WorldGame implements World {
           return BlockReason('goal.unknown', 'Такой цели нет: $key.');
         }
         if (_alreadyHas(key)) {
-          return const BlockReason('goal.owned', 'Это у Финни уже есть.');
+          return const BlockReason('goal.owned', 'Это уже есть.');
         }
         return null;
       case WorldAction.chooseFood:
@@ -1087,6 +1586,10 @@ class WorldGame implements World {
         return null;
       case WorldAction.eat:
         return _eatBlock(key);
+      case WorldAction.stockFridge:
+        return _fridgeBlock(key, int.tryParse(variant ?? '') ?? 1);
+      case WorldAction.restAtHome:
+        return _restBlock();
       case WorldAction.job:
         if (p != WeekPhase.living) return _phaseBlock('job');
         final WorldJob? job = config.job(key, variant);
@@ -1096,6 +1599,8 @@ class WorldGame implements World {
         return _offerFor(job).blockReason;
       case WorldAction.buy:
         return _buyBlock(key);
+      case WorldAction.buyRoomItem:
+        return _roomBuyBlock(key);
       case WorldAction.leisure:
         return _leisureBlock(key);
       case WorldAction.sleep:
@@ -1119,9 +1624,21 @@ class WorldGame implements World {
         }
         return BlockReason('event.unknown', 'Такого варианта нет: $id.');
       case WorldAction.parentBonus:
+        // Лимита смен нет (режим дней, DEN-18): лишняя смена ничего не даёт.
+        if (!config.adultWeeklyBonus &&
+            config.maxShiftsPerWeek >= kNoShiftLimit) {
+          return const BlockReason('parent.no_limit',
+              'Сейчас смены в неделю не ограничены — дополнительная смена не нужна.');
+        }
         if (p != WeekPhase.living) return _phaseBlock('parentBonus');
         if (_state.parentBonusThisWeek) return parentBonusDone;
         return null;
+      case WorldAction.transfer:
+        if (!config.bankTransfer) return transferOffBlock;
+        // Только пока неделя идёт: в плане раскладывают в самом плане, а в
+        // итогах перевод закрывал бы счета мимо правила нехватки (ТЗ Насти
+        // §8.4 — защита обязательных расходов, не решено).
+        return p == WeekPhase.living ? null : _phaseBlock('transfer');
     }
   }
 
@@ -1130,7 +1647,7 @@ class WorldGame implements World {
     final int price = _priceOf(itemId);
     if (_isGoalItem(itemId)) {
       if (_alreadyHas(itemId)) {
-        return const BlockReason('buy.owned', 'Это у Финни уже есть.');
+        return const BlockReason('buy.owned', 'Это уже есть.');
       }
       final BlockReason? move = _moveBlock(itemId);
       if (move != null) return move;
@@ -1156,14 +1673,33 @@ class WorldGame implements World {
       return BlockReason('buy.unknown', 'Такого в магазине нет: $itemId.');
     }
     if (_state.owned.containsKey(itemId)) {
-      return const BlockReason('buy.owned', 'Это у Финни уже есть.');
+      return const BlockReason('buy.owned', 'Это уже есть.');
     }
-    if (_fromWantThenFree(price) == null) {
-      return BlockReason(
+    return _wantShortBlock(price);
+  }
+
+  /// Вещь не по карману из ХОЧУ и заработка — общее у вещей, декора и
+  /// вещей комнаты.
+  BlockReason? _wantShortBlock(int price) => _fromWantThenFree(price) == null
+      ? BlockReason(
           'buy.short', 'Не хватает ${price - _state.want - _state.free}.',
-          nextStep: 'Смена на работе или подождать неделю');
+          nextStep: 'Смена на работе или подождать неделю')
+      : null;
+
+  /// Вещь комнаты: те же фаза, «уже есть» и «не хватает», что у [buy].
+  BlockReason? _roomBuyBlock(String itemId) {
+    if (_state.phase != WeekPhase.living) return _phaseBlock('buy');
+    // Флаг `room.customize` выключен — вещей комнаты в магазине нет: ни
+    // покупки, ни её 😊 (старые сохранения с покупками читаются как есть).
+    if (!config.room.enabled) return roomOffBlock;
+    final RoomItemSpec? it = config.room.item(itemId);
+    if (it == null) {
+      return BlockReason('buy.unknown', 'Такого в магазине нет: $itemId.');
     }
-    return null;
+    if (_state.roomOwned.containsKey(itemId)) {
+      return const BlockReason('buy.owned', 'Это уже есть.');
+    }
+    return _wantShortBlock(it.price);
   }
 
   /// Почему сейчас нельзя поесть [foodId]: фаза → блюдо → приёмы недели →
@@ -1177,9 +1713,23 @@ class WorldGame implements World {
     if (_state.mealsLeft == 0) {
       return BlockReason(
           'eat.limit',
-          'На этой неделе Финни уже поел ${config.mealsPerWeek} '
-              '${Phrases.timesWord(config.mealsPerWeek)} — он сыт.',
+          // Режим дней: лимит недельный, а сытость — отдельная шкала дня;
+          // «он сыт» здесь неправда, если Финни проголодался к вечеру.
+          config.daysPerWeek > 1
+              ? 'Еда на эту неделю кончилась: $_hero уже поел '
+                  '${config.mealsPerWeek} ${Phrases.timesWord(config.mealsPerWeek)}.'
+              : 'На этой неделе $_hero уже поел ${config.mealsPerWeek} '
+                  '${Phrases.timesWord(config.mealsPerWeek)} — он сыт.',
           nextStep: 'Новая неделя — новые обеды');
+    }
+    if (config.dayCycle.enabled && _state.mealsToday >= _state.mealsPerDay) {
+      return BlockReason(
+          'eat.day_limit',
+          heroGendered(_heroGender,
+              neutral: 'На сегодня еда кончилась — следующий приём завтра.',
+              boy: 'Сегодня $_hero уже поел — следующий приём завтра.',
+              girl: 'Сегодня $_hero уже поела — следующий приём завтра.'),
+          nextStep: 'Утром снова можно поесть');
     }
     final int pockets = _state.pockets;
     if (pockets < f.price) {
@@ -1192,7 +1742,7 @@ class WorldGame implements World {
       }
       return BlockReason('eat.short', 'Не хватает ${f.price - pockets}.',
           nextStep: cheaper == null
-              ? 'Смена на работе — или Финни поест дома в конце недели'
+              ? 'Смена на работе — или $_hero поест дома вечером'
               : 'Можно подешевле: ${cheaper.title}, ${cheaper.price}');
     }
     return null;
@@ -1229,7 +1779,7 @@ class WorldGame implements World {
           WeekPhase.onboarding => 'Сначала начнём первую неделю.',
           WeekPhase.weekStart ||
           WeekPhase.planning =>
-            'Сначала план недели: разложи карманные по конвертам.',
+            'Сначала план недели: раздели стипендию на три части.',
           WeekPhase.living => 'Неделя ещё идёт.',
           WeekPhase.review => 'Неделя уже кончилась — посмотрим итоги.',
         },
@@ -1243,12 +1793,32 @@ class WorldGame implements World {
     final bool first = p == WeekPhase.onboarding;
     final int weekNo = _state.weekNo + 1;
     final double homeEnergy = config.home(_state.homeId)?.energyPerWeek ?? 0;
-    final double energy = roundEnergy(math.min(config.energyMax,
+    double energy = roundEnergy(math.min(energyMaxNow,
         config.energyBasePerWeek + homeEnergy + _state.carryNextWeek));
+    int morningJoy = 0;
+    int satiety = 0;
+    if (config.dayCycle.enabled) {
+      // День по энергии: неделя начинается обычным утром (ночь, сон «до
+      // уровня», сытость), плюс бонус жилья; в первую неделю ночи не было.
+      final ({double energy, int happiness, int satiety, bool hungry}) m =
+          _morning(
+              // Перенос на следующую неделю (бонус сна, перк, домашняя еда,
+              // события) приходит в первое утро, как в режиме «неделя».
+              home: homeEnergy + _state.carryNextWeek,
+              night: !first,
+              pre: first ? 0 : _homeMealSatiety());
+      energy = m.energy;
+      morningJoy = m.happiness;
+      satiety = m.satiety;
+    }
     _write(WorldLedgerKind.weekStarted, first ? 'week.first' : 'week.start',
         weekNo: weekNo,
         energy: roundEnergy(energy - _state.energy),
-        args: <String, Object?>{'energyStart': energy});
+        happiness: morningJoy,
+        args: <String, Object?>{
+          'energyStart': energy,
+          if (satiety != 0) 'satiety': satiety,
+        });
     _write(LedgerKind.pocketMoney, 'week.pocket_money',
         unallocated: config.pocketMoney,
         args: <String, Object?>{'amount': config.pocketMoney});
@@ -1259,16 +1829,22 @@ class WorldGame implements World {
     }
     final int gift = first ? config.startGift : 0;
     final ({int coins, int goal}) rec = _applyRecurring();
+    final String moved = heroGendered(_heroGender,
+        neutral: 'Новый дом!',
+        boy: '$_hero переехал!',
+        girl: '$_hero переехала!');
     return WorldResult(
       ok: true,
       reasonCode: first ? 'week.first' : 'week.start',
       reason: (first
-              ? 'Финни переехал! Стипендия за учёбу — ${config.pocketMoney}'
+              ? '$moved Стипендия за учёбу — ${config.pocketMoney}'
                   '${gift > 0 ? ', и подарок $gift уже в копилке' : ''}.'
               : 'Неделя $weekNo. Пришла стипендия — ${config.pocketMoney}.') +
-          (rec.goal > 0 ? ' По челленджу в копилку ушло ${rec.goal}.' : ''),
+          (rec.goal > 0
+              ? ' По игре «Копилка» в копилку ушло ${rec.goal}.'
+              : ''),
       nextStep:
-          'Счёт недели от ${_state.weeklyBill} — разложи монеты по конвертам',
+          'Счёт недели от ${_state.weeklyBill} — раздели монеты на три части',
       coins: config.pocketMoney + rec.coins,
       goal: gift + rec.goal,
       energy: energy,
@@ -1282,7 +1858,7 @@ class WorldGame implements World {
     if (block != null) return block.refusal;
     if (needs < 0 || wants < 0 || goal < 0) {
       return const WorldResult.refused(
-          'plan.negative', 'В конверт нельзя положить меньше нуля.');
+          'plan.negative', 'Меньше нуля положить нельзя.');
     }
     final int have = _state.unallocated;
     final int total = needs + wants + goal;
@@ -1363,9 +1939,9 @@ class WorldGame implements World {
     if (_state.growthPoints >= need) return null;
     return BlockReason(
         'buy.points',
-        'Переезд откроется при $need очках роста — сейчас '
+        'Переезд откроется, когда звёзд будет $need — сейчас '
             '${_state.growthPoints}.',
-        nextStep: 'Очки роста — за счета своими деньгами, план и отложенное');
+        nextStep: 'Звёзды — за счета своими монетами, план и отложенное');
   }
 
   /// Уже есть: сама вещь, любой транспорт вместо транспорта, техника, чьи
@@ -1407,8 +1983,26 @@ class WorldGame implements World {
     return WorldResult(
       ok: true,
       reasonCode: 'food.chosen',
-      reason: 'Дома Финни ест: ${food.title}, ${food.price} за приём. '
+      reason: 'Дома $_hero ест: ${food.title}, ${food.price} за приём. '
           'Счёт недели: ${_state.weeklyBill}.',
+    );
+  }
+
+  @override
+  WorldResult chooseSkin(String itemId) {
+    final String? object = skinObject(itemId);
+    if (object == null || !_state.owned.containsKey(itemId)) {
+      return WorldResult.refused(
+          'skin.not_owned', 'Сначала купи этот вариант в магазине.');
+    }
+    if (_state.chosenSkins[object] != itemId) {
+      _write(WorldChoiceKind.skinChosen, 'skin.chosen',
+          args: <String, Object?>{'itemId': itemId});
+    }
+    return WorldResult(
+      ok: true,
+      reasonCode: 'skin.chosen',
+      reason: 'В комнате теперь ${_titleOf(itemId)}.',
     );
   }
 
@@ -1416,18 +2010,31 @@ class WorldGame implements World {
   /// на одно действие (`economy.json → week._note`). Ровно 0 — тоже сюда.
   String _afterEnergySpent() {
     if (_state.energy + _eps >= cheapestActionEnergy) return '';
+    if (config.dayCycle.enabled && _state.dayInWeek < config.daysPerWeek) {
+      final WorldResult r = _endDay('day.energy_out');
+      return ' Силы кончились — наступил вечер, пора спать. ${r.reason}';
+    }
     _write(WorldLedgerKind.energyOut, 'week.energy_out',
         happiness: _happinessDelta(config.exhaustedHappiness));
-    return ' Силы кончились — Финни устал и лёг спать.';
+    return ' Силы кончились — пора спать.';
   }
 
   @override
   WorldResult completeJob(String jobId,
-      {String? variant, required double score}) {
+      {String? variant, required double score, String? choice}) {
     final BlockReason? block =
         canDo(WorldAction.job, id: jobId, variant: variant);
     if (block != null) return block.refusal;
     final JobOffer o = _offerFor(config.job(jobId, variant)!);
+    // Мини-решение: вопрос — с карточки до `_dayPassed` (тот же журнал, что
+    // видел ребёнок). Вопроса нет — choice не учитывается.
+    final ShiftChoice? q = choice == null ? null : o.choice;
+    final ShiftChoiceOption? opt = q?.option(choice!);
+    if (q != null && opt == null) {
+      return const BlockReason('job.choice_unknown',
+              'Вопрос в этой смене уже другой — открой смену заново.')
+          .refusal;
+    }
     final int happinessBefore = _state.happiness;
     _dayPassed();
     // P1: хорошая смена — бонус (P6), +1 опыт и чуть дороже: сверх карточки
@@ -1436,13 +2043,34 @@ class WorldGame implements World {
     final double s = score.clamp(0.0, 1.0);
     final bool good = o.isGoodScore(s);
     final int bonus = o.bonusFor(s);
-    final int pay = o.pay + bonus;
     final double extra = good
         ? math.max(
             0.0, math.min(o.goodEnergyExtra, _state.energy - o.energyCost))
         : 0.0;
-    final double spent = roundEnergy(o.energyCost + extra);
-    final int dh = good ? _happinessDelta(o.goodHappiness) : 0;
+    final ShiftLuck? luck = _shiftLuck(jobId);
+    // Везение: оплата × pay_x вверх до монеты, ⚡ назад — не больше потраченного.
+    final int luckPay = luck == null ? 0 : ceilPay(o.pay * luck.payX) - o.pay;
+    // Вариант мини-решения: оплата × pay_x вверх до монеты, ⚡ сверх цены —
+    // не больше, чем осталось после смены.
+    final int choicePay = opt == null ? 0 : ceilPay(o.pay * opt.payX) - o.pay;
+    final int pay = o.pay + bonus + luckPay + choicePay;
+    final double base =
+        math.max(0.0, o.energyCost + extra - (luck?.energyBack ?? 0));
+    final double choiceEnergy = opt == null
+        ? 0.0
+        : opt.energy <= 0
+            ? opt.energy
+            : math.min(opt.energy, math.max(0.0, _state.energy - base));
+    final double spent = roundEnergy(math.max(0.0, base + choiceEnergy));
+    final WorldJob job = config.job(jobId, variant)!;
+    // Тип работы (DEN-18): финансы Финни нравятся — интересная финансовая
+    // радует, нудная огорчает, нудная без финансов — сильно.
+    final MoodKind? mood = config.dayCycle.enabled && job.moodKind != null
+        ? config.dayCycle.moodKinds[job.moodKind]
+        : null;
+    final int dh = _happinessDelta((good ? o.goodHappiness : 0) +
+        (mood?.happiness ?? 0) +
+        (opt?.happiness ?? 0));
     final Map<String, Object?> args = <String, Object?>{
       'jobId': jobId,
       if (variant != null) 'variant': variant,
@@ -1462,7 +2090,14 @@ class WorldGame implements World {
           'bonus': bonus,
           'score': score,
           'good': good,
+          if (mood != null) 'mood': job.moodKind,
+          if (luck != null) 'luck': luck.id,
+          if (luckPay != 0) 'luckPay': luckPay,
+          if (opt != null) 'choice': q!.id,
+          if (opt != null) 'choiceOption': opt.id,
+          if (choicePay != 0) 'choicePay': choicePay,
           if (credit != null) 'tool': credit.tool,
+          if (xpStage(jobId) case final int stage) 'stage': stage,
           if (credit != null) 'premium': credit.premium,
         });
     String paidBack = '';
@@ -1474,7 +2109,20 @@ class WorldGame implements World {
             '$now сверх работы без него — больше, чем он стоил ($price).';
       }
     }
-    final String tail = paidBack + _afterEnergySpent();
+    // Строку везения при explain_ui рисует экран (args.luck) — здесь не
+    // повторяем, иначе ребёнок читает одну фразу дважды.
+    final String lucky = luck == null || config.dayCycle.explainUi
+        ? ''
+        : ' ${heroText(luck.text, _hero)}${luckPay > 0 ? ' +$luckPay.' : luckPay < 0 ? ' $luckPay.' : ''}';
+    // Ответ на мини-решение: при explain_ui его рисует экран (args.choice).
+    final String chosen = opt == null || config.dayCycle.explainUi
+        ? ''
+        : ' ${opt.label}${choicePay > 0 ? ': +$choicePay' : choicePay < 0 ? ': $choicePay' : ''}.';
+    final String tail = lucky +
+        chosen +
+        (mood == null ? '' : ' ${mood.text}') +
+        paidBack +
+        _afterEnergySpent();
     _maybeShowEvent(weekOpening: false);
     return WorldResult(
       ok: true,
@@ -1485,7 +2133,7 @@ class WorldGame implements World {
           : '${o.title}: заплатили ${o.pay}. Опыт и бонус — за хорошо '
               'сделанную смену.$tail',
       nextStep: _state.activeGoalId == null
-          ? 'Выбери цель в Копилке — и сможешь откладывать с заработка'
+          ? 'Выбери цель в копилке — и сможешь откладывать монеты'
           : 'Сколько отложить на цель?',
       coins: pay,
       energy: -spent,
@@ -1524,16 +2172,21 @@ class WorldGame implements World {
   @override
   LessonOffer? get pendingLesson {
     final String? job = _state.lessonJobId;
-    final WorldLesson? l = job == null ? null : config.lesson(job);
+    final WorldLesson? l =
+        job == null ? null : config.lessonFor(job, _state.lessonIndex);
     if (l == null) return null;
     return lessonOffer(l,
-        pay: _state.lessonPay, free: _state.free, want: _state.want);
+        pay: _state.lessonPay,
+        free: _state.free,
+        want: _state.want,
+        name: _hero);
   }
 
   @override
   WorldResult resolveLesson(String choiceId) {
     final String? job = _state.lessonJobId;
-    final WorldLesson? l = job == null ? null : config.lesson(job);
+    final WorldLesson? l =
+        job == null ? null : config.lessonFor(job, _state.lessonIndex);
     if (l == null) {
       return const WorldResult.refused('lesson.none', 'Сейчас урока нет.');
     }
@@ -1554,6 +2207,7 @@ class WorldGame implements World {
         happiness: _happinessDelta(c.happiness),
         args: <String, Object?>{
           'jobId': l.jobId,
+          'lessonId': l.lessonId,
           'choiceId': c.id,
           'title': l.title,
           'topic': l.topic,
@@ -1564,7 +2218,7 @@ class WorldGame implements World {
     return WorldResult(
       ok: true,
       reasonCode: 'lesson.choice',
-      reason: lessonReason(l, c),
+      reason: lessonReason(l, c, m, pay: _state.lessonPay),
       nextStep: 'Новое слово в Словарике: ${l.wordTerm}',
       coins: after.available - before.available,
       goal: after.goal - before.goal,
@@ -1585,10 +2239,8 @@ class WorldGame implements World {
     final int fromFree = math.min(_state.free, left);
     left -= fromFree;
     final int fromWant = left;
-    final double gain = roundEnergy(math.max(
-        0.0,
-        math.min(config.energyMax, _state.energy + f.energyNow) -
-            _state.energy));
+    final double gain = roundEnergy(math.max(0.0,
+        math.min(energyMaxNow, _state.energy + f.energyNow) - _state.energy));
     final int dh = _happinessDelta(f.happiness);
     _write(WorldLedgerKind.mealEaten, 'meal.eaten',
         need: -fromNeed,
@@ -1600,9 +2252,12 @@ class WorldGame implements World {
           'foodId': f.id,
           'price': f.price,
           'energyNow': f.energyNow,
+          if (config.dayCycle.enabled)
+            'satiety': _satietyDelta(config.dayCycle.mealBase +
+                (config.dayCycle.mealPerEnergy * f.energyNow).round()),
         });
     _maybeShowEvent(weekOpening: false);
-    final int mealsLeft = _state.mealsLeft;
+    final int mealsLeft = _state.mealsCanEat;
     final String full =
         gain + _eps < f.energyNow ? ' (⚡ уже почти полная)' : '';
     return WorldResult(
@@ -1613,7 +2268,10 @@ class WorldGame implements World {
       nextStep: mealsLeft > 0
           ? 'Поесть на этой неделе можно ещё $mealsLeft '
               '${Phrases.timesWord(mealsLeft)}'
-          : 'На этой неделе Финни наелся',
+          : heroGendered(_heroGender,
+              neutral: 'Больше на этой неделе поесть нельзя',
+              boy: 'На этой неделе $_hero наелся',
+              girl: 'На этой неделе $_hero наелась'),
       coins: -f.price,
       energy: gain,
       happiness: dh,
@@ -1629,14 +2287,14 @@ class WorldGame implements World {
     }
     if (amount > _state.free) {
       return WorldResult.refused(
-          'goal.deposit_too_much', 'В кошельке только ${_state.free}.');
+          'goal.deposit_too_much', 'В заработке только ${_state.free}.');
     }
     _write(WorldLedgerKind.goalSliderDeposit, 'goal.deposit',
         free: -amount, goal: amount, args: <String, Object?>{'amount': amount});
     return WorldResult(
       ok: true,
       reasonCode: 'goal.deposit',
-      reason: 'Отложено на цель $amount. В кошельке осталось ${_state.free}.',
+      reason: 'Отложено на цель $amount. В заработке осталось ${_state.free}.',
       coins: -amount,
       goal: amount,
     );
@@ -1649,6 +2307,7 @@ class WorldGame implements World {
       config.home(id)?.title ??
       config.cloth(id)?.title ??
       config.decorItem(id)?.title ??
+      config.room.item(id)?.name ??
       (id == config.snackId ? 'Перекус' : id);
 
   int _priceOf(String id) =>
@@ -1658,6 +2317,7 @@ class WorldGame implements World {
       config.home(id)?.price ??
       config.cloth(id)?.price ??
       config.decorItem(id)?.price ??
+      config.room.item(id)?.price ??
       (id == config.snackId ? config.snackPrice : 0);
 
   /// Разбивка цены на ХОЧУ, затем заработок. null — не хватает.
@@ -1695,7 +2355,7 @@ class WorldGame implements World {
         return WorldResult(
           ok: true,
           reasonCode: 'buy.goal',
-          reason: 'Финни переезжает: ${home.title}! Залог и первая неделя — '
+          reason: '$_hero переезжает: ${home.title}! Переезд и первая неделя — '
               '$price. Дальше ${home.weeklyCost} в неделю: жизнь лучше и платят '
               'больше, но и всё дороже.',
           goal: -price,
@@ -1718,7 +2378,7 @@ class WorldGame implements World {
     if (itemId == config.snackId) {
       final ({int want, int free}) pay = _fromWantThenFree(price)!;
       final double gain = roundEnergy(
-          math.min(config.energyMax, _state.energy + config.snackEnergyNow) -
+          math.min(energyMaxNow, _state.energy + config.snackEnergyNow) -
               _state.energy);
       _write(LedgerKind.purchase, 'buy.snack',
           want: -pay.want,
@@ -1753,6 +2413,63 @@ class WorldGame implements World {
   }
 
   @override
+  RoomCatalog get room => config.room;
+
+  @override
+  WorldResult buyRoomItem(String itemId) {
+    final BlockReason? block = canDo(WorldAction.buyRoomItem, id: itemId);
+    if (block != null) return block.refusal;
+    final RoomItemSpec it = config.room.item(itemId)!;
+    final ({int want, int free}) pay = _fromWantThenFree(it.price)!;
+    final int dh = _happinessDelta(config.room.happinessOnce);
+    _write(WorldLedgerKind.roomItemBought, 'buy.room_item',
+        want: -pay.want,
+        free: -pay.free,
+        happiness: dh,
+        args: <String, Object?>{'itemId': itemId, 'price': it.price});
+    return WorldResult(
+      ok: true,
+      reasonCode: 'buy.room_item',
+      reason: 'Куплено: ${it.name}. Поставить вещь можно в комнате.',
+      coins: -it.price,
+      happiness: dh,
+    );
+  }
+
+  @override
+  BlockReason? canPlaceRoomItem(String itemId, int x, int y) =>
+      roomPlaceBlock(config.room, itemId, x, y,
+          owned: _state.roomOwned.keys, placed: _state.roomPlaced);
+
+  @override
+  WorldResult placeRoomItem(String itemId, int x, int y) {
+    final BlockReason? block = canPlaceRoomItem(itemId, x, y);
+    if (block != null) return block.refusal;
+    if (_state.roomPlaced[itemId] != (x: x, y: y)) {
+      _write(WorldLedgerKind.roomItemPlaced, 'room.placed',
+          args: <String, Object?>{'itemId': itemId, 'x': x, 'y': y});
+    }
+    return WorldResult(
+        ok: true,
+        reasonCode: 'room.placed',
+        reason: '${config.room.item(itemId)!.name} — на новом месте.');
+  }
+
+  @override
+  WorldResult removeRoomItem(String itemId) {
+    if (!_state.roomPlaced.containsKey(itemId)) {
+      return const WorldResult.refused(
+          'room.not_placed', 'Эта вещь сейчас не стоит в комнате.');
+    }
+    _write(WorldLedgerKind.roomItemRemoved, 'room.removed',
+        args: <String, Object?>{'itemId': itemId});
+    return WorldResult(
+        ok: true,
+        reasonCode: 'room.removed',
+        reason: 'Вещь убрана: ${_titleOf(itemId)}. Её можно поставить снова.');
+  }
+
+  @override
   WorldResult leisure(String kind) {
     final BlockReason? block = canDo(WorldAction.leisure, id: kind);
     if (block != null) return block.refusal;
@@ -1777,7 +2494,7 @@ class WorldGame implements World {
       reasonCode: 'leisure.done',
       reason: capped < raw
           ? '${l.title}. Весело, но на этой неделе отдых радует уже меньше.$tail'
-          : '${l.title} — Финни отдохнул.$tail',
+          : '${l.title} — отдых удался.$tail',
       coins: -l.price,
       energy: -cost,
       happiness: _state.happiness - happinessBefore,
@@ -1802,7 +2519,28 @@ class WorldGame implements World {
     return WorldResult(
       ok: true,
       reasonCode: 'pet.tap',
-      reason: '${pet.title} рад тебе — Финни веселее.',
+      reason: '${pet.title} рад тебе — веселее.',
+      happiness: dh,
+    );
+  }
+
+  @override
+  WorldResult petFinni() {
+    // Режим дней: «раз в день» — день недели (утро сбрасывает doneToday), а не
+    // счётчик дел: после ночи без смены погладить снова можно.
+    final bool again = config.dayCycle.enabled
+        ? _state.doneToday.contains('pet')
+        : _state.lastFinniPetDay == _state.day;
+    if (again) {
+      return WorldResult(
+          ok: true, reasonCode: 'finni.pet_again', reason: '$_hero мурлычет.');
+    }
+    final int dh = _happinessDelta(config.finniPetHappiness);
+    _write(WorldLedgerKind.finniPetted, 'finni.pet', happiness: dh);
+    return WorldResult(
+      ok: true,
+      reasonCode: 'finni.pet',
+      reason: 'Погладили — настроение чуть лучше.',
       happiness: dh,
     );
   }
@@ -1811,6 +2549,9 @@ class WorldGame implements World {
   WorldResult sleep() {
     final BlockReason? block = canDo(WorldAction.sleep);
     if (block != null) return block.refusal;
+    if (config.dayCycle.enabled && _state.dayInWeek < config.daysPerWeek) {
+      return _endDay('day.sleep');
+    }
     final bool bonus = _state.energy + _eps >= config.sleepMinLeftForBonus;
     int gain = 0;
     double carry = 0;
@@ -1833,8 +2574,8 @@ class WorldGame implements World {
       ok: true,
       reasonCode: bonus ? 'sleep.bonus' : 'sleep.plain',
       reason: bonus
-          ? 'Финни выспался: +$dh 😊 и +${energyShown(carry)} ⚡ на следующую неделю.'
-          : 'Финни лёг спать.',
+          ? 'Сон помог: настроение +$dh, и утром ещё +${energyShown(carry)} сил.'
+          : 'Ночь прошла.',
       nextStep: money < bill
           ? 'На счета не хватает ${bill - money} — посмотрим, что можно сделать'
           : null,
@@ -1926,8 +2667,13 @@ class WorldGame implements World {
           'fromGoal': withdrawn,
           'fromFamily': family,
           'downgraded': bills.downgraded,
-          'foodEnergyNext':
-              roundEnergy((bills.eatenFood?.energyNow ?? 0) * bills.homeMeals),
+          // Режим дней: домашняя еда уже съедена вечерами (сытость), а ⚡
+          // утра даёт сон по таблице — польза не переносится на неделю
+          // вперёд (иначе до +7 ⚡ в первое утро; 17.10).
+          'foodEnergyNext': config.dayCycle.enabled
+              ? 0.0
+              : roundEnergy(
+                  (bills.eatenFood?.energyNow ?? 0) * bills.homeMeals),
         });
     final bool grew = _state.stage != stageBefore;
     if (grew) {
@@ -1936,10 +2682,11 @@ class WorldGame implements World {
     }
 
     final Map<String, String> whyText = <String, String>{
-      'required_covered': 'обязательное закрыто своими деньгами',
+      'required_covered': 'обязательное закрыто своими монетами',
       'plan_kept': 'без нехватки',
       'saved_regularly': 'отложено не меньше '
-          '${(config.savedRegularlyMinShare * 100).round()} % дохода — так к цели приходят раньше',
+          '${shareWords((config.savedRegularlyMinShare * 100).round()).gen} '
+          'дохода — так к цели приходят раньше',
     };
     final String shortfall =
         steps.isEmpty ? '' : ' Не хватало: ${steps.join(', ')}.';
@@ -1961,10 +2708,10 @@ class WorldGame implements World {
       ok: true,
       reasonCode: bills.familyHelped ? 'bills.family_help' : 'bills.paid',
       reason: 'Счета недели — ${bills.total}.$shortfall '
-          'Очки роста: +$points'
+          'Звёзды: +$points'
           '${why.isEmpty ? '' : ' (${why.map((String w) => whyText[w]).join(', ')})'}.'
           '$growthLine'
-          '${grew ? ' Финни переезжает дальше!' : ''}'
+          '${grew ? ' $_hero переезжает дальше!' : ''}'
           '${_moveReadyLine()}',
       nextStep: 'Новая неделя',
       coins: -bills.fromPockets,
@@ -1982,10 +2729,10 @@ class WorldGame implements World {
       if (to == null || _alreadyHas(h.id) || _moveBlock(h.id) != null) continue;
       // Ревью 2b58bdb §8.3: «копи», когда в копилке уже хватает, — неправда.
       return _state.goal >= h.price
-          ? ' Очков роста хватает на переезд: ${h.title} — залог '
+          ? ' Звёзд хватает на переезд: ${h.title} — цена '
               '${h.price}, и в копилке уже хватает. Переехать — '
               'в копилке, если захочешь.'
-          : ' Очков роста хватает на переезд: ${h.title} — залог '
+          : ' Звёзд хватает на переезд: ${h.title} — цена '
               '${h.price}, копи в копилке.';
     }
     return '';
@@ -2047,6 +2794,45 @@ class WorldGame implements World {
       decay += config.decayPerks[p.id] ?? 0;
     }
     return weekly - decay.round();
+  }
+
+  @override
+  WorldResult transfer(
+      {required MoneyPart from,
+      required MoneyPart to,
+      required int amount,
+      String? opId}) {
+    final BlockReason? block = canDo(WorldAction.transfer);
+    if (block != null) return block.refusal;
+    if (opId != null && _state.transferOps.contains(opId)) {
+      return const WorldResult.refused(
+          'transfer.repeat', 'Этот перевод уже сделан.');
+    }
+    if (from == to) return transferSame.refusal;
+    if (amount <= 0) {
+      return const WorldResult.refused(
+          'transfer.zero', 'Выбери, сколько монет перевести.');
+    }
+    if (amount > from.of(snapshot)) return transferTooMuch.refusal;
+    int d(MoneyPart p) => p == from ? -amount : (p == to ? amount : 0);
+    // Одна запись: обе половины перевода или ни одной.
+    _write(WorldLedgerKind.envelopeTransfer, 'transfer.done',
+        need: d(MoneyPart.need),
+        want: d(MoneyPart.want),
+        goal: d(MoneyPart.goal),
+        args: <String, Object?>{
+          'from': from.name,
+          'to': to.name,
+          'amount': amount,
+          if (opId != null) 'opId': opId,
+        });
+    return WorldResult(
+      ok: true,
+      reasonCode: 'transfer.done',
+      reason: transferDoneText(amount, from, to),
+      coins: d(MoneyPart.need) + d(MoneyPart.want),
+      goal: d(MoneyPart.goal),
+    );
   }
 
   @override

@@ -3,6 +3,12 @@
 > §5 п.4 ТЗ: «структура данных профиля, игровой экономики, заданий и прогресса».
 > Источники: `app/finlit/lib/domain/world/contract.dart`, `world_entry.dart`, `world_fold.dart`
 > и `content/*.json`.
+>
+> В релизе включён режим дней: неделя состоит из 7 игровых дней, «Спать» заканчивает день. Его записи журнала
+> (2.2а), поля снимка (2.3) и разделы `day_cycle`, `balance_profile`, `room`, `achievements` в `economy.json`
+> (3, 3.1–3.4) описаны ниже. Формат сохранения не менялся (2.2б). «Запасной режим» — прежняя неделя без дней
+> (`day_cycle.days_per_week` равен 1); в сборке он выключен, но игра его читает. Формулы и правила —
+> [06-formuly.md](06-formuly.md).
 
 ## 1. Общий принцип
 
@@ -49,24 +55,44 @@
 
 **Виды записей** (`WorldLedgerKind` в `contract.dart`): `weekStarted`, `startGift`, `billPaid`,
 `billMissed`, `jobStarted`, `jobPayout`, `goalSliderDeposit`, `leisure`, `sleep`, `energyOut`,
-`eventShown`, `eventChoice`, `petBought`, `transportBought`, `homeBought`, `itemOwned`,
-`activePetChanged`, `petTapHappiness`, `familyHelp`, `simulationRun`, `parentBonus`,
-`stageChanged`, `dayPassed`, `lessonChoice` (урок после смены: `args.jobId`, `choiceId`, `title`, `word`), `techBought` (куплена техника — цель), `mealEaten` (Финни поел: `args.foodId`, `args.price`; монеты из
-НУЖНО → заработок → ХОЧУ, ⚡ и 😊 сразу). Из общих видов (`LedgerKind`) новый мир использует `pocketMoney`,
-`planConfirmed`, `purchase`, `savingsWithdraw`, `periodClosed`. Выборы без денег
-(`WorldChoiceKind`): `goalChosen`, `foodChosen` (домашнее меню — что Финни ест дома за
-невыбранные приёмы). Демо для эксперта (`WorldDemoKind`):
+`eventShown`, `eventChoice`, `petBought`, `transportBought`, `homeBought`, `techBought` (куплена
+техника — цель), `itemOwned`, `activePetChanged`, `petTapHappiness`, `familyHelp`, `simulationRun`,
+`parentBonus`, `stageChanged`, `dayPassed`, `lessonChoice` (урок после смены: `args.jobId`, `choiceId`,
+`title`, `word`), `mealEaten` (Финни поел: `args.foodId`, `args.price`; монеты из НУЖНО → заработок → ХОЧУ,
+⚡ и 😊 сразу), а также виды режима дней и комнаты: `dayEnded`, `finniPetted`, `fridgeStocked`, `restAtHome`,
+`achievementEarned` (подробно — 2.2а), `envelopeTransfer` (перевод между частями в банке, только при `bank.transfer` = true; в сборке выключен) и `roomItemBought`, `roomItemPlaced`, `roomItemRemoved` (вещи комнаты на
+сетке, 3.3). Из общих видов (`LedgerKind`) новый мир использует `pocketMoney`, `planConfirmed`, `purchase`,
+`savingsWithdraw`, `periodClosed`. Выборы без денег (`WorldChoiceKind`): `goalChosen`, `foodChosen` (домашнее
+меню — что Финни ест дома за невыбранные приёмы), `skinChosen` (какой из купленных видов предмета стоит в
+комнате: `args.itemId`). Демо для эксперта (`WorldDemoKind`):
 `unlockAllJobs` — «Открыть все профессии», без денег, ⚡, 😊 и покупок; `showEvent` —
 «Показать событие»: `args.eventId` становится событием недели (ждёт выбора, как `eventShown`,
 но расписание не сдвигает), без денег, ⚡ и 😊; закрывает его обычный `eventChoice`.
 
-Пример записи — оплата хорошей смены консультанта:
+Пример записи — оплата хорошей смены консультанта в сборке (профиль баланса «средний», 3.1: ставка 140, бонус за
+эффективность 30). Сила: цена смены 6 ⚡ (2 + 1 «на жизнь», обе × 2) и +1 ⚡ за старание; 😊: +4 тип работы
+(`fin_fun`) и −1 за старание. Игровой день (−1 😊) пишет отдельная запись `dayPassed` перед этой:
 
 ```json
-{"seq": 7, "weekNo": 1, "kind": "world.jobPayout", "reasonCode": "job.payout",
- "free": 357, "energy": -3.5, "happiness": -1,
- "args": {"jobId": "consultant", "pay": 300, "bonus": 57, "score": 0.95, "good": true}}
+{"seq": 12, "weekNo": 1, "kind": "world.jobPayout", "reasonCode": "job.payout",
+ "free": 170, "energy": -7, "happiness": 3,
+ "args": {"jobId": "consultant", "pay": 140, "bonus": 30, "score": 0.95, "good": true, "mood": "fin_fun"}}
 ```
+
+Та же смена, если выпало везение `consultant_good_sure` (оплата × 1,1: +14) и ребёнок ответил на мини-решение
+`consultant_gift` → «Помочь с подарком» (оплата × 1,2: +28, силы +2 сверх цены, 😊 +1). Везение и вопрос
+выпадают случайно; пример составлен по формулам из [06-formuly.md](06-formuly.md):
+
+```json
+{"seq": 12, "weekNo": 1, "kind": "world.jobPayout", "reasonCode": "job.payout",
+ "free": 212, "energy": -9, "happiness": 4,
+ "args": {"jobId": "consultant", "pay": 140, "bonus": 30, "score": 0.95, "good": true, "mood": "fin_fun",
+          "luck": "consultant_good_sure", "luckPay": 14,
+          "choice": "consultant_gift", "choiceOption": "help", "choicePay": 28}}
+```
+
+Запасной режим (`days_per_week` 1, ставки по файлу, без профиля): та же смена пишет `free` 357, `energy` −3,5
+(2 + 1 «на жизнь» + 0,5 за старание), `happiness` −1, `args` — `pay` 300, `bonus` 57; ключа `mood` нет.
 
 **Хранение журнала (ТЗ 2.5.13.1).** `openSavedWorld` (`lib/data/world_save.dart`) пишет журнал
 под ключом `world_journal` как `{"v": 1, "journal": [...записи выше...]}` после каждого
@@ -77,6 +103,49 @@
 `world_journal_broken`; записи неизвестного вида пропускаются, их число — `WorldGame.unreadable`.
 Подключено в `lib/main.dart`: приложение стартует с сохранённого мира.
 
+### 2.2а. Записи режима дней и наград
+
+Запись по-прежнему одна и та же `WorldEntry` (поля из таблицы выше); новое — виды и ключи в `args`. Вид пишется
+как `world.<имя>` (`world.dayEnded`). Колонка «Причина» — `reasonCode` самой записи; у `WorldResult`, который видит экран,
+коды могут отличаться (например, `day.next`).
+
+| Вид (`WorldLedgerKind`) | Причина (`reasonCode`) | Что меняет | `args` |
+|---|---|---|---|
+| `dayEnded` | `day.sleep` — нажали «Спать», день не последний · `day.energy_out` — силы кончились | `energy` — ⚡ утра минус ⚡ вечера; `happiness` — голод утром (−2) или 0 | `dayInWeek` (int, номер нового дня), `satiety` (int, перемена сытости за вечер и ночь), `homeMeal` (`true`, только если Финни ел домашний ужин), `morningEnergy` (double, ⚡ утра) |
+| `fridgeStocked` | `fridge.stocked` | `need` / `free` / `want` ≤ 0 (откуда списано), `energy` = −`shop_energy` | `foodId` (string), `count` (int), `price` (int, за все порции) |
+| `restAtHome` | `rest.done` | `energy` = −`rest_energy`, `happiness` = +`rest_happiness` (после границ 0–100) | нет |
+| `finniPetted` | `finni.pet` | `happiness` = +`happiness.finni_pet` (после границ); повтор в тот же игровой день записи не пишет | нет |
+| `achievementEarned` | `achievement.earned` | ничего (ни монет, ни ⚡, ни 😊) | `id` (string), `title` (string), `day` (int, день недели получения); `weekNo` записи — неделя получения |
+
+Старые виды получили новые ключи в `args` (только в режиме дней):
+
+| Вид | Новый ключ | Смысл |
+|---|---|---|
+| `dayPassed` (код `day.passed`) | `day` (int), `satiety` (int, −`satiety_per_action`) | счётчик игровых дней и перемена сытости за дело |
+| `weekStarted` (`week.first` / `week.start`) | `energyStart` (double), `satiety` (int, если не 0) | ⚡ первого утра недели и перемена сытости за ночь |
+| `mealEaten` (`meal.eaten`; `meal.fridge` — завтрак из холодильника) | `satiety` (int), `fromFridge` (`true` только у `meal.fridge`; там же `price` = 0) | прибавка сытости; порция ушла из холодильника |
+| `jobPayout` (`job.payout`) | `mood` (id типа работы), `luck` (id сценария везения) и `luckPay` (только если ≠ 0), `choice` (id вопроса), `choiceOption` (id варианта) и `choicePay` (только если ≠ 0) | настроение от типа работы; везение на смене; мини-решение в смене |
+
+Что из них выводится при свёртке (`WorldState.fold`), ничего не хранится отдельно:
+- **сытость** — сумма `args.satiety` по всем записям, в границах 0–100; старт — `day_cycle.satiety_start`;
+- **день недели** (`dayInWeek`) — из `args.dayInWeek` последней `dayEnded`; на `weekStarted` сбрасывается в 1;
+- **`doneToday`** — множество `meal` / `pet` / `fridge` / `rest` / `job` по видам `mealEaten`, `finniPetted`, `fridgeStocked`,
+  `restAtHome`, `jobPayout`; очищается на `dayEnded` и `weekStarted`;
+- **`fridge`** — `fridgeStocked` прибавляет порции, `mealEaten` с `fromFridge` убавляет;
+- **награды** — `achievementEarned`: `args.id` → `weekNo`;
+- **вещи комнаты** — `roomItemBought` → `roomOwned`; `roomItemPlaced` / `roomItemRemoved` → `roomPlaced`; `skinChosen` → `chosenSkins`.
+
+### 2.2б. Что хранится на устройстве
+
+Ничего нового. Игровые данные лежат в двух ключах локального хранилища: `world_onboarding` (онбординг, 2.1) и `world_journal`
+(`{"v": 1, "journal": [...]}`); испорченное сохранение откладывается в `world_journal_broken` / `world_onboarding_broken`. Третий
+ключ, `profile`, хранит настройки (звук, музыка, анимации и др.) и профиль прежнего интерфейса; игровых данных мира в нём нет, сброс
+игры его не затрагивает (полный список ключей — [09-razresheniya-i-dannye.md](09-razresheniya-i-dannye.md)). Сытость, день недели,
+холодильник, награды, «что сделано сегодня», вещи комнаты **отдельно не сохраняются** — выводятся из `world_journal` свёрткой,
+поэтому перезапуск возвращает то же состояние. Версия формата `"v": 1` не менялась. Сохранение, сделанное до режима дней, читается:
+записей `dayEnded` в нём нет, сытость начинается с `day_cycle.satiety_start`, день недели — с 1; награды, которые уже
+выполнены в старом журнале, выдаются при первом новом действии. Журнал без записей комнаты читается как пустая комната.
+
 ### 2.3. Снимок — `ResourceSnapshot` (выводится, не хранится)
 
 | Поле | Что |
@@ -84,15 +153,26 @@
 | `weekNo` | Номер недели, с 1 (до первой — 0) |
 | `need`, `want`, `goal`, `free`, `unallocated` | Конверты НУЖНО, ХОЧУ, ЦЕЛЬ (= накоплено), кошелёк заработка, неразложенное |
 | `available` | Доступно (💰 в HUD) = НУЖНО + ХОЧУ + заработок + неразложенное. ЦЕЛЬ сюда не входит |
-| `energy` | ⚡ 0–14 |
+| `energy` | ⚡ 0–20 в режиме дней (`day_cycle.energy_max`); в запасном режиме `days_per_week` 1 — 0–14 |
 | `happiness` | 😊 0–100 |
 | `growthPoints` | Очки роста за всю игру, никогда не уменьшаются |
 | `stage` | `village` / `town` / `moscow` |
 | `experience` | Число хорошо сделанных смен за всю игру |
-| `shiftsThisWeek` | Смен на этой неделе |
+| `shiftsThisWeek`, `shiftsTotal` | Смен на этой неделе (в режиме дней лимита нет) и за всю игру, хороших и нет (по `shiftsTotal` следующая мини-игра после неудачной смены даёт другой набор) |
 | `weeklyBill` | Сколько спишется в конце недели: еда (домашнее меню × невыбранные приёмы) + корм + жильё + добавка события |
 | `foodId` | Домашнее меню |
-| `mealsThisWeek`, `mealsPerWeek` | Сколько раз Финни поел на этой неделе и сколько можно (`food.meals_per_week`) |
+| `mealsThisWeek`, `mealsPerWeek` | Сколько раз Финни поел на этой неделе и сколько можно: в режиме дней 7, по одному в день (`day_cycle.meals_per_week`); в запасном режиме 3 (`food.meals_per_week`) |
+| `mealsCanEat` | Сколько раз ещё можно поесть самому до конца недели: в режиме дней не больше, чем позволяют оставшиеся дни |
+| `snacksThisWeek` | Перекусов на этой неделе (не больше `energy.snack.max_per_week` = 2) |
+| `dayInWeek`, `daysPerWeek`, `daysThisWeek` | День недели с 1 (1…7), дней в неделе (`day_cycle.days_per_week`) и сколько дней прошло на этой неделе; при `daysPerWeek` 1 дней нет |
+| `satiety` | Сытость 0–100 (`int?`); `null`, если дней нет |
+| `satietyHungryAt`, `satietyFullAt` | Пороги сытости из `day_cycle` (25 и 60) — чтобы экран не копировал числа |
+| `hungry`, `full` | Голоден (сытость < `satietyHungryAt`) и сыт (≥ `satietyFullAt`); оба `false`, если дней нет |
+| `doneToday` | Что сделано за день: `meal`, `pet`, `fridge`, `rest`, `job`; утром пусто |
+| `fridge` | Холодильник: блюдо → порций (пусто, пока ежедневные дела выключены) |
+| `achievements` | `List<AchievementView>`: `def` (правило из контента), `progress` и `target`, `status` (`earned` / `inProgress` / `locked`), `earnedWeek` (`int?`) |
+| `toolPayback` | Сколько окупила каждая купленная вещь (ноутбук, транспорт) |
+| `roomOwned`, `roomPlaced`, `chosenSkins` | Купленные вещи комнаты; где они стоят на сетке (id → клетка `{x, y}`; пусто, пока флаг `room.customize` выключен); какой из купленных видов предмета выбран |
 | `owned` | id всего, чем Финни владеет: питомцы, транспорт, жильё, вещи |
 | `activeGoalId`, `activePetId` | Текущая цель и питомец в комнате |
 | `endedBy` | Чем кончилась неделя: `energyOut` или `sleep` |
@@ -100,27 +180,159 @@
 
 ## 3. Экономика — `content/economy.json`
 
+⚡ в таблице ниже — для режима дней: числа файла записаны для запасного режима, а при загрузке все ⚡ работ, досуга,
+еды, жилья, транспорта, перекуса, событий и «на жизнь» умножаются на `day_cycle.energy_scale` (= 2). Числа самого
+`day_cycle` (сон, сытость) в это умножение не входят.
+
 | Раздел | Ключевые поля | Значения сейчас |
 |---|---|---|
-| `pocket_money` | `base`, `index_curve` | 400 в неделю; индексация выключена (все 1,0) |
+| `pocket_money` | `base`, `index_curve` | 820 в неделю в сборке (профиль баланса «средний», 3.1); 400 в файле без профиля; индексация выключена (все 1,0) |
 | `start_gift` | `amount`, `to` | 200 в ЦЕЛЬ при первом запуске |
-| `week` | `max_shifts_per_week`, `max_shifts_per_job_per_week`, `required_charged_at` | 3 смены (Денис 28.09), 2 на одну работу; обязательное списывается в конце недели |
-| `energy` | `base_per_week`, `max_per_week`, `living_drain_per_action`, `sleep`, `exhausted`, `snack` | 10, 14, 1; сон +1 ⚡ и +3 😊; перекус 60 → +1 ⚡, до 2 в неделю |
-| `happiness` | `start`, `pay_mult`, `energy_cost_mult`, `weekly_decay`, `day_drain`, `week_growth`, `leisure_weekly_cap`, `goal_reached_bonus` | 50; ±0,004 и ±0,005 на пункт от 😊 на начало недели; остывание 6 + 0,7 × (😊₀ − 50); −1 за игровой день; рост недели +2, без роста −3 × недель подряд (до −9), рост дохода от 10 %; досуг ≤ 16 в неделю; цель +10 |
-| `food` | `meals_per_week`; `options[]`: `price`, `happiness` (вкус), `energy_now` (польза), `treat` (вкусное без пользы — для итогов недели) | 3 приёма в неделю; 13 блюд за приём: бутерброд с чаем 60 / 0 / 0 · мороженое 70 / +2 / 0 (вкусное без пользы) · овсянка 80 / +1 / 0,5 · макароны 100 / +2 / 0,5 · омлет 130 / +1 / 1,5 · роллы 260 / +4 / 1 · каша 70 / 0 / 0,5 · суп 90 / 0 / 1 · гречка 120 / +1 / 1 · сырники 150 / +2 / 1 · бургер 160 / +3 / 0 · пицца 200 / +4 / 0,5 · рыба 230 / +3 / 1,5 (06-formuly.md §6.2) |
-| `homes.options[]` | `price` (залог и первая неделя), `weekly_cost`, `energy_per_week`, `happiness_per_week`, `stage` | аренда: комната в деревне 0 / 250 · квартира в городе 1 200 / 400 / +1 / +4 · квартира в Москве 2 000 / 1 000 / +2 / +8; `growth.stage_by_rent: true` — стадия = снятое жильё |
+| `day_cycle` | режим дней, 3.2 | 7 дней в неделе, ⚡ до 20, сон по таблице, сытость 0–100, лимита смен нет |
+| `balance_profile`, `balance_profiles` | имя профиля и три набора правок, 3.1 | «средний» (`mid`) |
+| `room` | `customize`, `event_badge`, `pet_name` | `customize` = false (комната на сетке выключена, 3.3); `event_badge` = true (в комнате видно, что событие ждёт); `pet_name` = true (имя ребёнка над Финни в комнате, строка «Имя · состояние») |
+| `adult` | `section`, `weekly_bonus`, `weekly_bonus_coins` | `section` = false (раздела «Взрослым» в меню комнаты нет; экран открывается только из «Режима проверки»); `weekly_bonus` = false (в режиме дней бонус взрослого не действует; вариант A — `weekly_bonus_coins` 20 монет раз в игровую неделю — за этим флагом, выключен) |
+| `city` | `label_scale` | `label_scale` = true (подписи зданий — радиус шкалы проекта, не «пилюля») |
+| `progress` | `share_parent` | `share_parent` = false (кнопки «Отправить родителю» на «Прогрессе» нет) |
+| `bank` | `transfer` | `transfer` = false: здание «Банк» ведёт в копилку (экран с шапкой «Банк»), перевода монет между частями в сборке нет; при `true` — карточка «Что такое банк?» и кнопка «Перевод монет» (одна запись журнала `envelopeTransfer` со встречными суммами, не доход и не расход) |
+| `achievements[]`, `achievements_days_items[]` | награды, 3.4 | 12 наград + 6 под режим дней (флаг `achievements_days` = true) = 18 |
+| `week` | `max_shifts_per_week`, `max_shifts_per_job_per_week`, `required_charged_at` | в режиме дней лимитов смен нет (`day_cycle` задаёт `null`); запасной режим `days_per_week` 1 — 3 смены в неделю, 2 на одну работу. Обязательное списывается в конце недели (в днях — после 7-го дня) |
+| `energy` | `base_per_week`, `max_per_week`, `living_drain_per_action`, `sleep`, `exhausted`, `snack` | запасной режим: 10, 14, 1; сон +1 ⚡ и +3 😊. В режиме дней предел и утренний сон задаёт `day_cycle`; «на жизнь» 1 × 2 = 2 ⚡ на дело; сон в конце 7-го дня переносит +1 × 2 = +2 ⚡ в новую неделю и даёт +3 😊. Перекус 60 монет → +2 ⚡ (в запасном режиме +1), до 2 в неделю |
+| `happiness` | `start`, `pay_mult`, `energy_cost_mult`, `weekly_decay`, `day_drain`, `week_growth`, `leisure_weekly_cap`, `goal_reached_bonus`, `finni_pet` | 50; оплата и ⚡ смены — от 😊 на момент смены (`day_cycle.mood_pay_live`, `day_cycle.mood_live`: оплата × (1 + 0,006 × (😊 − 50)) в границах 0,8–1,2; 😊 ≤ 40 — смена на 1 ⚡ дороже, 😊 ≥ 60 — на 1 ⚡ дешевле); множитель ±0,005 на пункт от 😊 на начало недели в сборке остаётся только у цены ⚡ досуга (±0,004 для оплаты смены не действует); остывание 6 + 0,7 × (😊₀ − 50); −1 за игровой день; рост недели +2, без роста −3 × недель подряд (до −9), рост дохода от 10 %; досуг ≤ 16 в неделю; цель +10; +1 😊 за первое поглаживание Финни в игровой день |
+| `food` | `meals_per_week`; `options[]`: `price`, `happiness` (вкус), `energy_now` (польза), `treat` (вкусное без пользы — для итогов недели) | 7 приёмов в неделю, по одному в день (`day_cycle.meals_per_week`; запасной режим — 3); 13 блюд за приём: цена / 😊 / ⚡ в режиме дней (⚡ файла × 2): бутерброд с чаем 60 / 0 / 0 · мороженое 70 / +2 / 0 (вкусное без пользы) · овсянка 80 / +1 / 1 · макароны 100 / +2 / 1 · омлет 130 / +1 / 3 · роллы 260 / +4 / 2 · каша 70 / 0 / 1 · суп 90 / 0 / 2 · котлета с картошкой 120 / +1 / 2 · сырники 150 / +2 / 2 · бургер 160 / +3 / 0 · пицца 200 / +4 / 1 · рыба 230 / +3 / 3 ([06-formuly.md](06-formuly.md), раздел про еду) |
+| `homes.options[]` | `price` (залог и первая неделя), `weekly_cost`, `energy_per_week`, `happiness_per_week`, `stage` | аренда: комната в деревне 0 / 250 · квартира в городе 5 000 / 400 / +2 ⚡ / +4 😊 · квартира в Москве 12 000 / 1 000 / +4 ⚡ / +8 😊 (⚡ жилья в файле 1 и 2, в режиме дней × 2); `growth.stage_by_rent: true` — стадия = снятое жильё |
 | `pets.roster[]` | `price`, `food_per_week`, `happiness_per_week`, `perk`, `tier` | рыбка 400, хомяк 750, черепаха 900, котёнок 1 800, собака 3 200 (к демо); жабка, змея, аксолотль — резерв |
-| `transport` | `price`, `effects[]`, `options[]` | 1 800; открывает курьера, смена дешевле на 0,5 ⚡; велосипед, самокат, скейт |
+| `transport` | `price`, `effects[]`, `options[]` | 1 800; открывает курьера, смена дешевле на 1 ⚡ (в файле 0,5, в режиме дней × 2), но не дешевле 2 ⚡ до «на жизнь»; велосипед, самокат, скейт |
 | `tech.options[]` | `price`, `unlocks[]` | ноутбук 3 000 → `computer` (программист: лёгкая, средняя); мощный ноутбук 6 000 → `computer`, `computer_pro` (и сложная); цели из ЦЕЛИ |
 | `clothing.items[]` | `price`, `fade[3]` | кепка 300, шарф 350, толстовка 600, кроссовки 800 |
-| `decor.items[]` | `price`, `group`; `happiness_once` | 9 предметов 200–750; +3 😊 один раз |
-| `leisure.options[]` | `price`, `energy`, `happiness` | парк 0 / 1 / 6 · кафе 200 / 1 / 9 · кино 150 / 2 / 10 · игра с питомцем 0 / 1 / 4 (+1 за каждого питомца сверх первого) |
-| `jobs` | `pay`, `energy` (или `tiers[]` с `unlocked_by` уровня), `unlocked`, `unlocked_by` | консультант 300 / 2 · помощник бухгалтера 280 / 2 · кассир 260 / 2 · садовник 180 / 1 — с первого дня · программист 280 / 400 / 480, ⚡ 2–4 (ноутбук; сложная — мощный) · курьер 300–520 / 2–4 (транспорт) · выгульщик 220 / 1 (собака) |
-| `jobs_pay_growth` | `experience_mult_per_shift`, `good_score_min`, `good_shift_*`, `efficiency_bonus_max_share` | 1,01 (перепроверка 29.09; было 1,02 — P8); 0,75; +0,5 ⚡ и −1 😊; 20 % |
+| `decor.items[]` | `price`, `group`; `happiness_once` | 125 предметов, цена 100–5 000 (премиум: стол 15 — 3 500, кровать 8 — 4 000, кровать 6 — 4 500, стол 18 — 5 000): плакаты 6, растения 5, свет 5, вещи 41, мебель (виды предметов) 68; +3 😊 один раз за новый предмет |
+| `leisure.options[]` | `price`, `energy`, `happiness` | цена / ⚡ / 😊, ⚡ в режиме дней × 2 (плюс 2 ⚡ «на жизнь» к каждому делу): парк 0 / 2 / 6 · кафе 200 / 2 / 9 · кино 150 / 4 / 10 · игра с питомцем 0 / 2 / 4 (+1 за каждого питомца сверх первого) |
+| `jobs` | `pay`, `energy` (или `tiers[]` с `unlocked_by` уровня), `unlocked`, `unlocked_by`, `mood_kind` | оплата в файле / в сборке (профиль «средний», ставка × 0,45 вверх до десятка, 3.1) · ⚡ смены в режиме дней, с учётом «на жизнь» (2 × (энергия работы + 1)); от настроения на момент смены цена работы меняется на 1 ⚡ (😊 ≤ 40 — дороже, 😊 ≥ 60 — дешевле, цена работы не ниже 1 ⚡ до «на жизнь»): консультант 300 / 140 · 6 ⚡; помощник бухгалтера 280 / 130 · 6 ⚡; кассир 260 / 120 · 6 ⚡; садовник 180 / 90 · 4 ⚡ — с первого дня; программист 280 / 400 / 480 → 130 / 180 / 220 · 6 / 8 / 10 ⚡ (ноутбук; сложная — мощный); курьер 300 / 400 / 520 → 140 / 180 / 240 · 6 / 8 / 10 ⚡ (транспорт); выгульщик 220 / 100 · 4 ⚡ (собака). `mood_kind`: `fin_fun` — консультант, бухгалтер; `fin_dull` — кассир; `fun` — программист, выгульщик; `dull` — садовник, курьер |
+| `jobs_pay_growth` | `experience_mult_per_shift`, `good_score_min`, `good_shift_*`, `efficiency_bonus_max_share` | 1,01 за хорошую смену; в режиме дней — степень опыт × 3 / 7, ставка вверх до монеты; порог 0,75; хорошая смена стоит ещё +1 ⚡ (в файле 0,5) и −1 😊; бонус за эффективность до 20 % |
 | `shortfall_rule.order[]` | шаги правила нехватки | корм первым → простое домашнее меню (каша) → копилка с согласия → «семья помогает» −6 😊 |
 | `growth` | `points`, `saved_regularly_min_share`, `stages[]` | по 1 очку за 3 причины; 10 %; стадии 0 / 4 / 9, ступень оплаты ×1 / ×1,2 / ×1,35 |
 
 Ключи с `_` — комментарии: игра и симулятор их пропускают.
+
+### 3.1. Профиль баланса — `balance_profile`, `balance_profiles`
+
+В `economy.json` рядом с `day_cycle`: `balance_profile` выбирает один из `balance_profiles` (`soft` · `mid` · `strict`). У
+профиля — только то, что он меняет: `pocket_money.base`, `day_cycle.pay_scale`, `day_cycle.satiety_night`,
+`day_cycle.home_meal_satiety_share`. Загрузчик `applyBalanceProfile` (`lib/data/world_content.dart`) сливает словари и
+заменяет числа до разбора; неизвестное имя — ошибка с именем поля; в запасном режиме `days_per_week` 1 профиль не применяется.
+В сборке выбран профиль «средний» (`mid`):
+
+| Профиль | Карманные в неделю | Оплата смен и трат уроков | Сытость за ночь | Доля сытости домашней еды |
+|---|---|---|---|---|
+| `soft` | 900 | × 0,5 | −20 | 1 |
+| **`mid` (в сборке)** | **820** | **× 0,45, вверх до десятка** | **−20** | **0,8** |
+| `strict` | 480 | × 0,45 | −25 | 0,5 |
+
+Профиль не меняет цены товаров, еды, жилья и питомцев, а также суммы событий: они считаются от базы 400
+(`day_cycle.event_money_base`). Числа и их действие — [06-formuly.md](06-formuly.md).
+
+### 3.2. `day_cycle` — режим дней
+
+Раздел `day_cycle` в `economy.json` включает режим дней. Если раздела нет, игра идёт запасной неделей
+(`days_per_week` равен 1). Любого ключа нет — берётся значение по умолчанию из `DayCycle`. Читает `world_content.dart`
+(`_dayCycle`), числа лежат в `economy.json`. Масштаб ⚡ применяет `world_config_from_content.dart`.
+
+| Ключ = значение сейчас | Тип | Смысл |
+|---|---|---|
+| `days_per_week = 7` | int | Дней в неделе. 1 — запасной режим: дней нет, неделя как раньше |
+| `energy_max = 20` | число | Предел ⚡ |
+| `energy_scale = 2` | число | Множитель всех цен и прибавок ⚡ из `economy.json` и `events.json` при загрузке |
+| `sleep_rule = {floor 10, cap 20, fraction 0,2}` | объект | ⚡ после сна: max(10, x + ⌈(20 − x) × 0,2⌉), не больше 20, где x — ⚡ до сна |
+| `sleep_level = 4`, `carry_max = 1` | число | Запасные ключи прежней модели сна; при `sleep_rule` не используются |
+| `meals_per_week = 7` | int | Приёмов пищи в неделю: один в день |
+| `max_shifts_per_week`, `max_shifts_per_job_per_week` = `null` | int, необязательные | Лимита смен нет: смену держат силы и настроение. Ключа нет — действует `week.*` |
+| `max_shifts_per_day` (в файле нет) | int, необязательный | Не больше стольких смен в день. Ключа нет — без ограничения |
+| `max_events_per_day = 1` | int | Событий в день не больше одного |
+| `events_per_week = 7`, `event_each_morning = true` | int, bool | Одно событие каждое утро; событие без ответа уходит следующим утром |
+| `event_money_base = 400` | int | База, от которой считаются суммы событий (профиль баланса её не меняет) |
+| `mood_kinds`, `mood_revert = 0,2` | объект, число | 😊 после смены по типу работы: `fin_fun` +4 · `fin_dull` −3 · `fun` +2 · `dull` −6; утром 😊 возвращается к 50 на долю 0,2 |
+| `shift_luck`, `shift_choices` | объекты | Везение и мини-решения в смене, 3.2а |
+| `shift_choices_ui = true`, `explain_ui = true` | bool | Флаги экрана: вопрос мини-решения на карточке смены; объяснения на экранах (3.2б) |
+| `satiety_start = 70` | int | Сытость в начале игры |
+| `satiety_per_action = 10` | int | −сытость за дело |
+| `satiety_night = 20` | int | −сытость за ночь (у профиля `mid` тоже 20) |
+| `satiety_full_at = 60`, `satiety_full_bonus = 2` | int, число | Сытость, с которой утром +⚡, и размер прибавки |
+| `satiety_hungry_at = 25`, `satiety_hungry_malus = 2`, `satiety_hungry_happiness = -2` | int | Ниже этой сытости утром голод: −2 ⚡ и −2 😊 |
+| `satiety_meal_base = 30`, `satiety_meal_per_energy = 8` | int | Сытость блюда = 30 + 8 × ⚡ блюда |
+| `home_meal_daily = true` | bool | День без своей еды Финни ест дома меню недели (сытость, без монет) |
+| `home_meal_satiety_share` | число | Доля сытости домашней еды; задаёт профиль (у `mid` 0,8) |
+| `pay_scale` | число | Множитель оплаты смен и трат уроков; задаёт профиль (у `mid` 0,45) |
+| `daily_activities = false` | bool | Ежедневные дела (холодильник, отдых дома): выключено |
+| `mood_pay_live = true`, `mood_live` | bool, объект | Оплата и ⚡ смены — от 😊 на момент смены. `mood_live`: `pay_per_point` 0,006 · `pay_min` 0,8 · `pay_max` 1,2 · `sad_at` 40 · `happy_at` 60 · `energy_step` 1 · `min_job_energy` 1. Оплата × (1 + `pay_per_point` × (😊 − 50)) в [`pay_min`, `pay_max`]; при 😊 ≤ `sad_at` смена +`energy_step` ⚡, при 😊 ≥ `happy_at` — −`energy_step` ⚡. `mood_pay_daily` = false. Досуг считается по 😊 начала недели |
+| `xp_stages = true`, `xp_stage_min`, `xp_stage_jobs` | bool, массив, массив | Ступени сложности по опыту (хорошие смены): пороги [0, 2, 5]; работы — кассир, консультант, бухгалтер, садовник; оплата и ⚡ от ступени не зависят. Содержание — `jobs.json → jobs.<работа>.stages` |
+| `tutorial_ui = true` | bool | Обучалка первого захода в комнату: 6 шагов, затемнение и карточка с Финни |
+| `dog_walk_game = true` | bool | Мини-игра выгульщика «прогулка по клеткам» (`jobs.json → jobs.dog_walker`); false — прежняя заглушка |
+| `shop_energy = 2`, `rest_energy = 2`, `rest_happiness = 2` | число, int | ⚡ закупки в холодильник, ⚡ и 😊 «отдохнуть дома» (работают, если включить `daily_activities`) |
+
+#### 3.2а. Везение и мини-решения
+
+```
+shift_luck:     { chance: 0.35, scenarios: [ { id, work, kind: good|bad, weight, pay_x?, energy_back?, text } × 35 ] }
+shift_choices:  { chance: 0.5,  items:     [ { id, work, question, options: [ { id, label, pay_x?, energy?, happiness?, effect_hint? } × 2 ] } × 28 ] }
+```
+
+35 сценариев везения: по 5 на каждую из 7 работ. 28 вопросов мини-решений: по 4 на каждую работу, у вопроса 2 варианта. Разбор —
+`world_content.dart`: `energy` и `energy_back` умножаются на `energy_scale` при загрузке, `effect_hint` попадает в
+`ShiftChoiceOption.effectHint`. Карточка смены `JobOffer` несёт `choice` — вопрос этой смены или `null`. Формулы — [06-formuly.md](06-formuly.md).
+
+#### 3.2б. `explain.json` — объяснения на экранах
+
+`app/finlit/assets/content/world/explain.json` (копия — `content/explain.json`), читает `WorldExplain.parse`
+(`lib/features/world/world_explain.dart`): раздел `explain` — пять обязательных строк `mood_why`, `xp_short`, `xp_detail`,
+`sleep_short`, `sleep_detail` (в `sleep_*` подставляются `{floor}` и `{cap}` из `day_cycle.sleep_rule`, числа в тексте не
+пишутся); раздел `shift_luck_hint` — по строке на каждый из 35 сценариев везения. Нет ключа или пустая строка — ошибка
+контента с именем ключа, объяснения выключаются, экран работает без них. Включает флаг `day_cycle.explain_ui`; где что
+показано — [08-ux-ui.md](08-ux-ui.md).
+
+### 3.3. `room_items.json` — вещи и сетка комнаты (флаг `room.customize` выключен)
+
+Файл `app/finlit/assets/content/world/room_items.json`, флаг — `economy.json → room.customize` = **false**: вкладка «Комната»
+в магазине и режим «Расставить» не показываются, покупки вещей комнаты отказываются, пока флаг выключен. Эта часть в сборке
+не действует; данные и правила описаны, чтобы включение было правкой одного флага.
+
+| Поле | Что | Значения |
+|---|---|---|
+| `version`, `happiness_once` | версия схемы; 😊 за каждую новую вещь, один раз | 1; 3 |
+| `grid` | `cols` × `rows`, `origin` {x, y} и `cell` — в долях стороны квадратного фона; `cells[]` — карта по рядам: `f` пол, `w` стена, `t` стол или подоконник, `.` — места нет | 5 × 6; origin (0,1; −0,02); cell 0,17 (≥ 48 dp) |
+| `items[]` | `id` (префикс `room_`), `name`, `size_cells` {w, h}, `price`, `sprite` (путь к картинке), `slot_type` (`floor` · `wall` · `table`) | 7 вещей: кресло 600 · книжный шкаф 700 · ящик с игрушками 350 (2 × 1) — пол; часы 250 · картина с морем 300 (2 × 1) — стена; настольная лампа 300 · росток в горшке 200 — стол |
+
+**Правила** (`lib/domain/world/room_grid.dart`). `roomPlaceBlock` отказывает по порядку: нет такой вещи (`room.unknown`) →
+не куплена (`room.not_owned`) → хоть одна клетка за сеткой (`room.out`, «Вещь сюда не помещается») → тип клетки не равен
+`slot_type` вещи (`room.slot`, «ставится на пол / на стену / на стол или подоконник») → клетка занята другой вещью
+(`room.busy`, «Здесь уже стоит: …»); своё прежнее место вещи не мешает (её передвигают). Правило одно у `WorldGame` и
+тестового мира; экран по нему подсвечивает клетки. Покупка — из «Хочу», затем из заработка, как у прочих вещей, отказ
+«Не хватает N» без списания; купить можно только в фазе недели «living», купленное повторно — отказ `buy.owned`
+(«Это у Финни уже есть»).
+
+**Журнал.** Три вида записей: `roomItemBought` (`args.itemId`, `args.price`; монеты и 😊 в полях записи),
+`roomItemPlaced` (`args.itemId`, `args.x`, `args.y` — левый верхний угол; пишется, только если место сменилось; бесплатно, в
+любой фазе), `roomItemRemoved` (`args.itemId`; вещь остаётся купленной). Свёртка: `roomOwned` и `roomPlaced` в
+`ResourceSnapshot`. Журнал без этих записей читается как пустая комната (`test/domain/world/room_customize_test.dart`).
+
+### 3.4. `achievements` — награды
+
+Массив правил, в порядке показа на экране. Раздела нет — наград нет. Неизвестная метрика — ошибка контента при загрузке.
+Записи `achievementEarned` пишутся всегда; экран наград в сборке включён и открывается из «Прогресса». Числа наград предварительные.
+
+| Ключ | Тип | Смысл |
+|---|---|---|
+| `id` | string | Ключ награды (`first_shift`); по нему пишется `achievementEarned.args.id` |
+| `title` | string | Название на экране («Первая смена») |
+| `topic` | string | Тема экрана: `work`, `money`, `knowledge` и тема про самого питомца |
+| `hint` | string | Что сделать одной фразой |
+| `metric` | string | Что считается: `shifts`, `good_shifts`, `goals_bought`, `weeks_no_family_help`, `no_family_streak`, `goal_saved_max`, `lessons_done`, `pets_owned`, `stage` |
+| `target` | int | Сколько нужно; награда получена, когда метрика ≥ `target` |
+
+Сейчас в сборке 18 наград: 12 базовых и 6 под режим дней (`achievements_days_items[]`, флаг `achievements_days` = true) —
+«Разные работы» (3 разных работы), «Пять профессий», «Везёт!», «Своё решение», «Семь дней», «Рабочие дни» (метрики
+`distinct_jobs`, `lucky_shifts`, `shift_choices`, `days_played`, `work_days`). Награды дней дают баффы (поле `effect`):
+временный +😊 сразу и каждое утро на 2–3 дня или постоянный +1 к пределу ⚡ («Семь дней», 20 → 21). Базовые 12: первая смена, 5 хороших смен, первая цель, 3 цели, неделя без нехватки, 3 недели подряд, 1000 монет
+в копилке, первый урок, 5 уроков, свой питомец, переезд в город, переезд в Москву (список и условия — [06-formuly.md](06-formuly.md)).
 
 ## 4. Работа — `content/jobs.json`
 
@@ -130,17 +342,20 @@
 |---|---|
 | `consultant` | `sets[]` — 4 набора по 3 товара (`items[]` с характеристиками), покупатель (`customer.line`, `budget`, `best_fit`, реплики `feedback_*`) |
 | `accountant` | помощник бухгалтера студсовета — схема консультанта: `sets[]` — 3 набора (автобус, угощение, принтер), `customer` — староста со сметой; `texts` — подписи экрана вместо «товаров» и «сканера» (`sort_intro`, `check`, `check_wait`, `all_ok`, `pick`) |
-| `lessons` (не работа) | урок после смены по id работы: `topic` (budget / savings / payments), `title`, `situation`, `understood` («что мы поняли»), `word` + `word_term` (Словарик), `choices[]` — 2–3: `label`, `effects` (`goal_share`, `need_share` — доля оплаты смены 0..1; `spend`; `happiness`), `finni` |
+| `lessons` (не работа) | уроки после смены по id работы — по 3 на работу (всего 21), чередуются по сменам: `topic` (budget / savings / payments), `title`, `situation`, `understood` («что мы поняли»), `word` + `word_term` (Словарик), `choices[]` — 2–3: `label`, `effects` (`goal_share`, `need_share` — доля оплаты смены 0..1; `spend`; `happiness`), реплика Финни к варианту |
 | `university` (не работа) | вуз Финни на доске «Требуется…»: `title`, `intro` (почему открыты финансовые работы), `cards[]` (`title`, `text`, `source` — настоящий источник, без ссылок), `adult_note` — адреса источников, только в разделе взрослого |
-| `cashier` | `coins[]`, `bills[]`, `customers_per_shift` 2, `purchases[]` — 7 покупок (`item`, `price`, `paid_with`; `change` — для людей, сдачу считает код), `feedback` (`{diff}` — на сколько ошибся) |
-| `gardener` | `beds` 6, `grid` [столбцы, строки], `max_dry_at_once`, пороги `great_share` / `ok_share`, строки итога, ходы `calm_turns` / `calm_wilt_turns` — игра только по ходам, часов нет (с 29.09) |
+| `cashier` | `coins[]`, `bills[]`, `customers_per_shift` 2, `purchases[]` — 20 покупок (`item`, `price`, `paid_with`; `change` — для людей, сдачу считает код), `feedback` (`{diff}` — на сколько ошибся; `diff_hint_from` 1 — недостачу или лишнее показывают уже после первой неверной сдачи, NAS-3 A), `count_up` (сдачу досчитывают вверх от цены до купюры, NAS-2 А) |
+| `gardener` | `beds` 6, `grid` [столбцы, строки], `max_dry_at_once`, пороги `great_share` / `ok_share`, строки итога, ходы `calm_turns` / `calm_wilt_turns` — игра только по ходам, часов нет |
 | `courier` | `orders[]` — 3 заказа (`tier`, `maze`, `map` — карта строками: `S` старт, `G` клиент, `.` дорога, буквы — стены; `order_card`, `parcels[]` с `why` у неверных), `walls` — буква → название стены, `wrong_turn_rule` |
 | `programmer` | `tasks[]` — 3 задачи (`tier`, `device`, `goal`, `blocks[]` — палитра, `solution[]` — id блоков, могут повторяться, `hint_on_error`). Id задачи выбирает устройство в коде |
+| `dog_walker` | выгульщик собак — мини-игра «прогулка по клеткам» (флаг `day_cycle.dog_walk_game` = true): нажать соседнюю клетку, собрать всё на тропинке и привести собаку домой; ступень идёт по кругу от числа смен, ставка одна (`economy.json → jobs.dog_walker.pay`) |
 
 Игра читает эти поля при запуске (`WorldContent` → `JobGames`); ошибка в файле — сообщение с путём
 до поля (`jobs.json → jobs.courier.orders[0].map: нужен ровно один S и один G`) до первого кадра.
 
 ## 5. Задания-события — `content/events.json`
+
+52 события.
 
 | Поле | Что |
 |---|---|
@@ -149,7 +364,7 @@
 | `conditions` | Когда событие может появиться (неделя, ⚡, метка) |
 | `title`, `situation` | Заголовок и ситуация для ребёнка |
 | `options[]` | 2–3 варианта: `label`, `effects` (схема — `_effects_schema`), реплика Финни с объяснением |
-| `_rules` | Частота (1–2 в неделю, одно событие не чаще раза в 4 недели), доступность вариантов |
+| `_rules` | Частота: в режиме дней по одному событию каждое утро, не больше одного в день (`day_cycle.max_events_per_day` = 1, 7 в неделю — `events_per_week`), событие без ответа уходит следующим утром; одно событие не чаще раза в 4 недели; в запасном режиме 1–2 в неделю. Доступность вариантов. ⚡ в эффектах и условиях `energy_min` / `energy_max` в режиме дней × 2 при загрузке (`lib/data/world_config_from_content.dart`) |
 | `_flags` | Метки, которые ставят события, и кто их читает |
 
 Список всех событий с логикой и объяснениями — в
@@ -162,6 +377,8 @@
 - **очки роста** — сумма `args.points` из записей `periodClosed` (закрытие недели);
 - **стадия** — последний порог из `growth.stages[].min_points`, который набран;
 - **опыт** — число записей `jobPayout` с `args.good = true`;
-- **история недели** — записи журнала с этим `weekNo`: смены, покупки, события, счета.
+- **история недели** — записи журнала с этим `weekNo`: смены, покупки, события, счета;
+- **день недели и сытость** (режим дней) — из `dayEnded` и `args.satiety` (2.2а);
+- **награды** — записи `achievementEarned`; прогресс по метрике считается свёрткой, полученная награда в журнале одна.
 
-Формулы — в [06-formuly.md](06-formuly.md).
+Слова «конверт» и «очки роста» — как в коде. Формулы — в [06-formuly.md](06-formuly.md).

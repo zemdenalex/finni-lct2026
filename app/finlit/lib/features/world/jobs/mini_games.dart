@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
+import '../../../domain/world/contract.dart'
+    show FinniGender, OnboardingProgress;
 import '../world_layout.dart';
 import 'games/cashier_game.dart';
 import 'games/consultant_game.dart';
 import 'games/courier_game.dart';
+import 'games/dog_walker_game.dart';
 import 'games/gardener_game.dart';
 import 'games/programmer_game.dart';
 import 'job_games.dart';
 import '../../../core/world_theme.dart';
 
 /// Основной текст смены: в портрете крупный (`bodyLarge`), в альбомной —
-/// 16 sp (минимум ТЗ 3.6.4), чтобы поле и кнопки влезли в 360 dp высоты.
+/// [gameTextCompact], чтобы поле и кнопки влезли в 360 dp высоты.
 TextStyle gameText(BuildContext context) => WorldLayout.isLandscape(context)
-    ? const TextStyle(fontSize: 16, height: 1.3, color: WorldColors.text)
+    ? gameTextCompact
     : Theme.of(context).textTheme.bodyLarge!;
+
+/// 16 sp (минимум ТЗ 3.6.4) в любой ориентации — кеглем кнопок-вариантов
+/// под текстом. Вопрос смены и ситуация урока в портрете: с нижним меню
+/// (−60 dp) на 360×640 при шрифте 1,3 при 20 sp второй вариант уходил под
+/// меню, а первый вариант урока — под строку «Уже утро»
+/// (job_day_end_visible_test, lesson_fits_test).
+const TextStyle gameTextCompact =
+    TextStyle(fontSize: 16, height: 1.3, color: WorldColors.text);
 
 /// Подпись узкой кнопки в альбомной. 🔴 Семейство — явно: в стилях
 /// компонентов ThemeData.fontFamily не подставляется.
@@ -93,9 +104,16 @@ class MiniGameArgs {
     required this.onDone,
     this.variant,
     this.round = 0,
+    this.heroName = OnboardingProgress.defaultFinniName,
+    this.heroGender,
   });
 
   final String jobId;
+
+  /// Имя и пол героя из знакомства — для итога смены в его роде
+  /// (правило 5Б, [heroGendered]).
+  final String heroName;
+  final FinniGender? heroGender;
 
   /// Содержание всех мини-игр из `jobs.json` — игра берёт своё.
   final JobGames games;
@@ -133,15 +151,21 @@ const Map<String, MiniGame> miniGames = <String, MiniGame>{
   'gardener': MiniGame(help: gardenerHelp, build: buildGardenerGame),
   'courier': MiniGame(help: courierHelp, build: buildCourierGame),
   'programmer': MiniGame(help: programmerHelp, build: buildProgrammerGame),
+  'dog_walker': MiniGame(help: dogWalkerHelp, build: buildDogWalkerGame),
 };
 
 /// Игра для работы без своей мини-игры: одна кнопка «Сделать» (оценка 1).
 const MiniGame placeholderGame = MiniGame(
-  help: 'Эта работа пока без мини-игры: нажми «Сделать», и смена засчитана.',
+  help: 'Эта работа простая: нажми «Сделать» — и смена готова.',
   build: _buildPlaceholder,
 );
 
-MiniGame miniGameFor(String jobId) => miniGames[jobId] ?? placeholderGame;
+/// Игра работы [jobId]. Выгульщик собак при выключенном флаге
+/// `day_cycle.dog_walk_game` ([JobGames.dogWalkGame]) — снова заглушка.
+MiniGame miniGameFor(String jobId, JobGames games) =>
+    jobId == 'dog_walker' && !games.dogWalkGame
+        ? placeholderGame
+        : miniGames[jobId] ?? placeholderGame;
 
 Widget _buildPlaceholder(BuildContext context, MiniGameArgs args) =>
     _PlaceholderGame(args: args);
@@ -155,7 +179,7 @@ class _PlaceholderGame extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text('Здесь скоро будет мини-игра. Пока просто сделай работу.',
+          Text('Работа простая: нажми «Сделать» — и смена готова.',
               style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: Gap.md),
           FilledButton.icon(

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:finlit/core/art/asset_registry.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/features/world/home/hud_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +68,6 @@ void main() {
     expect(
         tester.getSize(find.byKey(const ValueKey<String>('hud:strip'))).width,
         800);
-    expect(find.bySemanticsLabel(RegExp('^Энергия: ')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Сил: ')), findsOneWidget);
   });
 }

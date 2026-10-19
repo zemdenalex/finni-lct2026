@@ -57,7 +57,8 @@ class WorldDemoSession {
   /// Игру начинали заново в этом сеансе (прогресс стёрт).
   static bool resetDone = false;
 
-  /// Раздел взрослого открывался (барьер пройден) в этом сеансе.
+  /// Раздел взрослого S14 открывался в этом сеансе: решён пример на его
+  /// входе. Барьер перед режимом проверки или сбросом не в счёт.
   static bool adultOpened = false;
 
   static void clear() {
@@ -90,6 +91,7 @@ abstract final class WorldChecklist {
     final bool earned = s.experience > 0 || has(WorldLedgerKind.jobPayout);
     final bool billPaid = has(WorldLedgerKind.billPaid) || s.weekNo > 1;
     final bool boughtWant = has(WorldLedgerKind.itemOwned) ||
+        has(WorldLedgerKind.roomItemBought) ||
         has(WorldLedgerKind.leisure) ||
         s.owned.any((String id) => !_goalPrefixes.any(id.startsWith));
     final bool goalChosen = s.activeGoalId != null ||

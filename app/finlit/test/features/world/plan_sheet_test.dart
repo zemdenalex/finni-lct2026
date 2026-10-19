@@ -20,8 +20,11 @@ int _shown(WidgetTester tester, String name) {
   return int.parse(s.properties.label!.substring(name.length + 2));
 }
 
-(int, int, int) _plan(WidgetTester tester) =>
-    (_shown(tester, 'НУЖНО'), _shown(tester, 'ХОЧУ'), _shown(tester, 'ЦЕЛЬ'));
+(int, int, int) _plan(WidgetTester tester) => (
+      _shown(tester, 'Нужно'),
+      _shown(tester, 'Хочу'),
+      _shown(tester, 'Копилка')
+    );
 
 Future<void> _press(WidgetTester tester, String tooltip) async {
   await tester.tap(find.byTooltip(tooltip));
@@ -79,19 +82,20 @@ void main() {
       await open(tester, w);
 
       expect(_plan(tester), (0, 0, 0), reason: 'конверты с нуля');
-      expect(_rest(tester), 'Не разложено: $total — уйдёт в кошелёк.');
+      expect(_rest(tester),
+          'Не разложено: $total — уйдёт в заработок.');
       for (int i = 0; i < 3; i++) {
-        await _press(tester, 'ЦЕЛЬ больше');
+        await _press(tester, 'Копилка: больше');
       }
-      await _press(tester, 'ЦЕЛЬ меньше');
-      await _press(tester, 'ХОЧУ больше');
+      await _press(tester, 'Копилка: меньше');
+      await _press(tester, 'Хочу: больше');
       expect(_plan(tester), (0, 10, 20));
       while (_rest(tester) != planAllSpentLine) {
-        await _press(tester, 'НУЖНО больше');
+        await _press(tester, 'Нужно: больше');
       }
       final (int need, int want, int goal) = _plan(tester);
       expect(need + want + goal, total);
-      for (final String t in <String>['НУЖНО больше', 'ХОЧУ больше']) {
+      for (final String t in <String>['Нужно: больше', 'Хочу: больше']) {
         expect(_enabled(tester, t), isTrue, reason: '$t не гаснет');
         await _press(tester, t);
         expect(_plan(tester), (need, want, goal), reason: '$t при остатке 0');
@@ -127,10 +131,10 @@ void main() {
       ok(w.startWeek());
       await open(tester, w, app: app);
       while (_rest(tester) != planAllSpentLine) {
-        await _press(tester, 'НУЖНО больше');
+        await _press(tester, 'Нужно: больше');
       }
       expect(find.byKey(const ValueKey<String>('plan:full')), findsNothing);
-      await _press(tester, 'ХОЧУ больше');
+      await _press(tester, 'Хочу: больше');
       await tester.pump(const Duration(milliseconds: 40));
       expect(find.byKey(const ValueKey<String>('plan:full')), findsOneWidget);
       expect(find.text('Всё уже разложено'), findsOneWidget);
@@ -142,7 +146,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(poolShift(tester), 0, reason: 'встал на место');
       // Переложил — надпись ушла.
-      await _press(tester, 'НУЖНО меньше');
+      await _press(tester, 'Нужно: меньше');
       expect(find.byKey(const ValueKey<String>('plan:full')), findsNothing);
     });
   }
@@ -154,7 +158,7 @@ void main() {
     final World w = worldKinds.last.make();
     ok(w.startWeek());
     ok(w.plan(needs: w.snapshot.unallocated - 50, wants: 0, goal: 50));
-    ok(w.sleep());
+    ok(sleepWeek(w));
     ok(w.payBills());
     ok(w.startWeek());
     final int saved = w.snapshot.saved;

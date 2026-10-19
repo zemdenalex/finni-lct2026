@@ -198,6 +198,7 @@ class LayoutStage {
     this.slots = const <String, Rect>{},
     this.edgeWall,
     this.edgeFloor,
+    this.edgeTile,
   });
 
   final String background;
@@ -209,6 +210,10 @@ class LayoutStage {
   final Map<String, Rect> slots;
   final Color? edgeWall;
   final Color? edgeFloor;
+
+  /// Чем продолжить комнату по бокам на широком экране ([EdgeTile]); нет —
+  /// поля цветами [edgeWall] / [edgeFloor].
+  final EdgeTile? edgeTile;
 
   static LayoutStage? parse(Object? v) {
     if (v is! Map<String, Object?>) return null;
@@ -233,6 +238,7 @@ class LayoutStage {
       },
       edgeWall: _hex(v['edge_wall']),
       edgeFloor: _hex(v['edge_floor']),
+      edgeTile: EdgeTile.parse(v['edge_tile']),
     );
   }
 
@@ -310,5 +316,36 @@ class CameraSpec {
         deadZone: d.toDouble(),
         ease: Duration(milliseconds: e.toInt()),
         foregroundShown: f is num ? f.toDouble() : 0);
+  }
+}
+
+/// Продолжение комнаты за краями фона (D17, «полосы по бокам»): полоса
+/// фона без мебели — столбцы [x]…[x] + [w] (доли ширины). Её стена
+/// ([wallY]…[floorY], обои под окном) повторяется по бокам и вверх, пол с
+/// плинтусом ([floorY]…низ) — по бокам теми же рядами, что в фоне: доски
+/// сходятся со швом. Копии через одну зеркальные — без шва между ними.
+class EdgeTile {
+  const EdgeTile({
+    required this.x,
+    required this.w,
+    required this.wallY,
+    required this.floorY,
+  });
+
+  final double x, w, wallY, floorY;
+
+  static EdgeTile? parse(Object? v) {
+    if (v is! Map<String, Object?>) return null;
+    final Object? x = v['x'], w = v['w'], wy = v['wall_y'], fy = v['floor_y'];
+    if (x is! num || w is! num || wy is! num || fy is! num) return null;
+    if (w <= 0 || x < 0 || x + w > 1 || wy < 0 || fy <= wy || fy >= 1) {
+      return null;
+    }
+    return EdgeTile(
+      x: x.toDouble(),
+      w: w.toDouble(),
+      wallY: wy.toDouble(),
+      floorY: fy.toDouble(),
+    );
   }
 }

@@ -164,7 +164,12 @@ void main() {
     final Directory dir =
         Directory.systemTemp.createTempSync('finlit_parent_bonus_');
     addTearDown(() => dir.deleteSync(recursive: true));
-    Future<String> read(String path) => File(path).readAsString();
+    // Бонус работает при лимите смен: в режиме «неделя» (лимит 3); в днях
+    // лимита нет — там бонус не нужен (`adult_demo_test`).
+    Future<String> read(String path) async {
+      final String s = await File(path).readAsString();
+      return path.endsWith('economy.json') ? weekMode(s) : s;
+    }
 
     final SavedWorld first =
         await openSavedWorld(read: read, storage: FileStorage(dir));

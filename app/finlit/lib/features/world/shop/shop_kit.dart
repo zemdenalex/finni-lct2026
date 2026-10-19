@@ -9,6 +9,7 @@ import '../home/world_hud.dart';
 import '../world_layout.dart';
 import '../pic_text.dart';
 import '../world_help.dart';
+import '../world_dock.dart';
 import '../world_routes.dart';
 import '../../../core/world_theme.dart';
 
@@ -135,9 +136,9 @@ String billPartsText(WeekBillParts p) => <String>[
 enum PayFrom { need, want, goal }
 
 (IconData, String, Color) payFromLook(PayFrom p) => switch (p) {
-      PayFrom.need => (Icons.receipt_long_rounded, 'НУЖНО', WorldColors.needs),
-      PayFrom.want => (Icons.favorite_rounded, 'ХОЧУ', WorldColors.wants),
-      PayFrom.goal => (Icons.savings_rounded, 'ЦЕЛЬ', WorldColors.goal),
+      PayFrom.need => (Icons.receipt_long_rounded, 'Нужно', WorldColors.needs),
+      PayFrom.want => (Icons.favorite_rounded, 'Хочу', WorldColors.wants),
+      PayFrom.goal => (Icons.savings_rounded, 'Копилка', WorldColors.goal),
     };
 
 PayFrom payFromOf(WorldCatalogItem e) => e.isGoal
@@ -199,7 +200,7 @@ class BillPreview extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.sm),
         decoration: BoxDecoration(
           color: WorldColors.needsBg,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,7 +277,7 @@ Future<bool> confirmBuy(BuildContext context, World w, WorldCatalogItem e) {
   final PayFrom from = payFromOf(e);
   final String pay = switch (from) {
     PayFrom.goal => 'Платим из копилки: там ${s.goal}.',
-    PayFrom.want => 'Платим из ХОЧУ (${s.want}), потом из заработка '
+    PayFrom.want => 'Платим из части «Хочу» (${s.want}), потом из заработка '
         '(${s.free}).',
     PayFrom.need => 'Это счёт недели.',
   };
@@ -351,9 +352,9 @@ class BlockNote extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(block.text, style: kitBody(context)),
+                PicText(block.text, style: kitBody(context)),
                 if (showNext && block.nextStep != null)
-                  Text('Что можно: ${block.nextStep}', style: kitSoft),
+                  PicText('Что можно: ${block.nextStep}', style: kitSoft),
               ],
             ),
           ),
@@ -375,7 +376,11 @@ class WorldPage extends StatelessWidget {
     required this.body,
     this.header,
     this.result,
+    this.dock,
   });
+
+  /// Раздел нижнего меню (стиль Алины); null — без меню (проверка жюри).
+  final DockSection? dock;
 
   /// Префикс ключей: `shop`, `pets`, `piggy`.
   final String id;
@@ -405,8 +410,7 @@ class WorldPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool land = WorldLayout.isLandscape(context);
     final Widget? resultCard = result == null ? null : ResultCard(result!);
-    return Scaffold(
-      backgroundColor: WorldColors.night,
+    final Widget page = Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         // Альбомная — основная: низкая шапка, высота нужна списку.
@@ -471,6 +475,7 @@ class WorldPage extends StatelessWidget {
         ),
       ),
     );
+    return dock == null ? page : WithDock(current: dock!, child: page);
   }
 }
 
@@ -502,7 +507,7 @@ class ResultCard extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: WorldColors.text)),
-                Text(result.reason,
+                PicText(result.reason,
                     key: const ValueKey<String>('result:reason'),
                     style: kitText),
                 if (result.nextStep != null)
@@ -746,7 +751,8 @@ class FoodScales extends StatelessWidget {
     final String label = 'Польза: ⚡ +${energyAbs(food.energy)} сразу. '
         'Вкус: 😊 ${food.happiness < 0 ? food.happiness : '+${food.happiness}'}.';
     return Semantics(
-      label: label,
+      // Правило 3А: TalkBack читает «силы», «настроения», а не имена эмодзи.
+      label: PicText(label).spoken,
       excludeSemantics: true,
       child: Wrap(
         spacing: Gap.md,

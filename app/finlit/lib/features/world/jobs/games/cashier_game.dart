@@ -36,8 +36,11 @@ class CashierContent {
     required this.purchases,
     required this.customersPerShift,
     required this.feedbackRight,
+    required this.feedbackRetry,
     required this.feedbackTooLittle,
     required this.feedbackTooMuch,
+    required this.countUp,
+    required this.diffHintFrom,
   });
 
   factory CashierContent.fromData(JobData d) {
@@ -47,8 +50,11 @@ class CashierContent {
       purchases: dObjs(d, 'purchases').map(CashierPurchase.fromData).toList(),
       customersPerShift: dInt(d, 'customers_per_shift'),
       feedbackRight: dStr(fb, 'right'),
+      feedbackRetry: dStr(fb, 'retry'),
       feedbackTooLittle: dStr(fb, 'too_little'),
       feedbackTooMuch: dStr(fb, 'too_much'),
+      countUp: dStr(d, 'count_up'),
+      diffHintFrom: dInt(d, 'diff_hint_from'),
     );
   }
 
@@ -60,9 +66,25 @@ class CashierContent {
   final int customersPerShift;
   final String feedbackRight;
 
-  /// `{diff}` — на сколько ошибся.
+  /// Неверная сдача, пока ошибок подряд меньше [diffHintFrom]: только
+  /// «посчитай ещё раз», без «на сколько». В сборке не показывается:
+  /// `diff_hint_from: 1` (NAS-3 A, Настя 19.10: недостача после любой ошибки).
+  final String feedbackRetry;
+
+  /// `{diff}` — на сколько ошибся; с [diffHintFrom]-й ошибки подряд.
   final String feedbackTooLittle;
   final String feedbackTooMuch;
+
+  /// Как считать сдачу — строка под покупкой, `{price}` и `{paid}` (NAS-2 А:
+  /// «досчитай вверх» от цены до купюры, не вычитание).
+  final String countUp;
+
+  /// С какой ошибки подряд у покупателя видно, на сколько ошибся.
+  final int diffHintFrom;
+
+  String countUpFor(CashierPurchase p) => countUp
+      .replaceAll('{price}', '${p.price}')
+      .replaceAll('{paid}', '${p.paidWith}');
 
   /// Покупки смены [round]: по кругу по списку.
   List<CashierPurchase> purchasesFor(int round) => <CashierPurchase>[
@@ -71,8 +93,8 @@ class CashierContent {
       ];
 }
 
-const String cashierHelp = 'Покупатель платит купюрой. Посчитай сдачу: '
-    'из того, что дали, вычти цену. Нажимай на монеты — они попадут в '
+const String cashierHelp = 'Покупатель платит купюрой. Посчитай сдачу '
+    'вверх: от цены до того, что дали. Нажимай на монеты — они попадут в '
     'сдачу, сумма видна числом. Лишнюю монету можно убрать. Подходит '
     'любой набор монет с нужной суммой. Таймера нет — ошибка не уменьшает '
     'оплату.';
@@ -106,6 +128,9 @@ class _CashierGameState extends State<CashierGame> {
   _Verdict? _verdict;
   int _diff = 0;
   bool _missedThis = false;
+
+  /// Неверных сдач подряд у этого покупателя (порог — `diffHintFrom`).
+  int _misses = 0;
   int _firstTry = 0;
 
   CashierPurchase get _p => _queue[_index];
@@ -125,12 +150,17 @@ class _CashierGameState extends State<CashierGame> {
 
   void _give() {
     final int change = _p.change;
+    // Сумма уже проверена (монеты с тех пор не менялись): повторное нажатие
+    // не новая попытка — иначе разница открывалась бы без пересчёта (NAS-3).
+    final bool fresh = _verdict == null;
     setState(() {
       if (_sum == change) {
         _verdict = _Verdict.right;
         if (!_missedThis) _firstTry++;
+        _misses = 0;
       } else {
         _missedThis = true;
+        if (fresh) _misses++;
         _verdict = _sum < change ? _Verdict.tooLittle : _Verdict.tooMuch;
         _diff = (_sum - change).abs();
       }
@@ -148,16 +178,27 @@ class _CashierGameState extends State<CashierGame> {
       _given.clear();
       _verdict = null;
       _missedThis = false;
+      _misses = 0;
     });
   }
 
-  String get _feedback => switch (_verdict!) {
-        _Verdict.right => widget.content.feedbackRight,
-        _Verdict.tooLittle =>
-          widget.content.feedbackTooLittle.replaceAll('{diff}', '$_diff'),
-        _Verdict.tooMuch =>
-          widget.content.feedbackTooMuch.replaceAll('{diff}', '$_diff'),
-      };
+  /// Отзыв на «Отдать сдачу». Расчёт — счётом вверх от цены: верно —
+  /// «цена + сдача = купюра»; с [CashierContent.diffHintFrom]-й ошибки
+  /// подряд — «на сколько» и та же строка с суммой ребёнка; до неё — только
+  /// «посчитай ещё раз», без расчёта и разницы. Порог в сборке 1 (NAS-3 A).
+  String _feedback(CashierPurchase p) {
+    final CashierContent c = widget.content;
+    final _Verdict v = _verdict!;
+    if (v == _Verdict.right) {
+      return '${c.feedbackRight}\n${p.price} + ${p.change} = ${p.paidWith}';
+    }
+    if (_misses < c.diffHintFrom) return c.feedbackRetry;
+    final String diff =
+        (v == _Verdict.tooLittle ? c.feedbackTooLittle : c.feedbackTooMuch)
+            .replaceAll('{diff}', '$_diff');
+    return '$diff\n${p.price} + $_sum = ${p.price + _sum}, а покупатель '
+        'дал ${p.paidWith}.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,10 +213,20 @@ class _CashierGameState extends State<CashierGame> {
           Text('🧑', style: TextStyle(fontSize: land ? 28 : 36)),
           const SizedBox(width: Gap.sm),
           Expanded(
-            child: Text(
-              key: const ValueKey<String>('cashier:purchase'),
-              '${p.item} стоит ${p.price}. Покупатель даёт ${p.paidWith}.',
-              style: text.titleMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  key: const ValueKey<String>('cashier:purchase'),
+                  '${p.item} стоит ${p.price}. Покупатель даёт ${p.paidWith}.',
+                  style: text.titleMedium,
+                ),
+                Text(
+                  key: const ValueKey<String>('cashier:count-up'),
+                  widget.content.countUpFor(p),
+                  style: gameText(context),
+                ),
+              ],
             ),
           ),
         ],
@@ -224,12 +275,7 @@ class _CashierGameState extends State<CashierGame> {
                   color: _solved ? WorldColors.needs : WorldColors.wants),
               const SizedBox(width: Gap.sm),
               Expanded(
-                child: Text(
-                  '$_feedback\n'
-                  '${p.paidWith} − ${p.price} = ${p.change}'
-                  '${_solved ? '' : ', а в сдаче $_sum.'}',
-                  style: gameText(context),
-                ),
+                child: Text(_feedback(p), style: gameText(context)),
               ),
             ],
           ),
@@ -379,7 +425,7 @@ class _Box extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(Radii.chip),
+          borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.line, width: 1.5),
         ),
         child: Padding(padding: const EdgeInsets.all(Gap.sm), child: child),

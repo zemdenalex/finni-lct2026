@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:finlit/core/icons.dart';
 import 'package:finlit/domain/world/contract.dart';
-import 'package:finlit/domain/world/fake_world.dart';
+import '../../support/fake_world.dart';
 import 'package:finlit/features/world/home/world_hud.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,7 +65,9 @@ void main() {
       expect(value, contains(now));
       final String text =
           (texts[id]! as Map<String, Object?>)['text']! as String;
-      expect(find.text(text), findsOneWidget, reason: 'текст — из hud.json');
+      // `{name}` — имя героя; без мира над HUD — «Финни» (BG-01).
+      expect(find.text(heroText(text, '')), findsOneWidget,
+          reason: 'текст — из hud.json');
       if (id != 'coins') {
         expect(
             find.descendant(
@@ -76,4 +78,32 @@ void main() {
       }
     });
   }
+  // Стиль Алины, шаг 6: окно в её раскладке — крестик в шапке. Защищает:
+  // крестик есть, цель касания ≥ 48 dp (у неё 32) и он закрывает окно.
+  // Уронит: шапку вернули без крестика, крестик меньше пальца или не
+  // закрывает.
+  testWidgets('окно HUD: крестик 48 dp в шапке закрывает окно',
+      (WidgetTester tester) async {
+    await pumpHud(tester);
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey<String>('hud:coins')));
+      for (int i = 0; i < 10; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await tester.pump();
+      }
+    });
+    await tester.pump(const Duration(milliseconds: 300));
+    const ValueKey<String> win = ValueKey<String>('hud:explain:coins');
+    expect(find.byKey(win), findsOneWidget);
+    final Finder close = find.descendant(
+        of: find.byKey(win),
+        matching: find.byKey(const ValueKey<String>('dialog:close')));
+    final Size size = tester.getSize(close);
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
+    await tester.tap(close);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(win), findsNothing);
+  });
 }
