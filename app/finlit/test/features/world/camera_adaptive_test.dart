@@ -22,12 +22,13 @@ import '../../support/world_harness.dart';
 /// Камера и адаптив (финал, D17 «полосы по бокам»): комната и город на
 /// 360×640, 640×360, 768×1024 и 1440×900 — с настоящим артом.
 ///
-/// Защищает: по бокам комнаты нет полос одного цвета — край сцены
-/// продолжает обои и пол (столбец пикселей у края пёстрый, а не 1–2
-/// цвета); Финни в кадре. В городе на планшете и компьютере карта крупнее
+/// Защищает: у края сцены — либо сама комната (обои и пол, столбец
+/// пикселей пёстрый), либо ровный фон мира одним цветом (Денис 20.10
+/// 22:49: «не растягивать, а просто фоновым цветом»), но не полосы стены и
+/// пола; Финни в кадре. В городе на планшете и компьютере карта крупнее
 /// окна и Финни читается (не меньше 48 dp ростом).
-/// Уронит: комната снова в полях цвета `edge_wall` / `edge_floor`; город
-/// снова в постоянном масштабе 1,1 на любом экране.
+/// Уронит: комната снова в полосах `edge_wall` / `edge_floor` (2 цвета);
+/// город снова в постоянном масштабе 1,1 на любом экране.
 World _living() {
   final World w = contentFrontWorld()..startWeek();
   w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0);
@@ -83,7 +84,7 @@ void main() {
   for (final Size size in _sizes) {
     final String s = '${size.width.toInt()}×${size.height.toInt()}';
 
-    testWidgets('$s: у краёв комнаты — обои и пол, а не полосы',
+    testWidgets('$s: у краёв комнаты — комната или ровный фон, не полосы',
         (WidgetTester tester) async {
       final ui.Image img = await _shoot(tester, const RoomScreen(), size);
       late ByteData px;
@@ -104,10 +105,11 @@ void main() {
         return seen.length;
       }
 
-      expect(colors(scene.left + 1), greaterThan(12),
-          reason: 'левый край сцены $scene');
-      expect(colors(scene.right - 2), greaterThan(12),
-          reason: 'правый край сцены $scene');
+      bool roomOrPlain(int n) => n == 1 || n > 12;
+      expect(roomOrPlain(colors(scene.left + 1)), isTrue,
+          reason: 'левый край сцены $scene: ${colors(scene.left + 1)} цв.');
+      expect(roomOrPlain(colors(scene.right - 2)), isTrue,
+          reason: 'правый край сцены $scene: ${colors(scene.right - 2)} цв.');
       final Rect finni =
           tester.getRect(find.byKey(const ValueKey<String>('room:finni')));
       expect(scene.contains(finni.center), isTrue,

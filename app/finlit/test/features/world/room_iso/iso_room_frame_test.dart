@@ -12,15 +12,16 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Iso room frame (n6-room2, Денис 20.10 12:51: «камеру нужно ближе к
-/// Финни, а вокруг комнаты где пустота надо чем-то заполнить»).
+/// Финни»; n6-room-bg, Денис 20.10 22:21: «Не надо продолжениями стены и
+/// пола, это выглядит плохо, лучше простой фон»).
 ///
 /// Protects: the room opens close to Finni (he is bigger than in the
 /// whole-room view and near the middle, the button offers «Вся комната»),
-/// and no bare scene background shows around the room on a tall phone, a
-/// phone on its side and a desktop window — neither close nor whole.
+/// and around the whole room the scene shows its plain dark background on a
+/// tall phone, a phone on its side and a desktop window.
 /// Would fail on: the old first frame (the whole room, «К Финни»), and the
-/// old fill, which stopped at the front ends of the walls and left dark
-/// bands beside them (1440×900: both top corners; 800×360: right side).
+/// n6-room2 fill, which went on with walls and floor to the view's edges
+/// (no background pixel left).
 /// Why not covered elsewhere: the camera tests only read Finni's size
 /// relative to the first frame, and nothing reads the scene's pixels.
 
@@ -146,13 +147,13 @@ void main() {
       expect(find.text('К Финни'), findsOneWidget);
     });
 
-    testWidgets('$name: вокруг комнаты нет голого фона — близко и целиком',
+    testWidgets('$name: вокруг всей комнаты простой фон, без продолжений',
         (WidgetTester tester) async {
       await pump(tester, size, inset);
-      expect(await bareCount(tester, size), 0, reason: 'первый кадр');
       await tester.tap(find.byKey(camera));
       await tester.pumpAndSettle();
-      expect(await bareCount(tester, size), 0, reason: 'вся комната');
+      expect(await bareCount(tester, size), greaterThan(0),
+          reason: 'вся комната: вокруг ровный фон сцены');
     });
   }
 }

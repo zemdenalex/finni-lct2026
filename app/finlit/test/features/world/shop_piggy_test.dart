@@ -185,36 +185,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    // Ловит: домашнее меню нельзя выбрать с экрана (ревью 174d885: chooseFood
-    // вызывали только тесты); кнопки еды меньше 48 dp на 360 × 640 при
-    // шрифте 1,3 (ТЗ 3.6).
-    testWidgets('еда при шрифте 1,3: кнопки ≥ 48 dp, «Есть дома» меняет меню',
+    // Ловит: кнопка еды меньше 48 dp на 360 × 640 при шрифте 1,3 (ТЗ 3.6).
+    // «Готовить дома» убрана (Настя, Денис 20.10 23:36): одна кнопка.
+    testWidgets('еда при шрифте 1,3: «Купить и съесть» ≥ 48 dp',
         (WidgetTester tester) async {
       final World w = kind.make();
       ok(w.startWeek());
       ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
       await _pump(tester, const WorldShopScreen(), w, textScale: 1.3);
-      for (final String key in <String>[
-        'eat:food_regular',
-        'home:food_regular'
-      ]) {
-        final Finder f = find.byKey(ValueKey<String>(key));
-        await tester.scrollUntilVisible(f, 200, scrollable: _list.first);
-        final Size size = tester.getSize(f);
-        expect(size.height, greaterThanOrEqualTo(48), reason: key);
-        expect(size.width, greaterThanOrEqualTo(48), reason: key);
-      }
-      final int before = w.snapshot.weeklyBill;
-      await _tap(tester, 'home:food_regular');
-      await _tap(tester, 'confirm:yes');
-      expect(w.snapshot.foodId, 'food_regular');
-      final int meals = w.snapshot.mealsLeft;
-      expect(
-          w.snapshot.weeklyBill,
-          before +
-              (w.catalogItem('food_regular')!.price -
-                      w.catalogItem('food_simple')!.price) *
-                  meals);
+      const String key = 'eat:food_regular';
+      final Finder f = find.byKey(const ValueKey<String>(key));
+      await tester.scrollUntilVisible(f, 200, scrollable: _list.first);
+      final Size size = tester.getSize(f);
+      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+      expect(size.width, greaterThanOrEqualTo(48), reason: key);
+      expect(find.byKey(const ValueKey<String>('home:food_regular')),
+          findsNothing);
       expect(tester.takeException(), isNull);
     });
 

@@ -43,6 +43,11 @@ enum DockSection {
   final Pic pic;
   final String label;
 
+  /// Пиксельный значок раздела (листы Дениса 20.10, X-86): у «Ещё» своего
+  /// нет — системная пиктограмма.
+  String? get art =>
+      this == DockSection.more ? null : 'assets/art/ui/nav_$id.png';
+
   /// Подпись для TalkBack, когда раздел не текущий.
   final String said;
 }
@@ -156,7 +161,21 @@ class WorldDock extends StatelessWidget {
     // Столбец альбомной: высота пункта — пятая часть 336 dp (телефон боком с
     // полосой состояния). Значок 24, подпись в одну строку; шире столбца
     // («Мой путь» при шрифте ×1,3) — пункт ужимается целиком, на ~1 %.
-    final Widget icon = Pictogram(s.pic, size: rail ? 24 : 28, color: color);
+    final double size = rail ? 24 : 28;
+    final String? art = s.art;
+    // Цветной значок не красится в золото: текущий раздел — полной
+    // яркости, остальные приглушены (подпись по-прежнему золотая).
+    final Widget icon = art == null
+        ? Pictogram(s.pic, size: size, color: color)
+        : Opacity(
+            opacity: here ? 1 : 0.7,
+            child: Image.asset(art,
+                width: size,
+                height: size,
+                filterQuality: FilterQuality.none,
+                excludeFromSemantics: true,
+                errorBuilder: (_, __, ___) =>
+                    Pictogram(s.pic, size: size, color: color)));
     final Widget column = Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[

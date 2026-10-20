@@ -62,26 +62,14 @@ class _JoystickState extends State<Joystick> {
           child: Stack(
             children: <Widget>[
               Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: WorldColors.panel.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: WorldColors.line, width: 2),
-                  ),
-                ),
+                child: const _PadArt.base(),
               ),
               Positioned(
                 left: _radius + _knob.dx - knob / 2,
                 top: _radius + _knob.dy - knob / 2,
                 width: knob,
                 height: knob,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: WorldColors.raised,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: WorldColors.gold, width: 2),
-                  ),
-                ),
+                child: const _PadArt.knob(),
               ),
             ],
           ),
@@ -173,26 +161,14 @@ class JoystickPad extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: WorldColors.panel.withValues(alpha: 0.55),
-                shape: BoxShape.circle,
-                border: Border.all(color: WorldColors.line, width: 2),
-              ),
-            ),
+            child: const _PadArt.base(),
           ),
           Positioned(
             left: size / 2 + knob.dx - k / 2,
             top: size / 2 + knob.dy - k / 2,
             width: k,
             height: k,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: WorldColors.raised,
-                shape: BoxShape.circle,
-                border: Border.all(color: WorldColors.gold, width: 2),
-              ),
-            ),
+            child: const _PadArt.knob(),
           ),
         ],
       ),
@@ -308,4 +284,33 @@ class _FloatingJoystickState extends State<FloatingJoystick> {
       ],
     );
   }
+}
+
+/// Круг и ручка джойстика — пиксельные листы Дениса 20.10 (X-91). Картинки
+/// нет — прежний круг (тот же вид, что был до листа).
+class _PadArt extends StatelessWidget {
+  const _PadArt.base() : knob = false;
+  const _PadArt.knob() : knob = true;
+
+  final bool knob;
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+        knob
+            ? 'assets/art/ui/joystick_knob.png'
+            : 'assets/art/ui/joystick_base.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.none,
+        excludeFromSemantics: true,
+        errorBuilder: (_, __, ___) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: knob
+                ? WorldColors.raised
+                : WorldColors.panel.withValues(alpha: 0.55),
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: knob ? WorldColors.gold : WorldColors.line, width: 2),
+          ),
+        ),
+      );
 }

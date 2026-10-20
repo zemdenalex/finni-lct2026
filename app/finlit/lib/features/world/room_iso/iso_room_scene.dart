@@ -1393,9 +1393,10 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     );
     final Widget? above = widget.aboveFinni;
     final bool zoomed = _follow || zoom > 1.01;
-    // Clipped: the walls and the floor that continue past the room (tall
-    // screens) are painted beyond the scene's box and covered the menu rail
-    // on its left (n6-room 20.10).
+    // Around the room — a plain dark background, no walls or floor going
+    // on past it (Денис 20.10 22:21: «Не надо продолжениями стены и пола,
+    // это выглядит плохо, лучше простой фон»). Clipped: a zoomed room is
+    // painted beyond the scene's box and covered the menu rail on its left.
     return ClipRect(
         child: ColoredBox(
       color: IsoColors.back,

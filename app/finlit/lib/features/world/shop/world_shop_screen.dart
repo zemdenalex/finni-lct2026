@@ -406,8 +406,6 @@ class _WorldShopScreenState extends State<WorldShopScreen> {
     // у домашнего блюда — приёмы недели, которые Финни съест дома.
     final int stock =
         s.fridge[f.id] ?? (home && s.fridge.isEmpty ? s.mealsLeft : 0);
-    final BlockReason? homeBlock =
-        home ? null : w.canDo(WorldAction.chooseFood, id: f.id);
     return _Card(
       key: ValueKey<String>('card:${f.id}'),
       entry: f,
@@ -434,34 +432,17 @@ class _WorldShopScreenState extends State<WorldShopScreen> {
               ],
             )
           : null,
-      action: Wrap(
-        spacing: Gap.sm,
-        runSpacing: Gap.xs,
-        children: <Widget>[
-          // Ревью 174d885: тонкий контур на карточке читался как текст.
-          OutlinedButton(
-            key: ValueKey<String>('eat:${f.id}'),
-            // Контур цвета НУЖНО: видно, что это кнопка, но не золото —
-            // золотая на экране одна (docs/design-system.md, принцип 6).
-            style: OutlinedButton.styleFrom(
-                minimumSize: kitButton,
-                side: const BorderSide(color: WorldColors.needs, width: 2)),
-            onPressed: block == null ? () => _eat(f) : null,
-            child: const Text('Съесть'),
-          ),
-          if (!home)
-            OutlinedButton.icon(
-              key: ValueKey<String>('home:${f.id}'),
-              // Контур тоньше и спокойнее, чем у «Съесть»: второе действие.
-              style: OutlinedButton.styleFrom(
-                  minimumSize: kitButton,
-                  side: const BorderSide(
-                      color: WorldColors.textSoft, width: 1.5)),
-              onPressed: homeBlock == null ? () => _chooseHome(f) : null,
-              icon: const Icon(Icons.home_rounded, size: 20),
-              label: const Text('Готовить дома'),
-            ),
-        ],
+      // Одна кнопка «Купить и съесть» на каждом продукте (Настя 20.10 16:50
+      // и 23:33, Денис 23:36): «Съесть» и «Готовить дома» путали.
+      action: OutlinedButton(
+        key: ValueKey<String>('eat:${f.id}'),
+        // Контур цвета НУЖНО: видно, что это кнопка, но не золото —
+        // золотая на экране одна (docs/design-system.md, принцип 6).
+        style: OutlinedButton.styleFrom(
+            minimumSize: kitButton,
+            side: const BorderSide(color: WorldColors.needs, width: 2)),
+        onPressed: block == null ? () => _eat(f) : null,
+        child: const Text('Купить и съесть'),
       ),
     );
   }
@@ -471,39 +452,6 @@ class _WorldShopScreenState extends State<WorldShopScreen> {
     if (m10 == 1 && m100 != 11) return 'порция';
     if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'порции';
     return 'порций';
-  }
-
-  /// Домашнее меню: что Финни ест в итогах за приёмы, которые не выбрали
-  /// посреди недели. Меняет счёт недели — показываем «было → станет».
-  Future<void> _chooseHome(WorldCatalogItem food) async {
-    final WorldState st = _state;
-    final ResourceSnapshot s = st.snapshot;
-    final WorldCatalogItem? cur = chosenFood(st.world);
-    final int now = s.weeklyBill;
-    final int after = now + (food.price - (cur?.price ?? 0)) * s.mealsLeft;
-    final bool yes = await confirmAction(
-      context,
-      title: '${food.title} — готовить дома?',
-      lines: <String>[
-        'Приёмы, которые ты не выберешь сам, Финни съест дома: '
-            '${food.price} за раз, из части «Нужно» в конце недели.',
-        if (effectText(food) case final String fx) fx,
-        s.daysPerWeek > 1
-            ? heroGendered(st.profile.gender,
-                neutral:
-                    'Если днём ${st.finniName} ничего не съест, вечером поест дома.',
-                boy: 'Дома ${st.finniName} ест вечером, если днём сам не поел.',
-                girl:
-                    'Дома ${st.finniName} ест вечером, если днём сама не поела.')
-            : 'Польза дома придёт на следующую неделю.',
-      ],
-      preview: BillPreview(now: now, after: after, when: 'с этой недели'),
-      yes: 'Готовить дома',
-    );
-    if (!yes || !mounted) return;
-    final WorldResult r = st.act((World w) => w.chooseFood(food.id));
-    if (r.ok) rememberFood(st.world, food.id);
-    setState(() => _last = r);
   }
 
   Widget _itemsTab(World w, List<WorldCatalogItem> items, String intro,

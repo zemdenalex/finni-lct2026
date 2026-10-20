@@ -284,10 +284,11 @@ void main() {
     }
   }
 
-  // Высокий экран (1440×3120 → 411×891 dp): над и под комнатой оставалась
-  // голая полоса фона (кадры 20.10); в 0.1.3 комната заполняла высокие
-  // экраны. Would fail on: nothing painted around the room.
-  test('высокий экран: над комнатой стена, под ней пол — не пусто', () async {
+  // Высокий экран (1440×3120 → 411×891 dp): над и под комнатой — простой
+  // фон сцены, без продолжения стен и пола (Денис 20.10 22:21: «Не надо
+  // продолжениями стены и пола, это выглядит плохо, лучше простой фон»).
+  // Would fail on: the n6-room2 fill (walls up to the top, floor below).
+  test('высокий экран: над и под комнатой ничего не дорисовано', () async {
     const Size view = Size(411, 891);
     final double k = 411 * 0.96 / spec.grid.contentSize.width;
     final Offset off = Offset(
@@ -305,9 +306,9 @@ void main() {
         roomBottom = off.dy + spec.grid.contentSize.height * k;
     expect(roomTop, greaterThan(150), reason: 'настройка: место над комнатой');
     // Off the centre line: walls and tiles meet there (anti-aliased seam).
-    expect(alpha(view.width / 2 + 13, roomTop / 2), 255,
+    expect(alpha(view.width / 2 + 13, roomTop / 2), 0,
         reason: 'над комнатой');
-    expect(alpha(view.width / 2 + 13, (roomBottom + view.height) / 2), 255,
+    expect(alpha(view.width / 2 + 13, (roomBottom + view.height) / 2), 0,
         reason: 'под комнатой');
   });
 

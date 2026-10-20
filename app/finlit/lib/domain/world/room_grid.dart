@@ -170,9 +170,10 @@ class RoomCatalog {
 
   static const RoomCatalog empty = RoomCatalog();
 
-  /// `room.view` без ключа в файле — то же, что в сборке: комната V2 в
-  /// изометрии (Денис 20.10). `front` — фронтальная, как сдано 29.09.
-  static const String viewDefault = 'iso';
+  /// `room.view` без ключа в файле — то же, что в сборке: фронтальная
+  /// комната, как сдано 29.09 (Денис 20.10 22:49: в сдаче старая комната,
+  /// iso — только скриншотами для презентации).
+  static const String viewDefault = 'front';
 
   /// Допустимые значения `room.view`.
   static const Set<String> views = <String>{'front', 'iso'};

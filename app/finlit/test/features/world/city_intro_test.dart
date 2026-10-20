@@ -17,7 +17,8 @@ import '../../support/world_harness.dart';
 /// Защищает: маршрут города в первый раз показывает 2–3 подсказки облачком
 /// Финни (монеты, силы, цель), «Дальше» листает, «Понятно» закрывает, во
 /// второй раз их нет, после сброса мира — снова. Облачко с кнопками 48 dp
-/// целиком на экране при шрифте 1,3.
+/// целиком на экране при шрифте 1,3. Реплика про настроение обводит чип
+/// настроения в строке сверху (Настя 20.10), другие — нет.
 ///
 /// Уронит: маршрут города без [CityIntroGate], флаг `city.intro` не
 /// запоминается (подсказки при каждом выходе) или запоминается навсегда,
@@ -72,6 +73,7 @@ void main() {
       expect(next, findsOneWidget, reason: 'первый выход — подсказки');
       final StringBuffer said = StringBuffer();
       int beats = 0;
+      int moodBeats = 0;
       for (; beats < 6 && next.evaluate().isNotEmpty; beats++) {
         final Finder bubble = find.byKey(ValueKey<String>('city:intro:$beats'));
         expect(bubble, findsOneWidget, reason: 'подсказка $beats');
@@ -83,15 +85,34 @@ void main() {
         final Rect n = tester.getRect(next);
         expect(n.height, greaterThanOrEqualTo(48));
         expect(b.contains(n.center), isTrue, reason: '«Дальше» в облачке');
-        said.write(find
+        final String line = find
             .descendant(of: bubble, matching: find.byType(RichText))
             .evaluate()
             .map((Element e) => (e.widget as RichText).text.toPlainText())
-            .join(' '));
+            .join(' ');
+        said.write(line);
+        // Реплика про настроение — рамка у чипа настроения сверху (Настя
+        // 20.10, тема 11); в других репликах рамки нет.
+        await tester.pump();
+        final Finder ring =
+            find.byKey(const ValueKey<String>('city:intro:hud'));
+        if (line.contains('настроени')) {
+          moodBeats++;
+          expect(ring, findsOneWidget, reason: 'рамка у настроения: $line');
+          expect(
+              tester.getRect(ring).contains(tester.getCenter(find
+                  .byKey(const ValueKey<String>('hud:happiness'))
+                  .first)),
+              isTrue,
+              reason: 'рамка вокруг чипа настроения');
+        } else {
+          expect(ring, findsNothing, reason: 'не про настроение: $line');
+        }
         await tester.tap(next);
         await tester.pump();
       }
       expect(beats, inInclusiveRange(2, 4));
+      expect(moodBeats, 1, reason: 'одна реплика про настроение');
       expect(next, findsNothing, reason: '«Понятно» закрыло подсказки');
       for (final String word in <String>['монет', 'сил', 'цел']) {
         expect(said.toString(), contains(word), reason: 'детское слово $word');

@@ -49,6 +49,7 @@ flutter:
     - assets/art/finni/gpt/
     - assets/art/pets/
     - assets/art/room/
+    - assets/art/ui/
     - assets/art/hires/city/
     - assets/art/hires/finni/
     - assets/art/hires/items/

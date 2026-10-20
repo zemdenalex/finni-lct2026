@@ -1244,8 +1244,6 @@ class RoomScene extends StatelessWidget {
           );
         }
 
-        final double? floorY2 = floorY;
-        final bool tiled = hires && slots.edgeTile != null;
         // Имя, которое выбрал ребёнок (ТЗ 2.5.2.2), — табличка в углу
         // комнаты (при камере — в углу экрана, а не мира). TalkBack его не
         // читает второй раз: имя уже в подписи самого Финни.
@@ -1343,65 +1341,13 @@ class RoomScene extends StatelessWidget {
         );
         final Widget world = ClipRect(
           child: ColoredBox(
-            // Hi-res комната продолжается полосами своей стены и пола; у старой
-            // низкой комнаты поля — ночь мира, а не бежевая стена.
-            color:
-                hires ? slots.edgeWall ?? WorldColors.night : WorldColors.night,
+            // Вокруг комнаты — ровный фон мира, без продолжения обоев и пола
+            // (Денис 20.10 22:49: «фон получше, чтобы как баг не выглядел, не
+            // растягивать, а просто фоновым цветом»).
+            color: WorldColors.night,
             child: Stack(
               clipBehavior: Clip.hardEdge,
               children: <Widget>[
-                // Широкий экран (D17): по бокам и над комнатой — копии её
-                // обоев и пола, а не полосы одного цвета.
-                if (tiled)
-                  Positioned.fill(
-                    key: const ValueKey<String>('room:edge:tiles'),
-                    child: IgnorePointer(
-                      child: _EdgeTiles(
-                        bg: bg,
-                        tile: slots.edgeTile!,
-                        room: Rect.fromLTWH(left, top, rw, rh),
-                        size: Size(w, h),
-                        k: k,
-                      ),
-                    ),
-                  )
-                else if (hires && floorY2 != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: top + floorY2 * k,
-                    bottom: 0,
-                    child: ColoredBox(
-                      color: slots.edgeFloor ?? SceneColors.floorLine,
-                    ),
-                  ),
-                // Над комнатой (под HUD) — стена её цветом ([RoomSlots.edgeWall],
-                // поле сцены), к потолку темнеет. Без растянутых рядов фона:
-                // на высоком экране они были мутной полосой (фидбек 15.10).
-                if (slots.interest != null && top > 0.5)
-                  Positioned(
-                    key: const ValueKey<String>('room:ceiling:shade'),
-                    left: tiled ? 0 : left,
-                    top: 0,
-                    width: tiled ? w : rw,
-                    height: top,
-                    child: const IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: <double>[0, 0.7, 1],
-                            colors: <Color>[
-                              Color(0x8C000000),
-                              Color(0x26000000),
-                              Color(0x00000000),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 Positioned(
                   left: left,
                   top: top,
@@ -1433,32 +1379,6 @@ class RoomScene extends StatelessWidget {
                           ),
                           if (skin(id) case final Widget w) w,
                         ],
-                // Шов стены и фона: верхний край фона растворяется в цвете
-                // стены над ним — без резкой границы обоев.
-                if (hires && !tiled && slots.interest != null && top > 0.5)
-                  Positioned(
-                    key: const ValueKey<String>('room:ceiling:seam'),
-                    left: left,
-                    top: top,
-                    width: rw,
-                    height: rh * 0.04,
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: <Color>[
-                              slots.edgeWall ?? WorldColors.night,
-                              (slots.edgeWall ?? WorldColors.night).withValues(
-                                alpha: 0,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 // Раскладка: мебель в глубине (дверь, тумба с копилкой, место
                 // питомца) и холодильник с едой недели — за Финни.
                 if (drawFurniture)
@@ -2583,118 +2503,3 @@ class _GridCell extends StatelessWidget {
   }
 }
 
-/// Продолжение комнаты за краями фона ([EdgeTile], D17): копии полосы
-/// фона рядами — обои вверх и в стороны, пол с плинтусом в стороны теми же
-/// рядами, что в фоне. Копии через одну зеркальные: соседние сходятся
-/// одинаковым столбцом, без шва. К внешним краям — тень: взгляд держится на
-/// комнате. Копии внутри самой комнаты не рисуются.
-class _EdgeTiles extends StatelessWidget {
-  const _EdgeTiles({
-    required this.bg,
-    required this.tile,
-    required this.room,
-    required this.size,
-    required this.k,
-  });
-
-  final String bg;
-  final EdgeTile tile;
-  final Rect room;
-  final Size size;
-  final double k;
-
-  @override
-  Widget build(BuildContext context) {
-    final double pw = tile.w * room.width;
-    final double x0 = room.left + tile.x * room.width;
-    final double wallH = (tile.floorY - tile.wallY) * room.height;
-    final double wallTop = room.top + tile.wallY * room.height;
-    final double floorTop = room.top + tile.floorY * room.height;
-    final List<Widget> pieces = <Widget>[];
-    if (pw < 1 || wallH < 1) return const SizedBox.shrink();
-    Widget piece(Rect at, Offset src, bool fx, bool fy) => Positioned.fromRect(
-          rect: at,
-          child: ClipRect(
-            child: Transform.flip(
-              flipX: fx,
-              flipY: fy,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  Positioned(
-                    left: -src.dx,
-                    top: -src.dy,
-                    width: room.width,
-                    height: room.height,
-                    child: PixelImage(bg, scale: k),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-    final Rect screen = Offset.zero & size;
-    final int nMin = ((0 - x0) / pw).floor();
-    final int nMax = ((size.width - x0) / pw).ceil();
-    for (int n = nMin; n < nMax; n++) {
-      final double x = x0 + n * pw;
-      // Обои: ряды от линии пола вверх до края экрана.
-      for (int m = 0; wallTop + (m + 1) * wallH > 0; m--) {
-        final Rect at = Rect.fromLTWH(x, wallTop + m * wallH, pw, wallH);
-        if (!at.overlaps(screen) || _inside(at)) continue;
-        pieces.add(piece(
-            at,
-            Offset(tile.x * room.width, tile.wallY * room.height),
-            n.isOdd,
-            m.isOdd));
-      }
-      // Пол: те же ряды, что в фоне, — доски сходятся со швом.
-      final Rect at = Rect.fromLTWH(x, floorTop, pw, room.bottom - floorTop);
-      if (at.overlaps(screen) && !_inside(at)) {
-        pieces.add(piece(
-            at,
-            Offset(tile.x * room.width, tile.floorY * room.height),
-            n.isOdd,
-            false));
-      }
-    }
-    const Color shade = Color(0x59000000);
-    const Color clear = Color(0x00000000);
-    return Stack(
-      clipBehavior: Clip.hardEdge,
-      children: <Widget>[
-        ...pieces,
-        if (room.left > 0.5)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: room.left,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: <Color>[shade, clear]),
-              ),
-            ),
-          ),
-        if (room.right < size.width - 0.5)
-          Positioned(
-            left: room.right,
-            top: 0,
-            bottom: 0,
-            right: 0,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: <Color>[clear, shade]),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  bool _inside(Rect r) =>
-      r.left >= room.left - 0.5 &&
-      r.right <= room.right + 0.5 &&
-      r.top >= room.top - 0.5 &&
-      r.bottom <= room.bottom + 0.5;
-}

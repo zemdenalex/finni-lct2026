@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -182,7 +181,6 @@ class IsoShellPainter extends CustomPainter {
     c.translate(offset.dx, offset.dy);
     c.scale(k);
     final double cols = g.cols.toDouble(), rows = g.rows.toDouble();
-    _fillAround(c, g, size);
     const double slab = 10;
     c.drawPath(
         _poly(<Offset>[
@@ -298,81 +296,6 @@ class IsoShellPainter extends CustomPainter {
                 .withValues(alpha: 0.4));
     }
     c.restore();
-  }
-
-  /// A tall screen (or a wide one) has room around the room: the walls go on
-  /// up to the top of the view and the floor goes on in front, a shade
-  /// darker, so no bare background band is left (as the front room of 0.1.3,
-  /// «комната заполняет высокие экраны»).
-  void _fillAround(Canvas c, IsoGrid g, Size size) {
-    // The view in content px: the canvas is already moved and scaled.
-    final double top = -offset.dy / k, bottom = (size.height - offset.dy) / k;
-    final double left = -offset.dx / k, right = (size.width - offset.dx) / k;
-    // Height on a wall at slot [u] whose top edge is above the view's top.
-    double over(double u) => g.origin.dy + u * g.halfH - top + 8;
-    for (final IsoWall side in IsoWall.values) {
-      final double len = g.wallLen(side).toDouble();
-      final Color col =
-          side == IsoWall.left ? IsoColors.wallLeft : IsoColors.wallRight;
-      // Up: the wall goes on above its top edge, at the front end too (the
-      // end sits lower on screen than the back corner).
-      _wallBand(c, g, side, 0, len, g.wallH - 1,
-          math.max(g.wallH + 8, over(len)), col);
-      // Sideways: past its front end the wall goes on, a shade darker as the
-      // floor in front, to the view's side (n6-room2 20.10: a wide view
-      // left bare bands beside the room's front corners).
-      final double reach = side == IsoWall.left
-          ? (g.origin.dx - left) / g.halfW
-          : (right - g.origin.dx) / g.halfW;
-      final double ext = (reach - len).ceilToDouble() + 1;
-      if (ext > 0) {
-        _wallBand(c, g, side, len, len + ext, 0, over(len + ext),
-            Color.lerp(col, IsoColors.back, 0.35)!);
-      }
-    }
-    // Floor in front: whole cells past the front edges, to the view's bottom.
-    final int far = ((bottom - g.toScreen(0, 0).dy) / g.halfH).ceil() + 2;
-    final Color a = Color.lerp(IsoColors.floorA, IsoColors.back, 0.35)!;
-    final Color b = Color.lerp(IsoColors.floorB, IsoColors.back, 0.35)!;
-    // Only in front of the room (x ≥ 0 and y ≥ 0): behind the walls there
-    // is no floor.
-    for (int x = 0; x < g.cols + far; x++) {
-      for (int y = 0; y < g.rows + far; y++) {
-        if (x < g.cols && y < g.rows) continue;
-        // Only the cells in the view are drawn (the shell repaints often).
-        final Offset at = g.toScreen(x + 0.5, y + 0.5);
-        if (at.dy > bottom + g.tileH ||
-            at.dx < left - g.tileW ||
-            at.dx > right + g.tileW) {
-          continue;
-        }
-        c.drawPath(
-            _poly(g.footprint(x.toDouble(), y.toDouble(), x + 1.0, y + 1.0)),
-            Paint()..color = (x + y).isEven ? a : b);
-      }
-    }
-  }
-
-  /// A band of [side] from slot [u0] to [u1], heights [lo]..[hi], with the
-  /// wall's stripes (whole cells, so they line up with the room's wall).
-  void _wallBand(Canvas c, IsoGrid g, IsoWall side, double u0, double u1,
-      double lo, double hi, Color col) {
-    c.drawPath(
-        _poly(<Offset>[
-          g.wallToScreen(side, u0, lo),
-          g.wallToScreen(side, u1, lo),
-          g.wallToScreen(side, u1, hi),
-          g.wallToScreen(side, u0, hi),
-        ]),
-        Paint()..color = col);
-    final double len = u1 - u0;
-    _onWall(c, g, side, u0, len, hi, hi - lo, (Canvas u) {
-      final int stripes = (len * 2).round();
-      for (int s = 0; s < stripes; s += 2) {
-        u.drawRect(Rect.fromLTWH(s / stripes, 0, 1 / stripes, 1),
-            Paint()..color = IsoColors.wallStripe);
-      }
-    });
   }
 
   /// The walls have a thickness: a light band on the top edge (with the

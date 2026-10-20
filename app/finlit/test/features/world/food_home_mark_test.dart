@@ -34,13 +34,15 @@ void main() {
           find.descendant(
               of: mark, matching: find.textContaining('В холодильнике: $left')),
           findsOneWidget);
-      expect(find.byKey(ValueKey<String>('home:${home.id}')), findsNothing,
-          reason: 'у выбранного кнопки нет');
-
-      final Finder button = find.byKey(ValueKey<String>('home:${other.id}'));
-      await tester.ensureVisible(button);
-      expect(find.descendant(of: button, matching: find.text('Готовить дома')),
-          findsOneWidget);
+      // Одна кнопка на продукте (Настя, Денис 20.10 23:36): «Купить и
+      // съесть», кнопки «Готовить дома» нет.
+      for (final WorldCatalogItem f in <WorldCatalogItem>[home, other]) {
+        final Finder eat = find.byKey(ValueKey<String>('eat:${f.id}'));
+        await tester.ensureVisible(eat);
+        expect(find.descendant(of: eat, matching: find.text('Купить и съесть')),
+            findsOneWidget);
+      }
+      expect(find.text('Готовить дома'), findsNothing);
       expect(find.text('Едим дома'), findsNothing);
       expect(find.text('Есть дома'), findsNothing);
     });
