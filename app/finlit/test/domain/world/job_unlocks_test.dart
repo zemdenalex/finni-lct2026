@@ -199,14 +199,6 @@ void main() {
         c.techs.firstWhere((WorldTech t) => t.id == 'tech_laptop').price,
         c.job('programmer', 'medium')!.pay
       ),
-      (
-        'transport_scooter',
-        c.transportPrice,
-        c.jobs
-            .where((WorldJob j) => j.needs == 'transport')
-            .map((WorldJob j) => j.pay)
-            .reduce((int a, int b) => a > b ? a : b)
-      ),
     ]) {
       final String perk = w.catalogItem(id)!.perk!;
       final int gain = best - base;
@@ -218,5 +210,14 @@ void main() {
       expect(perk, isNot(contains('то есть за 1 неделю')),
           reason: '$id: $perk');
     }
+    // Прибавки Насти 20.10: курьер (до 240) платит не больше бухгалтера
+    // (430), самокат только оплатой не окупается — карточка так и говорит.
+    final int courierBest = c.jobs
+        .where((WorldJob j) => j.needs == 'transport')
+        .map((WorldJob j) => j.pay)
+        .reduce((int a, int b) => a > b ? a : b);
+    expect(courierBest, lessThanOrEqualTo(base));
+    expect(w.catalogItem('transport_scooter')!.perk,
+        contains('Только оплатой не окупится'));
   });
 }

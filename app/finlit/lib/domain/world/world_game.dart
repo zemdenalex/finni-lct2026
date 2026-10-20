@@ -2552,20 +2552,20 @@ class WorldGame implements World {
   @override
   WorldResult petFinni() {
     // Режим дней: «раз в день» — день недели (утро сбрасывает doneToday), а не
-    // счётчик дел: после ночи без смены погладить снова можно.
+    // счётчик дел: после ночи без смены поговорить снова можно.
     final bool again = config.dayCycle.enabled
         ? _state.doneToday.contains('pet')
         : _state.lastFinniPetDay == _state.day;
     if (again) {
       return WorldResult(
-          ok: true, reasonCode: 'finni.pet_again', reason: '$_hero мурлычет.');
+          ok: true, reasonCode: 'finni.pet_again', reason: 'Поговорили с другом.');
     }
     final int dh = _happinessDelta(config.finniPetHappiness);
     _write(WorldLedgerKind.finniPetted, 'finni.pet', happiness: dh);
     return WorldResult(
       ok: true,
       reasonCode: 'finni.pet',
-      reason: 'Погладили — настроение чуть лучше.',
+      reason: 'Поговорили с другом — настроение чуть лучше.',
       happiness: dh,
     );
   }

@@ -5,6 +5,7 @@ import '../../../../core/theme.dart';
 import '../../../../domain/phrases.dart';
 import '../../pic_text.dart';
 import '../../world_layout.dart';
+import '../choice_nudge.dart';
 import '../job_games.dart';
 import '../mini_games.dart';
 import '../../../../core/world_theme.dart';
@@ -93,7 +94,7 @@ class ConsultantSet {
 
 /// Подписи экрана игры «сравни три и выбери под бюджет». У консультанта —
 /// магазин и сканер; у помощника бухгалтера (`jobs.accountant.texts`) —
-/// предложения и смета. `{category}` в [sortIntro] — название набора.
+/// предложения и бюджет. `{category}` в [sortIntro] — название набора.
 @immutable
 class ConsultantTexts {
   const ConsultantTexts({
@@ -192,12 +193,12 @@ Widget buildConsultantGame(BuildContext context, MiniGameArgs args) =>
         content: args.games.consultant, round: args.round, onDone: args.onDone);
 
 /// Помощник бухгалтера студсовета (Денис 29.09, 941 п. 5): та же игра, что у
-/// консультанта, — сравнить три предложения по цене и выбрать под смету.
+/// консультанта, — сравнить три предложения по цене и выбрать под бюджет.
 /// Содержание — `jobs.json → jobs.accountant`.
 const String accountantHelp = 'Студсовету нужно выбрать одно из трёх '
     'предложений. Сначала разложи их от дешёвого к дорогому и проверь по '
-    'смете. Потом староста скажет, что нужно и сколько монет в смете: выбери '
-    'подходящее. Дороже — не значит лучше, дешевле — тоже не всегда. '
+    'бюджету. Потом староста скажет, что нужно и сколько монет в бюджете: '
+    'выбери подходящее. Дороже — не значит лучше, дешевле — тоже не всегда. '
     'Ошибка не уменьшает оплату.';
 
 Widget buildAccountantGame(BuildContext context, MiniGameArgs args) =>
@@ -243,6 +244,16 @@ class _ConsultantGameState extends State<ConsultantGame> {
   final Set<String> _pickMistakes = <String>{};
 
   bool get _pickedRight => _picked == _set.customer.bestFit;
+
+  /// Шаг 2 ждёт выбора, а ребёнок жмёт мимо карточек — подсказка
+  /// (Настя 20.10, п. 13).
+  final ChoiceNudge _nudge = ChoiceNudge();
+
+  @override
+  void dispose() {
+    _nudge.dispose();
+    super.dispose();
+  }
 
   /// Ценник виден: после сканера — у всех; до него на первых сменах
   /// профессии ([ConsultantContent.anchorShifts]) — один якорь у среднего
@@ -316,8 +327,9 @@ class _ConsultantGameState extends State<ConsultantGame> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _sorted ? _buildPick(context) : _buildSort(context);
+  Widget build(BuildContext context) => _sorted
+      ? _nudge.listen(active: !_pickedRight, child: _buildPick(context))
+      : _buildSort(context);
 
   Widget _buildSort(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
@@ -482,22 +494,35 @@ class _ConsultantGameState extends State<ConsultantGame> {
       ),
     );
     final List<Widget> goods = <Widget>[
-      Text(widget.content.texts.pick, style: gameText(context)),
+      _nudge.hint(widget.content.texts.pick, gameText(context),
+          key: const ValueKey<String>('consultant:pickHint')),
       const SizedBox(height: Gap.xs),
-      for (final ConsultantItem item in _shown)
-        Padding(
-          padding: EdgeInsets.only(bottom: land ? Gap.xs : Gap.sm),
-          child: _Card(
-            key: ValueKey<String>('consultant:pick:${item.id}'),
-            color: item.id == _picked
-                ? (_pickedRight ? WorldColors.needsBg : WorldColors.wantsBg)
-                : null,
-            onTap: _pickedRight ? null : () => _pick(item),
-            semantic: '${item.name}, ${item.price} '
-                '${Phrases.coinsNom(item.price)}. Выбрать',
-            child: _ItemHead(item: item, showPrice: true, compact: land),
-          ),
+      _nudge.frame(
+        context,
+        key: const ValueKey<String>('consultant:choices'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (final ConsultantItem item in _shown)
+              Padding(
+                padding: EdgeInsets.only(bottom: land ? Gap.xs : Gap.sm),
+                child: _Card(
+                  key: ValueKey<String>('consultant:pick:${item.id}'),
+                  color: item.id == _picked
+                      ? (_pickedRight
+                          ? WorldColors.needsBg
+                          : WorldColors.wantsBg)
+                      : null,
+                  onTap: _pickedRight ? null : () => _pick(item),
+                  semantic: '${item.name}, ${item.price} '
+                      '${Phrases.coinsNom(item.price)}. Выбрать',
+                  child:
+                      _ItemHead(item: item, showPrice: true, compact: land),
+                ),
+              ),
+          ],
         ),
+      ),
     ];
     final List<Widget> outcome = <Widget>[
       if (_picked != null)

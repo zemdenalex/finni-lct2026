@@ -229,7 +229,7 @@ class _Situation extends StatelessWidget {
               art ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: <Widget>[
             if (art) ...<Widget>[
-              _BuildingArt(event.buildingId),
+              EventArt(event),
               const SizedBox(width: Gap.sm),
             ] else ...<Widget>[
               const Icon(Icons.priority_high_rounded, color: WorldColors.wants),
@@ -247,12 +247,37 @@ class _Situation extends StatelessWidget {
   }
 }
 
-/// Здание, где случилось событие, с «!» в углу. Арт — из реестра; пока он
-/// читается или если его нет — значок «!».
-class _BuildingArt extends StatelessWidget {
-  const _BuildingArt(this.buildingId);
+/// Значок события вместо здания (Настя 20.10: у «Скидки на игру» —
+/// многоэтажка, «замени на иконку, которая ассоциируется с игрой»). У
+/// событий Дома здание — многоэтажка, к сюжету оно не относится, поэтому у
+/// каждого из них свой значок. Нет в списке — здание, как было.
+const Map<String, IconData> eventIcons = <String, IconData>{
+  'game_discount': Icons.sports_esports_rounded,
+  'grandma_gift': Icons.card_giftcard_rounded,
+  'friend_birthday': Icons.cake_rounded,
+  'friend_birthday_day': Icons.celebration_rounded,
+  'scam_prize': Icons.warning_amber_rounded,
+  'free_trial': Icons.redeem_rounded,
+  'lend_coins': Icons.handshake_rounded,
+  'coins_under_sofa': Icons.weekend_rounded,
+  'scam_sms_code': Icons.sms_failed_rounded,
+  'neighbor_bags': Icons.shopping_bag_rounded,
+  'headphones_broke': Icons.headphones_rounded,
+  'school_trip_fee': Icons.directions_bus_rounded,
+  'subscription_auto': Icons.autorenew_rounded,
+  'broken_phone_screen': Icons.smartphone_rounded,
+  'pocket_money_early': Icons.payments_rounded,
+  'sick_day': Icons.sick_rounded,
+  'old_toys': Icons.toys_rounded,
+};
 
-  final String buildingId;
+/// Картинка события с «!» в углу: значок из [eventIcons] или здание, где
+/// оно случилось (арт из реестра; пока он читается или если его нет —
+/// пустой кружок).
+class EventArt extends StatelessWidget {
+  const EventArt(this.event, {super.key});
+
+  final PendingEvent event;
 
   static const double size = 88;
 
@@ -263,29 +288,41 @@ class _BuildingArt extends StatelessWidget {
       backgroundColor: WorldColors.wants,
       child: Icon(Icons.priority_high_rounded, color: Colors.white, size: 20),
     );
+    final IconData? icon = eventIcons[event.id];
+    final String buildingId = event.buildingId;
     return ExcludeSemantics(
       child: SizedBox.square(
         dimension: size,
         child: Stack(
           children: <Widget>[
-            Positioned.fill(
-              child: FutureBuilder<AssetRegistry>(
-                future: AssetRegistry.load(),
-                builder: (BuildContext c, AsyncSnapshot<AssetRegistry> s) {
-                  final String? path = s.data?.building(buildingId);
-                  if (path == null) {
-                    return const DecoratedBox(
-                      decoration: BoxDecoration(
-                          color: WorldColors.wantsBg, shape: BoxShape.circle),
-                    );
-                  }
-                  return Image.asset(path,
-                      fit: BoxFit.contain,
-                      filterQuality: artFilter(artDensity(path)),
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink());
-                },
+            if (icon != null)
+              Positioned.fill(
+                child: DecoratedBox(
+                  key: ValueKey<String>('event:icon:${event.id}'),
+                  decoration: const BoxDecoration(
+                      color: WorldColors.wantsBg, shape: BoxShape.circle),
+                  child: Icon(icon, size: 48, color: WorldColors.wants),
+                ),
+              )
+            else
+              Positioned.fill(
+                child: FutureBuilder<AssetRegistry>(
+                  future: AssetRegistry.load(),
+                  builder: (BuildContext c, AsyncSnapshot<AssetRegistry> s) {
+                    final String? path = s.data?.building(buildingId);
+                    if (path == null) {
+                      return const DecoratedBox(
+                        decoration: BoxDecoration(
+                            color: WorldColors.wantsBg, shape: BoxShape.circle),
+                      );
+                    }
+                    return Image.asset(path,
+                        fit: BoxFit.contain,
+                        filterQuality: artFilter(artDensity(path)),
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink());
+                  },
+                ),
               ),
-            ),
             const Positioned(top: 0, right: 0, child: mark),
           ],
         ),

@@ -45,7 +45,6 @@
       "default": "hires/city/market@4x.png",
       "variants": {
         "d045": "city/d045/grocery.png",
-        "town": "hires/gen/city/grocery-town@4x.png",
         "d072": "city/d072/grocery.png",
         "hires": "hires/city/market@4x.png",
         "village": "hires/gen/city/grocery-village@4x.png"
@@ -106,7 +105,6 @@
       "default": "hires/city/shop@4x.png",
       "variants": {
         "d045": "city/d045/pet-shop.png",
-        "town": "hires/gen/city/pet-shop-town@4x.png",
         "d072": "city/d072/pet-shop.png",
         "hires": "hires/city/shop@4x.png"
       },
@@ -162,7 +160,6 @@
       "default": "hires/city/cinema@4x.png",
       "variants": {
         "d045": "city/d045/cinema.png",
-        "town": "hires/gen/city/cinema-town@4x.png",
         "d072": "city/d072/cinema.png",
         "lowres": "city/d072/cinema.png",
         "moscow": "hires/gen/city/cinema-moscow@4x.png"
@@ -189,9 +186,7 @@
       "screen": "S9",
       "default": "hires/city/piggy-bank@4x.png",
       "variants": {
-        "village": "hires/gen/city/piggy-bank-village@4x.png",
         "d045": "city/d045/piggy-bank.png",
-        "town": "hires/gen/city/piggy-bank-town@4x.png",
         "d072": "city/d072/piggy-bank.png",
         "lowres": "city/d072/piggy-bank.png"
       },

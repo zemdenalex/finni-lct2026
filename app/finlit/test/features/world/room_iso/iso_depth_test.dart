@@ -4,7 +4,7 @@ import 'package:finlit/features/world/room_iso/iso_depth.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Depth order of the iso room (V2). Cases T1–T6 come from
-// docs/final/room-iso-razbor.md §6; each one fails on a known wrong
+// the team room-iso design notes, section 6; each one fails on a known wrong
 // rule (asymmetric inFront, single x1+y1 key, flipped axis sign, tie-break).
 // Ported from room-lab A (test/roomlab/depth_test.dart).
 

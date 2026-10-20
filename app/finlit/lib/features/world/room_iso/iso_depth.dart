@@ -1,7 +1,7 @@
 /// Iso room: draw order of everything standing on the floor.
 ///
 /// Ported from room-lab A (`lib/roomlab/depth.dart`). Scheme from
-/// `docs/final/room-iso-razbor.md` §6:
+/// the team room-iso design notes, section 6:
 /// 1. One scale: every object is a footprint box [x0,x1) x [y0,y1) in
 ///    continuous cell units. Finni and a pet are small boxes around the feet.
 /// 2. Axis test: sx = +1 if a.x0 >= b.x1, -1 if b.x0 >= a.x1, else 0; same

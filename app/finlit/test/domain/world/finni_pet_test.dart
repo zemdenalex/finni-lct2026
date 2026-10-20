@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_world.dart';
 import '../../support/world_harness.dart';
 
-/// Погладить Финни в комнате (решение Дениса 16.10): +1 😊, не чаще раза в
+/// Поговорить с Финни в комнате (до 20.10 — «погладить», решение Дениса 16.10): +1 😊, не чаще раза в
 /// игровой день.
 ///
 /// Защищает: +1 😊 за первое касание игрового дня, повтор в тот же день —
@@ -37,6 +37,10 @@ void main() {
         final WorldResult r = w.petFinni();
         expect(r.ok, isTrue);
         expect(r.reasonCode, 'finni.pet');
+        // Денис 20.10: Финни друг, не питомец — касание = разговор, не
+        // «погладить» и не «мурлычет».
+        expect(r.reason, contains('Поговорили'));
+        expect(r.reason, isNot(matches(RegExp('мурл|глад|радуется'))));
         expect(r.happiness, 1);
         expect(w.snapshot.happiness, before.happiness + 1);
         expect(w.snapshot.free, before.free, reason: 'касание не даёт монет');
@@ -53,7 +57,8 @@ void main() {
           expect(r.ok, isTrue, reason: 'Финни всегда реагирует');
           expect(r.reasonCode, 'finni.pet_again');
           expect(r.happiness, 0);
-          expect(r.reason, isNotEmpty);
+          expect(r.reason, contains('Поговорили'));
+          expect(r.reason, isNot(matches(RegExp('мурл|глад'))));
         }
         expect(w.snapshot.happiness, after1);
       });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -15,9 +16,16 @@ import '../../../../core/world_theme.dart';
 ///
 /// Числа и тексты — `content/jobs.json → jobs.gardener` ([GardenerContent]).
 ///
-/// Один темп — по ходам, без часов и обратного отсчёта (критерии ночи
-/// §8.8: таймеров нет; ревью df2164a). Ребёнок сам решает, когда дальше
-/// (`calm_turns`, `calm_wilt_turns`).
+/// По ходам: ребёнок сам решает, когда дальше (`calm_turns`,
+/// `calm_wilt_turns`). С `timer_sec` (Настя 20.10: «добавь таймер, чтобы
+/// было чуть сложнее») — ещё и обратный отсчёт на всю смену: время вышло —
+/// смена кончается, итог по числу политых. Без ключа — без часов, как было
+/// (критерии ночи §8.8, ревью df2164a).
+///
+/// Большое поле (грядок больше `big_field.over_beds`) — в начале хода
+/// сохнут, пока сухих не станет `big_field.dry` (Настя 20.10: «увеличь
+/// количество грядок до 5-ти, которые надо полить … когда всего грядок
+/// больше 6-ти»).
 @immutable
 class GardenerContent {
   const GardenerContent({
@@ -32,6 +40,9 @@ class GardenerContent {
     required this.calmTurns,
     required this.calmWiltTurns,
     this.fields = const <({int beds, int columns})>[],
+    this.timerSec,
+    this.bigOverBeds,
+    this.bigDry,
   });
 
   factory GardenerContent.fromData(JobData d) {
@@ -47,6 +58,11 @@ class GardenerContent {
       lineLow: dStr(lines, 'low'),
       calmTurns: dInt(d, 'calm_turns'),
       calmWiltTurns: dInt(d, 'calm_wilt_turns'),
+      timerSec: d['timer_sec'] == null ? null : dInt(d, 'timer_sec'),
+      bigOverBeds: d['big_field'] == null
+          ? null
+          : dInt(dObj(d, 'big_field'), 'over_beds'),
+      bigDry: d['big_field'] == null ? null : dInt(dObj(d, 'big_field'), 'dry'),
       fields: <({int beds, int columns})>[
         if (d['fields'] != null)
           for (final JobData f in dObjs(d, 'fields'))
@@ -74,7 +90,26 @@ class GardenerContent {
       lineLow: lineLow,
       calmTurns: calmTurns,
       calmWiltTurns: calmWiltTurns,
+      timerSec: timerSec,
+      bigOverBeds: bigOverBeds,
+      bigDry: bigDry,
     );
+  }
+
+  /// Секунд на всю смену; null — без часов.
+  final int? timerSec;
+
+  /// Поле «большое», если грядок больше этого; null — правила нет.
+  final int? bigOverBeds;
+
+  /// Сколько грядок сухие в начале хода на большом поле.
+  final int? bigDry;
+
+  /// Сухих в начале хода на этом поле: на большом — [bigDry], иначе null
+  /// (одна-две за ход, как было).
+  int? get dryTarget {
+    final int? over = bigOverBeds, dry = bigDry;
+    return over != null && dry != null && beds > over ? dry : null;
   }
 
   final int beds;
@@ -103,9 +138,10 @@ class GardenerContent {
 
 const String gardenerHelp = 'Грядки понемногу сохнут: на сухой появляется '
     'капля и надпись «Полей!». Нажми на такую грядку — она снова растёт. '
-    'Полей сухие грядки и нажми «Дальше» — спешить некуда, часов нет. Если '
-    'не полить, грядка поникнет, но не пропадёт: полей её, и она оживёт. '
-    'Оплата от результата не зависит.';
+    'Полей сухие грядки и нажми «Дальше». Вверху часы: время вышло — смена '
+    'закончена, считаются политые грядки. Если не полить, грядка поникнет, '
+    'но не пропадёт: полей её, и она оживёт. Оплата от результата не '
+    'зависит.';
 
 /// Итог смены садовника, первая строка. Правило 5Б Насти: смена — героя,
 /// поэтому «{name} полил / полила» в его роде; пол не выбран — без рода.
@@ -165,18 +201,45 @@ class _GardenerGameState extends State<GardenerGame> {
   bool _sent = false;
   String? _note;
 
+  /// Сколько секунд осталось ([GardenerContent.timerSec]); null — без часов.
+  late int? _left = _c.timerSec;
+  Timer? _clock;
+
+  /// Смену закончило время, а не последний ход.
+  bool _timeUp = false;
+
   @override
   void initState() {
     super.initState();
     _dryTurn();
+    if (_left != null) {
+      _clock = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
+  void _tick() {
+    if (!mounted || _over) return;
+    setState(() {
+      _left = math.max(0, (_left ?? 0) - 1);
+      if (_left == 0) {
+        _timeUp = true;
+        _finish();
+      }
+    });
   }
 
   int get _dryNow =>
       _beds.where((GardenBed b) => b != GardenBed.growing).length;
 
   /// Одна случайная растущая грядка начинает сохнуть (если есть место).
-  void _dryOne() {
-    if (_dryNow >= _c.maxDryAtOnce) return;
+  void _dryOne({int? limit}) {
+    if (_dryNow >= (limit ?? _c.maxDryAtOnce)) return;
     final List<int> free = <int>[
       for (int i = 0; i < _c.beds; i++)
         if (_beds[i] == GardenBed.growing) i,
@@ -188,8 +251,18 @@ class _GardenerGameState extends State<GardenerGame> {
     _dried++;
   }
 
-  /// В начале хода сохнут одна-две грядки.
+  /// В начале хода сохнут одна-две грядки; на большом поле — пока сухих
+  /// не станет [GardenerContent.dryTarget].
   void _dryTurn() {
+    final int? target = _c.dryTarget;
+    if (target != null) {
+      while (_dryNow < target) {
+        final int was = _dryNow;
+        _dryOne(limit: target);
+        if (_dryNow == was) break;
+      }
+      return;
+    }
     final int count = _turn.isEven ? 1 : 2;
     for (int k = 0; k < count; k++) {
       _dryOne();
@@ -215,6 +288,7 @@ class _GardenerGameState extends State<GardenerGame> {
   void _finish() {
     _over = true;
     _note = null;
+    _clock?.cancel();
   }
 
   void _water(int i) {
@@ -244,7 +318,12 @@ class _GardenerGameState extends State<GardenerGame> {
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     final bool land = WorldLayout.isLandscape(context);
+    final int? left = _left, total = _c.timerSec;
     final List<Widget> turnInfo = <Widget>[
+      if (!_over && left != null && total != null) ...<Widget>[
+        _Clock(left: left, total: total),
+        const SizedBox(height: Gap.sm),
+      ],
       if (!_over) ...<Widget>[
         Text(
           key: const ValueKey<String>('gardener:turn'),
@@ -275,6 +354,7 @@ class _GardenerGameState extends State<GardenerGame> {
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Text(
+                  '${_timeUp ? 'Время вышло. ' : ''}'
                   '${gardenerSummary(_watered, _dried, widget.heroName, widget.heroGender)}\n'
                   '${_c.resultLine(_share)}',
                   style: gameText(context),
@@ -368,6 +448,63 @@ class _GardenerGameState extends State<GardenerGame> {
       ],
     );
   }
+}
+
+/// Часы смены: «Осталось N с» и полоса. TalkBack слышит остаток раз в
+/// 10 секунд (liveRegion меняется только тогда), а не каждую секунду.
+class _Clock extends StatelessWidget {
+  const _Clock({required this.left, required this.total});
+
+  final int left;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final int spoken = left <= 5 ? left : (left / 10).ceil() * 10;
+    final Color warn = left <= 10 ? SceneColors.barkDark : WorldColors.text;
+    return Semantics(
+      key: const ValueKey<String>('gardener:clock'),
+      liveRegion: true,
+      label: 'Осталось $spoken ${_secWord(spoken)}',
+      excludeSemantics: true,
+      // Строка и полоса под ней: в узкой колонке альбомной при крупном
+      // шрифте они не помещаются в одну строку.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.timer_outlined, color: warn),
+              const SizedBox(width: Gap.xs),
+              Flexible(
+                child: Text('Осталось $left с',
+                    key: const ValueKey<String>('gardener:left'),
+                    style: gameText(context)
+                        .copyWith(fontWeight: FontWeight.w700, color: warn)),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.xs),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(WorldRadii.button),
+            child: LinearProgressIndicator(
+              value: left / total,
+              minHeight: 8,
+              color: left <= 10 ? SceneColors.barkDark : SceneColors.leafDark,
+              backgroundColor: WorldColors.line,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _secWord(int n) {
+  final int m10 = n % 10, m100 = n % 100;
+  if (m10 == 1 && m100 != 11) return 'секунда';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'секунды';
+  return 'секунд';
 }
 
 String _bedsWord(int n) {

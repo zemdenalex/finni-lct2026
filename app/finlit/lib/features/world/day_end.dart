@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/world_theme.dart';
 import '../../domain/world/contract.dart';
+import 'home/game_calendar.dart';
 import 'home/world_hud.dart';
 
 /// Дело (смена, отдых) закончило день: сил осталось меньше, чем на самое
@@ -35,12 +36,14 @@ const String _nightMark = 'Силы кончились — наступил ве
 /// осталось, утро.
 ///
 /// [dayBefore] и [energyBefore] — до действия; [result] — его итог; [now] —
-/// снимок мира после.
+/// снимок мира после. [gender] — род героя для реплики «Я устал, пойду
+/// спать» ([finniSleepLine], Настя 20.10: каждая смена дня — с ней).
 ({String short, String full})? dayEndText({
   required WorldResult? result,
   required int? dayBefore,
   required double energyBefore,
   required ResourceSnapshot now,
+  FinniGender? gender,
 }) {
   final WorldResult? r = result;
   if (r == null || !r.ok || dayBefore == null) return null;
@@ -48,10 +51,13 @@ const String _nightMark = 'Силы кончились — наступил ве
   final double left = energyBefore + r.energy;
   final ({String done, String morning}) parts = splitDayEnd(r.reason);
   return (
-    short: 'Уже утро: день ${now.dayInWeek} из ${now.daysPerWeek}',
+    // Игровой календарь (Настя 20.10): «Уже утро: Вт, 6 окт».
+    short: 'Уже утро: '
+        '${GameCalendar.short(week: now.weekNo, day: now.dayInWeek)}',
     full: '${parts.done} Сил осталось '
         '${WorldHud.energyText(left < 0 ? 0 : left)} — на дела не хватит, '
-        'поэтому день закончился. ${parts.morning}',
+        'поэтому день закончился. «${finniSleepLine(gender)}» '
+        '${parts.morning}',
   );
 }
 

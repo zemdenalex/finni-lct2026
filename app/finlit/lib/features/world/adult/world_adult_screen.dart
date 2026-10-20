@@ -530,7 +530,7 @@ class _Content extends StatelessWidget {
             ),
             onPressed: () => _reset(context),
             icon: const Icon(Icons.delete_outline_rounded),
-            label: const Text('Начать игру заново',
+            label: const Text('Сбросить профиль',
                 style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: Gap.sm),

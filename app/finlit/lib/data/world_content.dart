@@ -30,12 +30,18 @@ class WorldContentLoader {
 
   static const String base = 'assets/content/world';
 
-  Future<WorldContent> load() async => WorldContent.parse(
-        economy: await read('$base/economy.json'),
-        jobs: await read('$base/jobs.json'),
-        events: await read('$base/events.json'),
-        roomItems: await read('$base/room_items.json'),
-      );
+  /// Четыре файла читаются разом: в браузере это четыре сетевых запроса,
+  /// и подряд они складывали задержки до первого кадра (Настя 20.10).
+  Future<WorldContent> load() async {
+    final List<String> f = await Future.wait(<Future<String>>[
+      read('$base/economy.json'),
+      read('$base/jobs.json'),
+      read('$base/events.json'),
+      read('$base/room_items.json'),
+    ]);
+    return WorldContent.parse(
+        economy: f[0], jobs: f[1], events: f[2], roomItems: f[3]);
+  }
 }
 
 /// Ошибка схемы контента: какой файл, какое поле и что с ним не так.
@@ -268,9 +274,14 @@ class JobTier {
     required this.energy,
     this.name,
     this.unlockedBy,
+    this.payAdd = 0,
   });
 
   final String id;
+
+  /// `pay_add` — прибавка к оплате смены в режиме 7 дней, монет, уже после
+  /// `pay_scale` (Настя 20.10: «к прошлым зарплатам добавь те суммы»).
+  final int payAdd;
 
   /// Название уровня для доски («лёгкая», «близко»); у работы без уровней — null.
   final String? name;
@@ -553,9 +564,10 @@ class EconomyContent {
   /// включённом — T1 ([tutorialLookFor]). Нет ключа — [tutorialUiDefault].
   final bool tutorialUi;
 
-  /// Значение [tutorialUi] без ключа в файле — то же, что в сборке (DEN-4
-  /// T1, Денис 18.10).
-  static const bool tutorialUiDefault = true;
+  /// Значение [tutorialUi] без ключа в файле — то же, что в сборке. Было
+  /// включено (DEN-4 T1, Денис 18.10); 20.10 Денис: второе знакомство в
+  /// комнате после сценок — дубль, «надо старый убрать».
+  static const bool tutorialUiDefault = false;
 
   /// `day_cycle.xp_stages` без ключа в файле — то же, что в сборке (DEN-35
   /// B, Денис 18.10). Прямой `DayCycle()` в домене — по-прежнему без ступеней.
@@ -1028,7 +1040,11 @@ EconomyContent _parseEconomy(_Node r) {
     final _Node? tiersNode = j.opt('tiers');
     final List<JobTier> tiers = tiersNode == null
         ? <JobTier>[
-            JobTier(id: '', pay: j['pay'].integer, energy: j['energy'].number),
+            JobTier(
+                id: '',
+                pay: j['pay'].integer,
+                energy: j['energy'].number,
+                payAdd: j.opt('pay_add')?.integer ?? 0),
           ]
         : tiersNode.items
             .map(
@@ -1038,6 +1054,7 @@ EconomyContent _parseEconomy(_Node r) {
                 pay: t['pay'].integer,
                 energy: t['energy'].number,
                 unlockedBy: t.opt('unlocked_by')?.string,
+                payAdd: t.opt('pay_add')?.integer ?? 0,
               ),
             )
             .toList();

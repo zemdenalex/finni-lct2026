@@ -457,7 +457,7 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
             icon: Icons.battery_alert_rounded,
             tone: _Tone.info,
             title: 'Кончилась ⚡',
-            text: 'Сил не осталось ни на одно дело — неделя кончилась сама. '
+            text: 'Сил не осталось ни на одно дело — неделя кончилась. '
                 'Это не штраф, просто без бонуса сна.'),
         WeekEnd.sleep => _Box(
             key: const ValueKey<String>('review:ended'),

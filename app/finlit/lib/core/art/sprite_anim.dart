@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -52,7 +54,22 @@ class SpriteAnim extends StatefulWidget {
     this.height,
     this.play = true,
     this.semanticLabel,
+    this.breathe = false,
   });
+
+  /// Дыхание поверх кадров: картинка чуть вытягивается вверх от ног и
+  /// опускается ([breathPeriod], до [breathAmp] высоты). У Финни в комнате
+  /// два кадра покоя почти одинаковые — без дыхания он стоит как картинка
+  /// (Денис 20.10: «в комнате у Финни нет анимации»). Только перерисовка,
+  /// размер и место не меняются — зона касания и плашка над головой стоят.
+  /// Анимации выключены — дыхания нет, как и смены кадров.
+  final bool breathe;
+
+  /// Один вдох-выдох.
+  static const Duration breathPeriod = Duration(milliseconds: 2400);
+
+  /// Насколько вытягивается картинка на вдохе (доля высоты).
+  static const double breathAmp = 0.035;
 
   final SpriteRef sprite;
 
@@ -85,6 +102,9 @@ class _SpriteAnimState extends State<SpriteAnim>
   int _step = 0;
   Duration _stepStartedAt = Duration.zero;
 
+  /// Вдох: 0 — покой, 1 — вершина. Двигает только перерисовку.
+  final ValueNotifier<double> _breath = ValueNotifier<double>(0);
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +118,8 @@ class _SpriteAnimState extends State<SpriteAnim>
       _load();
     } else if (old.tag != widget.tag) {
       _restart();
+    } else if (old.breathe != widget.breathe || old.play != widget.play) {
+      _syncTicker();
     }
   }
 
@@ -158,7 +180,10 @@ class _SpriteAnimState extends State<SpriteAnim>
   }
 
   bool get _animate =>
-      widget.play && _sheet != null && _seq.length > 1 && _motion;
+      widget.play &&
+      _sheet != null &&
+      (_seq.length > 1 || widget.breathe) &&
+      _motion;
 
   void _syncTicker() {
     if (_animate && !_ticker.isActive) {
@@ -166,11 +191,19 @@ class _SpriteAnimState extends State<SpriteAnim>
       _ticker.start();
     } else if (!_animate && _ticker.isActive) {
       _ticker.stop();
+      _breath.value = 0;
       setState(() => _step = 0);
     }
   }
 
   void _onTick(Duration elapsed) {
+    if (widget.breathe) {
+      final double t =
+          (elapsed.inMicroseconds / SpriteAnim.breathPeriod.inMicroseconds) % 1;
+      // Начинается с покоя (0) и плавно доходит до вдоха (1).
+      _breath.value = (1 - math.cos(2 * math.pi * t)) / 2;
+    }
+    if (_seq.length < 2) return;
     final SpriteSheet sheet = _sheet!;
     int step = _step;
     Duration started = _stepStartedAt;
@@ -191,6 +224,7 @@ class _SpriteAnimState extends State<SpriteAnim>
   @override
   void dispose() {
     _ticker.dispose();
+    _breath.dispose();
     _stopImage();
     super.dispose();
   }
@@ -211,7 +245,8 @@ class _SpriteAnimState extends State<SpriteAnim>
           excludeSemantics: true,
           child: CustomPaint(
             size: logical * k,
-            painter: _FramePainter(image, src, artFilter(d)),
+            painter: _FramePainter(image, src, artFilter(d),
+                breath: widget.breathe ? _breath : null),
           ),
         );
     if (d <= 1) {
@@ -239,14 +274,24 @@ class _SpriteAnimState extends State<SpriteAnim>
 }
 
 class _FramePainter extends CustomPainter {
-  _FramePainter(this.image, this.src, this.filter);
+  _FramePainter(this.image, this.src, this.filter, {this.breath})
+      : super(repaint: breath);
 
   final ui.Image image;
   final Rect src;
   final FilterQuality filter;
+  final ValueListenable<double>? breath;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final double b = breath?.value ?? 0;
+    if (b > 0) {
+      // От ног: низ по центру стоит, верх поднимается, бока чуть уже.
+      canvas.translate(size.width / 2, size.height);
+      canvas.scale(
+          1 - b * SpriteAnim.breathAmp * 0.4, 1 + b * SpriteAnim.breathAmp);
+      canvas.translate(-size.width / 2, -size.height);
+    }
     canvas.drawImageRect(
       image,
       src,
@@ -259,7 +304,10 @@ class _FramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FramePainter old) =>
-      old.image != image || old.src != src || old.filter != filter;
+      old.image != image ||
+      old.src != src ||
+      old.filter != filter ||
+      old.breath != breath;
 }
 
 /// Статичная картинка мира (здание, фон комнаты).

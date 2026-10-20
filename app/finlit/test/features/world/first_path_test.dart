@@ -101,23 +101,10 @@ Future<void> _childPath(WidgetTester tester, Size size, double scale) async {
   _clean(tester, 'знакомство → комната');
   expect(w.snapshot.dayInWeek, 1);
 
-  // 2. Обучалка первого захода (флаг сборки tutorial_ui): каждое «Дальше»
-  // меняет шаг, в конце обучалка уходит.
-  final Finder tutNext = find.byKey(const ValueKey<String>('tutorial:next'));
-  expect(tutNext, findsOneWidget, reason: 'обучалка первого захода');
-  int steps = 0;
-  for (; steps < 12 && tutNext.evaluate().isNotEmpty; steps++) {
-    final String before = _tutorialStep(tester);
-    await _tapReal(tester, tutNext);
-    await _frames(tester);
-    _clean(tester, 'обучалка, шаг ${steps + 1}');
-    if (tutNext.evaluate().isNotEmpty) {
-      expect(_tutorialStep(tester), isNot(before),
-          reason: '«Дальше» обучалки меняет шаг');
-    }
-  }
-  expect(tutNext, findsNothing, reason: 'обучалка закрылась');
-  expect(steps, tutorialSteps.length);
+  // 2. Второго знакомства в комнате нет (Денис 20.10: «надо старый
+  // убрать», флаг сборки tutorial_ui выключен) — сразу игра.
+  expect(find.byKey(const ValueKey<String>('tutorial:next')), findsNothing,
+      reason: 'одно знакомство: обучалка в комнате не повторяет его');
 
   // 3. Утреннее событие дня 1: доступный вариант → итог → «Дальше».
   final Finder badge = find.byKey(const ValueKey<String>('room:event'));
@@ -137,6 +124,29 @@ Future<void> _childPath(WidgetTester tester, Size size, double scale) async {
     await _frames(tester);
     expect(find.byType(EventScreen), findsNothing);
     _clean(tester, 'событие → комната');
+  }
+
+  // 3а. Первый выход в город — подсказки облачком Финни (Денис 20.10):
+  // каждое «Дальше» меняет подсказку, «Понятно» закрывает, второй раз их
+  // нет.
+  {
+    await _tapReal(tester, find.byKey(const ValueKey<String>('room:nav:city')));
+    await _frames(tester);
+    expect(find.byType(CityScreen), findsOneWidget);
+    final Finder introNext =
+        find.byKey(const ValueKey<String>('city:intro:next'));
+    expect(introNext, findsOneWidget, reason: 'подсказки первого выхода');
+    int beats = 0;
+    for (; beats < 6 && introNext.evaluate().isNotEmpty; beats++) {
+      await _tapReal(tester, introNext);
+      await _frames(tester);
+      _clean(tester, 'подсказка города ${beats + 1}');
+    }
+    expect(introNext, findsNothing, reason: '«Понятно» закрыло подсказки');
+    expect(beats, contentScript.cityIntro.length);
+    expect(w.seen('city.intro'), isTrue);
+    _navigator(tester).pop();
+    await _frames(tester);
   }
 
   // 4. Нижнее меню и золотая кнопка: каждая открывает свой экран.
@@ -310,14 +320,6 @@ NavigatorState _navigator(WidgetTester tester) =>
 
 int _coins(World w) => w.snapshot.need + w.snapshot.want + w.snapshot.free;
 
-String _tutorialStep(WidgetTester tester) => find
-    .byWidgetPredicate((Widget x) =>
-        x.key is ValueKey<String> &&
-        (x.key! as ValueKey<String>).value.startsWith('tutorial:step:'))
-    .evaluate()
-    .map((Element e) => (e.widget.key! as ValueKey<String>).value)
-    .join(',');
-
 /// Комната грузит картинки и реестр ассетов настоящим вводом-выводом.
 Future<void> _loadRoom(WidgetTester tester) async {
   await tester.runAsync(() async {
@@ -345,10 +347,11 @@ Future<void> _register(WidgetTester tester) async {
   await tester.enterText(
       find.byKey(const ValueKey<String>('onboarding-nick')), 'Звёздочка');
   await tester.pump();
+  // Облик — на первом экране, рядом с ником (Денис 20.10 13:46).
+  await _tapReal(tester, find.byKey(const ValueKey<String>('look:finni-a2:3')));
   await _tapReal(tester, _next);
   await _settle(tester);
   await _tapReal(tester, find.byKey(const ValueKey<String>('gender:girl')));
-  await _tapReal(tester, find.byKey(const ValueKey<String>('look:finni-a2:3')));
   await tester.enterText(
       find.byKey(const ValueKey<String>('onboarding-finni-name')), 'Бублик');
   await tester.pump();

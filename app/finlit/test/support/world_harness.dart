@@ -361,6 +361,8 @@ Future<WorldState> pumpWorldScreen(
 /// предмет не окажется под пальцем. Уже под пальцем — ничего не делает.
 /// true — Финни подводили (он уже у предмета или рядом).
 Future<bool> bringIntoReach(WidgetTester tester, String key) async {
+  // Iso room opens close to Finni (n6-room2): first the whole room.
+  if (_pointOrNull(tester, key) == null) await showWholeRoom(tester);
   bool walked = false;
   for (int i = 0; i < 3 && _pointOrNull(tester, key) == null; i++) {
     walked = true;
@@ -410,4 +412,16 @@ Future<void> openCityPlaces(WidgetTester tester) async {
   if (chip.evaluate().isEmpty) return;
   await tester.tap(chip);
   await tester.pumpAndSettle();
+}
+
+/// The iso room opens close to Finni (n6-room2 20.10): a test that taps
+/// the furniture first shows the whole room, as a child would with
+/// «Вся комната». Nothing to do when the button is not there (front room,
+/// another screen) or the room is already whole.
+Future<void> showWholeRoom(WidgetTester tester) async {
+  final Finder whole = find.text('Вся комната');
+  if (whole.evaluate().isEmpty) return;
+  await tester.tap(whole);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
 }

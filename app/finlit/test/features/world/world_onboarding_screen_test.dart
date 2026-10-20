@@ -36,7 +36,7 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
-/// Регистрация: ник → облик и имя → «Поехали» (неделя 1 началась).
+/// Регистрация: ник и облик → имя друга → «Поехали» (неделя 1 началась).
 Future<void> _register(WidgetTester tester,
     {String nick = 'Звёздочка', bool customise = true}) async {
   expect(tester.widget<FilledButton>(_next).onPressed, isNull,
@@ -44,15 +44,17 @@ Future<void> _register(WidgetTester tester,
   await tester.enterText(
       find.byKey(const ValueKey<String>('onboarding-nick')), nick);
   await tester.pump();
-  await _tapNext(tester); // ник → облик
+  if (customise) {
+    final Finder look = find.byKey(const ValueKey<String>('look:finni-a2:3'));
+    await tester.ensureVisible(look);
+    await tester.tap(look);
+    await tester.pump();
+  }
+  await _tapNext(tester); // знакомство → имя друга
   if (customise) {
     final Finder girl = find.byKey(const ValueKey<String>('gender:girl'));
     await tester.ensureVisible(girl);
     await tester.tap(girl);
-    await tester.pump();
-    final Finder look = find.byKey(const ValueKey<String>('look:finni-a2:3'));
-    await tester.ensureVisible(look);
-    await tester.tap(look);
     await tester.pump();
     await tester.enterText(
         find.byKey(const ValueKey<String>('onboarding-finni-name')), 'Бублик');
@@ -120,7 +122,7 @@ Future<WorldState> _walk(WidgetTester tester, WorldKind kind,
 }
 
 /// Шагов знакомства: два экрана регистрации и все сценки.
-final int _steps = 2 + contentScript.scenes.length;
+final int _steps = 2 + contentScript.sceneSteps;
 
 /// Текст на экране целиком (в том числе внутри [Text.rich]).
 Finder _say(String text) => find.byWidgetPredicate(
@@ -169,17 +171,34 @@ void main() {
           find.byKey(const ValueKey<String>('onboarding-nick')), findsOneWidget,
           reason: 'первый экран — ник');
       expect(find.text('Шаг 1 из $_steps'), findsOneWidget);
-      await tester.enterText(
-          find.byKey(const ValueKey<String>('onboarding-nick')), 'Кот');
-      await tester.pump();
-      await _tapNext(tester);
-      expect(find.text('Шаг 2 из $_steps'), findsOneWidget);
+      // Денис 20.10 13:46: первым — Финни здоровается и спрашивает имя.
+      // Кнопка — по ТЗ Насти, экран 1. Уронит: старые подписи.
+      expect(find.text('Привет, я Финни! А как зовут тебя?'), findsOneWidget);
+      expect(find.text('Начать приключение'), findsOneWidget);
       expect(
           find.byWidgetPredicate((Widget w) =>
               w.key is ValueKey<String> &&
               (w.key! as ValueKey<String>).value.startsWith('look:')),
           findsAtLeastNWidgets(9),
-          reason: 'ТЗ 2.5.2.1: не меньше девяти обликов');
+          reason: 'ТЗ 2.5.2.1: не меньше девяти обликов — на первом экране');
+      await tester.enterText(
+          find.byKey(const ValueKey<String>('onboarding-nick')), 'Кот');
+      await tester.pump();
+      await _tapNext(tester);
+      expect(find.text('Шаг 2 из $_steps'), findsOneWidget);
+      // Денис 20.10: имя меняется — шаг спрашивает имя друга, а не «какой
+      // будет Финни». Уронит: заголовок или подпись поля вернулись.
+      expect(find.text('Как будут звать твоего друга?'), findsOneWidget);
+      expect(
+          tester
+              .widget<TextField>(
+                  find.byKey(const ValueKey<String>('onboarding-finni-name')))
+              .decoration!
+              .labelText,
+          'Имя друга');
+      expect(find.byKey(const ValueKey<String>('onboarding-nick')),
+          findsNothing,
+          reason: 'ник второй раз не спрашивают');
       final TextField name = tester.widget<TextField>(
           find.byKey(const ValueKey<String>('onboarding-finni-name')));
       expect(name.controller!.text, OnboardingProgress.defaultFinniName);
@@ -287,7 +306,7 @@ void main() {
       await _settle(tester);
       expect(find.byKey(const ValueKey<String>('onboarding-finni-name')),
           findsOneWidget,
-          reason: 'из первой сценки назад — облик и имя');
+          reason: 'из первой сценки назад — имя друга');
       await _tapNext(tester); // снова сценки
       expect(ws.snapshot.weekNo, 1);
       expect(ws.snapshot.unallocated, pool);
@@ -340,6 +359,12 @@ void main() {
       await tester.enterText(
           find.byKey(const ValueKey<String>('onboarding-nick')), 'Кот');
       await tester.pump();
+      final Finder look = find.byKey(const ValueKey<String>('look:finni-a3:2'));
+      await tester.ensureVisible(look);
+      await tester.tap(look);
+      await tester.pump();
+      expect(saved.last['finniSpecies'], 'finni-a3');
+      expect(saved.last['finniLook'], 2);
       await _tapNext(tester);
       expect(saved.last['nickname'], 'Кот');
       expect(saved.last['step'], OnboardingProgress.stepFinni);
@@ -414,6 +439,23 @@ void main() {
       expect(ws.phase, WeekPhase.living, reason: '«Так и оставить» — дальше');
     });
 
+    // Настя 20.10 16:28: в реплике плана было только «Счета недели — 740»,
+    // а разложить можно 820 — казалось, что в конверты кладут больше, чем
+    // есть. Уронит: реплика плана снова не называет, сколько монет на неделю.
+    testWidgets('план: реплика называет монеты недели и счета',
+        (WidgetTester tester) async {
+      final WorldState ws = await pumpWorldScreen(
+          tester, const WorldOnboardingScreen(),
+          world: kind.make());
+      await _register(tester, customise: false);
+      await _talkToPlan(tester);
+      final ResourceSnapshot s = ws.snapshot;
+      expect(
+          find.textContaining('Монет на неделю: ${s.unallocated}. '
+              'Счета — ${s.weeklyBill}'),
+          findsOneWidget);
+    });
+
     // Путь ребёнка 16.10, дефект 12: «Шаг 1 из 2», а впереди ещё 7 сценок.
     // Уронит: счётчик снова считает только регистрацию или пропал в сценках.
     testWidgets('счётчик шагов — весь путь знакомства, и в сценках тоже',
@@ -426,6 +468,14 @@ void main() {
       final Finder bar = find.byKey(const ValueKey<String>('onboarding:steps'));
       expect(bar, findsOneWidget, reason: 'полоса шагов видна в сценках');
       expect(tester.getSemantics(bar).label, 'Шаг 3 из $_steps');
+      // Денис 20.10: «почему 9 шагов?» Разговор Финни подряд — один шаг:
+      // ник · имя друга · комната · план · цель. Уронит: шаг снова на
+      // каждую сценку (было «Шаг 1 из 9»).
+      expect(_steps, 5);
+      await _tapNext(tester); // вторая реплика привета — тот же шаг
+      expect(tester.getSemantics(bar).label, 'Шаг 3 из 5');
+      await _talkToPlan(tester);
+      expect(tester.getSemantics(bar).label, 'Шаг 4 из 5');
     });
 
     // Путь ребёнка 16.10, дефект 11, и вариант A 17.10: в знакомстве ни одна
@@ -610,8 +660,10 @@ void main() {
         }
       });
       await _settle(tester);
+      // Первый экран: слева Финни крупно (Денис 20.10 13:46), дальше —
+      // комната.
       final Rect stage = tester
-          .getRect(find.byKey(const ValueKey<String>('onboarding:stage')));
+          .getRect(find.byKey(const ValueKey<String>('onboarding:portrait')));
       final Rect next = tester.getRect(_next);
       expect(stage.right, lessThanOrEqualTo(next.left));
       expect(stage.height, greaterThan(landscape.height * 0.6));

@@ -20,6 +20,11 @@ import 'features/world/world_state.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(fontLicenses);
+  // Реплики знакомства не зависят ни от сохранения, ни от контента мира —
+  // читаются параллельно с ними, а не после (Настя 20.10: «ускорь
+  // загрузку»). Битый файл не бросает — будет знакомство без реплик.
+  final Future<OnboardingScript> scriptLoad =
+      OnboardingScript.load(rootBundle.loadString);
   final Storage storage = await openDefaultStorage();
   // Новый мир: журнал и онбординг — оба у SavedWorld (A16). Он сам
   // сохраняет после каждого действия, [SavedWorld.freshWorld] даёт мир для
@@ -41,10 +46,8 @@ Future<void> main() async {
   // (`city.label_scale`, DEN-30) — флаги экранов из файла.
   applyContentScreenFlags(saved.content.economy);
   // Реплики сценок знакомства (`onboarding.json`) — тоже до первого кадра:
-  // первый запуск идёт прямо в знакомство.
-  // Битый файл не останавливает запуск — будет знакомство без реплик.
-  final OnboardingScript script =
-      await OnboardingScript.load(rootBundle.loadString);
+  // первый запуск идёт прямо в знакомство. Чтение начато выше.
+  final OnboardingScript script = await scriptLoad;
   // Объяснения 7 дней (`explain.json`, флаг `day_cycle.explain_ui`) — тоже
   // до первого кадра; битый файл — экраны без объяснений.
   final WorldExplain explain = await WorldExplain.load(rootBundle.loadString,

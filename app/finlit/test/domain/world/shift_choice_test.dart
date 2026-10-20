@@ -127,7 +127,7 @@ void main() {
     expect(w.jobBoard.where((JobOffer o) => o.choice != null), isEmpty);
   });
 
-  test('«взять заказ»: 140 × 1,25 = 175 монет, ⚡ +3, 😊 −1 к той же смене', () {
+  test('«взять заказ»: 340 × 1,25 = 425 монет, ⚡ +3, 😊 −1 к той же смене', () {
     final WorldConfig c = _withChoices(_takeOrder);
     final WorldGame plain = _living(c);
     final WorldGame chose = _living(c);
@@ -138,14 +138,14 @@ void main() {
         chose.completeJob('consultant', score: 0, choice: 'take');
     ok(r0);
     ok(r1);
-    expect(r0.coins, 140, reason: 'профиль mid; без ответа — как без вопроса');
-    expect(r1.coins, 175);
-    expect(r1.reason, contains('Взять заказ: +35.'));
+    expect(r0.coins, 340, reason: 'профиль mid; без ответа — как без вопроса');
+    expect(r1.coins, 425);
+    expect(r1.reason, contains('Взять заказ: +85.'));
     expect(r1.energy - r0.energy, closeTo(-3, 1e-9));
     expect(r1.happiness - r0.happiness, -1);
     expect(_payout(chose).args['choice'], 'test_extra');
     expect(_payout(chose).args['choiceOption'], 'take');
-    expect(_payout(chose).args['choicePay'], 35);
+    expect(_payout(chose).args['choicePay'], 85);
     expect(_payout(plain).args.containsKey('choice'), isFalse);
   });
 
@@ -168,7 +168,7 @@ void main() {
       events: _read('events.json'),
     )));
     final WorldResult r = w.completeJob('consultant', score: 0, choice: 'take');
-    expect(r.coins, 175);
+    expect(r.coins, 425);
     expect(r.reason, isNot(contains('Взять заказ')));
     expect(_payout(w).args['choice'], 'test_extra');
     expect(_payout(w).args['choiceOption'], 'take');
@@ -241,7 +241,7 @@ void main() {
     expect(w.offer('consultant')!.choice, isNull);
     final WorldResult r = w.completeJob('consultant', score: 0, choice: 'take');
     ok(r);
-    expect(r.coins, 140);
+    expect(r.coins, 340);
     expect(_payout(w).args.containsKey('choice'), isFalse);
   });
 

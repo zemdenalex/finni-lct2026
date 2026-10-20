@@ -12,7 +12,7 @@
 #
 # Steps: key in (removed on exit, also on failure / Ctrl+C) -> clean tree -> pub get -> builds with
 # --dart-define=BUILD_SHA=<7 hex> (the "Сборка ..." line in Settings) -> tool/check_manifest.sh (package,
-# minSdk 26, not debuggable, team signature, versionCode >= 5) -> tool/check_size.sh -> SHA256SUMS ->
+# minSdk 26, not debuggable, team signature, versionCode >= 6) -> tool/check_size.sh -> SHA256SUMS ->
 # tree still clean (pubspec.lock untouched).
 # Output: $FINNI_RELEASE_OUT (default app/finlit/build/release/<sha7>/, gitignored):
 #   finni-<sha7>-universal.apk, finni-<sha7>.aab, [finni-<sha7>-arm64-v8a.apk], SHA256SUMS

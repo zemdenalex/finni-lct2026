@@ -52,20 +52,20 @@ void main() {
     expect(ceilPay(309.09), 310);
   });
 
-  test('режим дней: после хорошей смены оплата консультанта 140 → 141', () {
+  test('режим дней: после хорошей смены оплата консультанта 340 → 342', () {
     final WorldGame w = _dayWorldWeekMood();
     ok(w.startWeek());
     ok(w.plan(needs: 0, wants: 0, goal: 0));
     final JobOffer before = w.offer('consultant')!;
-    // Профиль mid: 300 × pay_scale 0,45 = 135 → вверх до десятка 140.
-    expect(before.pay, 140);
+    // Профиль mid: 300 × pay_scale 0,45 = 135 → вверх до десятка 140, + прибавка 200.
+    expect(before.pay, 340);
     // Лимита смен в неделю нет (finni по DEN-18): в json `null`.
     expect(w.config.maxShiftsPerWeek, kNoShiftLimit);
     expect(before.shiftsUnlimited, isTrue);
     ok(w.completeJob('consultant', score: before.goodScoreMin));
     expect(w.snapshot.experience, 1);
     final JobOffer after = w.offer('consultant')!;
-    expect(after.pay, 141, reason: '140 × 1,01^(3/7) = 140,6 → вверх');
+    expect(after.pay, 342, reason: '340 × 1,01^(3/7) = 341,45 → вверх');
     expect(after.experiencePercent, 1, reason: '+0,43 % вверх до процента');
   });
 }

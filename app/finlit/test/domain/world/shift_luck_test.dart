@@ -86,14 +86,14 @@ void main() {
     final JobOffer o = w.offer('consultant')!;
     final double before = w.snapshot.energy;
     final WorldResult r = w.completeJob('consultant', score: 0);
-    expect(r.coins, 154, reason: '140 (профиль mid) × 1,1');
-    expect(r.reason, contains('Тестовая удача. +14.'));
+    expect(r.coins, 374, reason: '340 (профиль mid + прибавка 200) × 1,1');
+    expect(r.reason, contains('Тестовая удача. +34.'));
     expect(before - w.snapshot.energy, closeTo(o.energyCost - 2, 1e-9),
         reason: 'energy_back 1 × energy_scale 2');
     final WorldEntry pay = w.journal
         .lastWhere((WorldEntry e) => e.kind == WorldLedgerKind.jobPayout);
     expect(pay.args['luck'], 'test_good');
-    expect(pay.args['luckPay'], 14);
+    expect(pay.args['luckPay'], 34);
   });
 
   // Экран с explain_ui сам рисует строку везения по args.luck (front3):
@@ -116,7 +116,7 @@ void main() {
     });
     final WorldGame w = _living(c);
     final WorldResult r = w.completeJob('consultant', score: 0);
-    expect(r.coins, 154);
+    expect(r.coins, 374);
     expect(r.reason, isNot(contains('Тестовая удача')));
     expect(
         w.journal
@@ -158,7 +158,7 @@ void main() {
     int all = 0;
     for (int k = 0; k < 40; k++) {
       final WorldGame w = _living(contentDayConfig);
-      // Разные пути: k смен цели — k записей журнала (повторное «погладить»
+      // Разные пути: k смен цели — k записей журнала (повторное «поговорить»
       // записи не пишет, и все миры совпадали бы).
       for (int i = 0; i < k; i++) {
         ok(w.chooseGoal(i.isEven ? 'pet_fish' : 'pet_hamster'));

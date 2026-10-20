@@ -109,7 +109,7 @@ void main() {
         expect(w.snapshot.goal - before.goal, half);
         expect(w.snapshot.free - before.free, -half);
         expect(r.reason, startsWith('Что мы поняли:'));
-        expect(r.nextStep, contains('Смета'));
+        expect(r.nextStep, contains('Бюджет'));
         expect(w.pendingLesson, isNull);
         expect(w.resolveLesson('goal').reasonCode, 'lesson.none');
       });
@@ -219,7 +219,7 @@ void main() {
       final LearningSummary l = w.learning;
       expect(l.topics, <String, int>{'budget': 1, 'payments': 1});
       expect(l.words.map((({String id, String term}) x) => x.term),
-          <String>['Смета', 'Чек']);
+          <String>['Бюджет', 'Чек']);
     });
   }
 }

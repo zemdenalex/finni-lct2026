@@ -243,6 +243,28 @@ void main() {
       });
     }
 
+    // Ловит: плашка «Неделя кончилась» без кнопки — до итогов только через
+    // город и комнату (Настя 20.10: «добавить кнопку Посмотреть»).
+    testWidgets('неделя кончилась: «Посмотреть» ведёт в итоги недели',
+        (WidgetTester tester) async {
+      final World w = livingWorld();
+      WorldResult s = w.sleep();
+      while (s.ok && s.reasonCode == 'day.next') {
+        s = w.sleep();
+      }
+      expect(w.phase, WeekPhase.review);
+      await pump(tester, w);
+      final Finder open =
+          find.byKey(const ValueKey<String>('jobs:banner:review'));
+      expect(open, findsOneWidget);
+      expect(tester.getSize(open).height, greaterThanOrEqualTo(48));
+      await tester.ensureVisible(open);
+      await tester.tap(open);
+      await tester.pumpAndSettle();
+      expect(pushed.map((RouteSettings r) => r.name),
+          contains(WorldRoutes.review));
+    });
+
     testWidgets('до плана недели смену не взять, и сказано почему',
         (WidgetTester tester) async {
       final World w = kind.make();
@@ -250,12 +272,60 @@ void main() {
       expect(w.phase, WeekPhase.planning);
       await pump(tester, w);
       expect(find.byKey(const ValueKey<String>('jobs:banner')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('jobs:banner:review')),
+          findsNothing,
+          reason: 'до итогов ещё далеко — кнопки «Посмотреть» нет');
       expect(find.byWidgetPredicate((Widget x) {
         final Key? key = x.key;
         return key is ValueKey<String> && key.value.startsWith('jobs:take:');
       }), findsNothing);
       expect(textOf(tester, 'jobs:blocked:consultant'),
           startsWith(w.offer('consultant')!.blockReason!.text));
+    });
+
+    // Настя 20.10: на плашке «Сначала план недели…» — кнопка «План недели»,
+    // ведёт на план (как «План» в меню). Ловит: кнопки нет, она меньше
+    // пальца, TalkBack не видит её за подписью причины, она не открывает
+    // план, она осталась, когда план уже есть.
+    testWidgets('до плана недели: на плашке кнопка «План недели» открывает план',
+        (WidgetTester tester) async {
+      final SemanticsHandle sem = tester.ensureSemantics();
+      final World w = kind.make();
+      ok(w.startWeek());
+      expect(w.phase, WeekPhase.planning);
+      await pump(tester, w, textScale: 1.3);
+      final Finder plan =
+          find.byKey(const ValueKey<String>('jobs:plan:consultant'));
+      expect(plan, findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey<String>('jobs:blocked:consultant')),
+              matching: plan),
+          findsOneWidget,
+          reason: 'кнопка — на плашке причины');
+      expect(tester.getSize(plan).height, greaterThanOrEqualTo(48));
+      expect(
+          tester.getSemantics(plan),
+          isSemantics(
+              label: 'План недели', isButton: true, hasTapAction: true));
+      await tester.ensureVisible(plan);
+      await tester.tap(plan);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(const ValueKey<String>('plan:confirm')), findsOneWidget,
+          reason: 'открылся план недели');
+      sem.dispose();
+    });
+
+    testWidgets('план есть — кнопки «План недели» на карточках нет',
+        (WidgetTester tester) async {
+      await pump(tester, livingWorld());
+      expect(
+          find.byWidgetPredicate((Widget x) {
+            final Key? key = x.key;
+            return key is ValueKey<String> && key.value.startsWith('jobs:plan:');
+          }),
+          findsNothing);
     });
 
     // Ловит: доска держит свою копию правил и расходится с миром — пишет

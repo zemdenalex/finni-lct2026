@@ -77,7 +77,7 @@ MoodReason moodReasonFor({
       'achievement.earned' =>
         const MoodReason('mood.award', 'Новая награда — радостно!'),
       'finni.pet' =>
-        const MoodReason('mood.petted', 'Погладили — как приятно!'),
+        const MoodReason('mood.petted', 'Поговорили с другом — веселее.'),
       'meal.eaten' => up
           ? const MoodReason('mood.meal', 'Вкусная еда — настроение лучше.')
           : null,

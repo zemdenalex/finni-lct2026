@@ -9,7 +9,7 @@
     "wall_h": 112
   },
   "_grid_note": "Размер сетки — вопрос 4 Денису (4×4, 5×5, 6×6). tile_w/tile_h — логические px до масштаба камеры; камера вписывает комнату в экран целиком.",
-  "finni": { "x": 2, "y": 4, "height": 84, "r": 0.25 },
+  "finni": { "x": 2, "y": 4, "height": 76, "r": 0.25 },
   "pet": { "height": 30 },
   "wall_band": { "bottom": 44, "top": 88, "high_bottom": 76, "high_top": 108 },
   "_wall_band_note": "Настенные вещи — полоса высоты над полом (px): обычная (постер), high — светильник у потолка, sill — подоконник окна.",
@@ -18,19 +18,20 @@
     "window": { "side": "right", "u": 2, "len": 2, "bottom": 46, "top": 100 }
   },
   "slots": {
-    "bed": { "plane": "floor", "x": 0, "y": 0, "w": 2, "d": 1, "sprite": "room_bed_{stage}", "fit": 1.05 },
-    "bedside_cabinet": { "plane": "floor", "x": 2, "y": 0, "w": 1, "d": 1, "sprite": "room_cabinet", "fit": 0.8 },
-    "desk_chair": { "plane": "floor", "x": 4, "y": 0, "w": 2, "d": 1, "sprite": "room_desk_{stage}", "fit": 1.0 },
-    "fridge": { "plane": "floor", "x": 0, "y": 1, "w": 1, "d": 1, "sprite": "fridge", "fit": 0.85 },
-    "pet_corner": { "plane": "floor", "x": 4, "y": 4, "w": 1, "d": 1, "sprite": "room_pet_corner", "fit": 0.9 },
-    "decor_floor": { "plane": "floor", "x": 0, "y": 2, "w": 1, "d": 1, "fit": 0.6 },
-    "decor_books": { "plane": "floor", "x": 3, "y": 0, "w": 1, "d": 1, "fit": 0.75 },
+    "bed": { "plane": "floor", "x": 0, "y": 0, "w": 2, "d": 1, "sprite": "room_bed_{stage}", "fit": 0.85 },
+    "bedside_cabinet": { "plane": "floor", "x": 3, "y": 0, "w": 1, "d": 1, "sprite": "room_cabinet", "fit": 0.7 },
+    "desk_chair": { "plane": "floor", "x": 4, "y": 0, "w": 2, "d": 1, "sprite": "room_desk_{stage}", "fit": 0.85 },
+    "fridge": { "plane": "floor", "x": 0, "y": 2, "w": 1, "d": 1, "sprite": "fridge", "fit": 0.95 },
+    "pet_corner": { "plane": "floor", "x": 4, "y": 4, "w": 1, "d": 1, "sprite": "room_pet_corner", "fit": 0.65 },
+    "decor_floor": { "plane": "floor", "x": 0, "y": 1, "w": 1, "d": 1, "fit": 0.5 },
+    "decor_books": { "plane": "floor", "x": 2, "y": 0, "w": 1, "d": 1, "fit": 0.6 },
     "decor_globe": { "plane": "floor", "x": 5, "y": 1, "w": 1, "d": 1, "fit": 0.6 },
     "decor_bear": { "plane": "floor", "x": 1, "y": 5, "w": 1, "d": 1, "fit": 0.6 },
     "decor_rug": { "plane": "floor", "layer": "rug", "x": 2, "y": 2, "w": 2, "d": 2, "fit": 1.0 },
-    "decor_wall": { "plane": "left", "u": 1, "len": 2 },
+    "decor_wall": { "plane": "left", "u": 1, "len": 2, "band": "high" },
     "decor_ceiling": { "plane": "right", "u": 5, "len": 1, "band": "high" },
     "item_sill": { "plane": "right", "u": 2, "len": 1, "band": "sill" }
   },
+  "_layout_note": "n6-room 20.10 (ratify): холодильник у левой стены (0,2), не перед кроватью; тумба с копилкой под серединой окна (3,0), книги между кроватью и тумбой; цветок у кровати (0,1); постер над холодильником (полоса high). Масштаб: Финни 76 (ниже холодильника и двери), кровать 0.85, стол 0.85, лежанка 0.65 — картинки соседних вещей не перекрывают друг друга больше 30 % (iso_layout_fit_test).",
   "_slots_note": "sprite — картинка мебели по умолчанию (id реестра: items/night_items или room_objects; {stage} — village/town/moscow). У мест декора картинки нет: место видно, когда куплена вещь. Скин (кровать, стол, тумба) заменяет sprite. piggy — копилка на тумбе (bedside_cabinet). fit — ширина картинки в долях ширины места на экране."
 }

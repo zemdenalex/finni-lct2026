@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
@@ -265,22 +266,40 @@ class CityGroundPainter extends CustomPainter {
   }
 
   /// Травинки: пиксельные штрихи по траве, мимо дорог.
+  ///
+  /// Две тысячи штрихов — два контура (светлые и тёмные), собранные один
+  /// раз на раскладку и стадию: не ~4600 отдельных drawRect на кадр (лаги
+  /// ходьбы по городу, Денис 20.10). Тот же случайный ряд — те же места.
   void _tufts(Canvas canvas, Size size, CityGround g) {
+    final (Path, Path) t =
+        _tuftCache[(geo, stage)] ??= _tuftPaths(geo, stage, _onRoad);
+    canvas.save();
+    canvas.scale(k);
+    canvas.drawPath(t.$1, _fill(g.tuftLight));
+    canvas.drawPath(t.$2, _fill(g.tuftDark));
+    canvas.restore();
+  }
+
+  static final Map<(CityGeometry, WorldStage), (Path, Path)> _tuftCache =
+      <(CityGeometry, WorldStage), (Path, Path)>{};
+
+  /// Травинки при 1×: (светлые, тёмные).
+  static (Path, Path) _tuftPaths(
+      CityGeometry geo, WorldStage stage, bool Function(Offset) onRoad) {
     final math.Random rnd = math.Random(11 + stage.index);
-    final Paint light = _fill(g.tuftLight), dark = _fill(g.tuftDark);
+    final Path light = Path(), dark = Path();
     final int n = (geo.base.width * geo.base.height / 260).round();
     for (int i = 0; i < n; i++) {
       final Offset p = Offset(
           (rnd.nextDouble() * geo.base.width).floorToDouble(),
           (rnd.nextDouble() * geo.base.height).floorToDouble());
       final bool isLight = rnd.nextBool();
-      if (_onRoad(p)) continue;
-      canvas.drawRect(Rect.fromLTWH(p.dx * k, p.dy * k, 1 * k, 2 * k),
-          isLight ? light : dark);
-      canvas.drawRect(
-          Rect.fromLTWH((p.dx + 2) * k, (p.dy + 1) * k, 1 * k, 1 * k),
-          isLight ? light : dark);
+      if (onRoad(p)) continue;
+      (isLight ? light : dark)
+        ..addRect(Rect.fromLTWH(p.dx, p.dy, 1, 2))
+        ..addRect(Rect.fromLTWH(p.dx + 2, p.dy + 1, 1, 1));
     }
+    return (light, dark);
   }
 
   @override
@@ -524,18 +543,41 @@ class _PixelPainter extends CustomPainter {
   final PixelSprite sprite;
   final double k;
 
-  @override
-  void paint(Canvas canvas, Size size) {
+  /// Спрайт, собранный в картинку 1 px на клетку — один раз на спрайт.
+  /// Рисуется одной картинкой с чёткими пикселями, а не сотнями drawRect на
+  /// кадр (лаги ходьбы по городу, Денис 20.10).
+  static final Map<PixelSprite, ui.Image> _baked = <PixelSprite, ui.Image>{};
+
+  static ui.Image _bake(PixelSprite s) {
+    final ui.PictureRecorder rec = ui.PictureRecorder();
+    final Canvas c = Canvas(rec);
     final Paint p = Paint()..isAntiAlias = false;
-    for (int y = 0; y < sprite.height; y++) {
-      for (int x = 0; x < sprite.width; x++) {
-        final Color? c = sprite.px[y * sprite.width + x];
-        if (c == null) continue;
-        p.color = c;
-        // +0.5: без щелей между клетками при дробном масштабе.
-        canvas.drawRect(Rect.fromLTWH(x * k, y * k, k + 0.5, k + 0.5), p);
+    for (int y = 0; y < s.height; y++) {
+      for (int x = 0; x < s.width; x++) {
+        final Color? col = s.px[y * s.width + x];
+        if (col == null) continue;
+        p.color = col;
+        c.drawRect(Rect.fromLTWH(x.toDouble(), y.toDouble(), 1, 1), p);
       }
     }
+    final ui.Picture pic = rec.endRecording();
+    final ui.Image img = pic.toImageSync(s.width, s.height);
+    pic.dispose();
+    return img;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ui.Image img = _baked[sprite] ??= _bake(sprite);
+    // Без щелей при дробном масштабе: картинка растягивается целиком.
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble()),
+      Rect.fromLTWH(0, 0, sprite.width * k, sprite.height * k),
+      Paint()
+        ..isAntiAlias = false
+        ..filterQuality = FilterQuality.none,
+    );
   }
 
   @override

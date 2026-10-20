@@ -193,6 +193,9 @@ void main() {
           final String id = onePerDecorPlace()
               .firstWhere((String d) => decorPlace(d).slot == slot);
           await pump(tester, scene(stage: stage, decor: onePerDecorPlace()));
+          // The room opens close to Finni: «Вся комната» shows every place.
+          await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
+          await tester.pumpAndSettle();
           expect(find.byKey(ValueKey<String>('room:iso:slot:$slot')),
               findsOneWidget);
           expect(assetsIn(tester, slot), contains(art.registry.item(id)),
@@ -368,26 +371,33 @@ void main() {
     const ValueKey<String> spot = ValueKey<String>('room:finni:spot');
     double finniH(WidgetTester t) => t.getSize(find.byKey(spot)).height;
 
-    testWidgets('«К Финни» приближает к нему, второе нажатие — вся комната',
+    testWidgets('«Вся комната» отдаляет, «К Финни» — снова к нему',
         (WidgetTester tester) async {
+      // The room opens close to Finni (n6-room2).
       await pump(tester, scene());
-      final double h0 = finniH(tester);
+      final double close = finniH(tester);
+      expect(find.text('Вся комната'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
       await tester.pumpAndSettle();
-      expect(finniH(tester) / h0, closeTo(IsoRoomScene.finniZoom, 0.01));
+      final double h0 = finniH(tester);
+      expect(close / h0, greaterThan(1.15));
+      expect(close / h0, lessThanOrEqualTo(IsoRoomScene.finniZoom + 0.01));
+      expect(find.text('К Финни'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
+      await tester.pumpAndSettle();
+      expect(finniH(tester), closeTo(close, 0.01));
       final Rect f = tester.getRect(find.byKey(spot));
       expect((f.center.dx - 180).abs(), lessThan(360 * 0.2),
           reason: 'Финни у середины экрана: ${f.center}');
       expect(find.text('Вся комната'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
-      await tester.pumpAndSettle();
-      expect(finniH(tester), closeTo(h0, 0.01));
-      expect(find.text('К Финни'), findsOneWidget);
     });
 
     testWidgets('щипок: не больше maxZoom и не меньше всей комнаты',
         (WidgetTester tester) async {
       await pump(tester, scene());
+      // From the whole room (the room opens close to Finni).
+      await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
+      await tester.pumpAndSettle();
       final double h0 = finniH(tester);
       const Offset c = Offset(180, 330);
       Future<void> pinch(double from, double to) async {
@@ -414,9 +424,8 @@ void main() {
 
     testWidgets('от края назад комната едет сразу, без мёртвой зоны',
         (WidgetTester tester) async {
+      // The room opens close to Finni: zoomed, so it pans.
       await pump(tester, scene());
-      await tester.tap(find.byKey(const ValueKey<String>('room:iso:camera')));
-      await tester.pumpAndSettle();
       // Far past the right edge of the room, then 60 px back.
       final TestGesture g = await tester.startGesture(const Offset(100, 400));
       for (int i = 0; i < 10; i++) {
@@ -564,11 +573,15 @@ void main() {
           ));
       Offset wall(String side, int u) => tester
           .getCenter(find.byKey(ValueKey<String>('room:iso:wall:$side:$u')));
-      // The poster spans left 1–2: its centre is between slots 1 and 2.
-      // Grabbed at slot 2 (the fridge stands before slot 1).
-      final Offset from = (wall('left', 1) + wall('left', 2)) / 2;
+      // The poster spans left 1–2, high over the fridge (n6-room 20.10:
+      // the fridge stands before the wall there). Grabbed by its top, moved
+      // so that its centre lands between right slots 0 and 1.
+      final Rect poster = tester.getRect(
+          find.byKey(const ValueKey<String>('room:iso:slot:decor_wall')));
       final Offset to = (wall('right', 0) + wall('right', 1)) / 2;
-      await tester.dragFrom(wall('left', 2), to - from);
+      await tester.dragFrom(
+          Offset(poster.center.dx, poster.top + poster.height * 0.2),
+          to - poster.center);
       await tester.pumpAndSettle();
       expect(placed, <(String, RoomIsoSpot)>[
         ('decor_wall', (plane: 'right', x: 0, y: 0)),

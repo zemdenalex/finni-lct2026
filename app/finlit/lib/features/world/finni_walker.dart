@@ -21,6 +21,7 @@ class FinniWalker extends StatefulWidget {
     required this.bob,
     required this.builder,
     this.via = const <Offset>[],
+    this.onMove,
   });
 
   final Offset at;
@@ -29,6 +30,11 @@ class FinniWalker extends StatefulWidget {
   final Widget Function(bool walking) builder;
   final List<Offset> via;
 
+  /// Где Финни сейчас (ноги, в координатах [at]) — на каждом кадре пути.
+  /// Город по нему держит глубину: идёт за домом — нарисован за домом,
+  /// а не по глубине двери, куда идёт (Настя 20.10, тема 11).
+  final ValueChanged<Offset>? onMove;
+
   @override
   State<FinniWalker> createState() => _FinniWalkerState();
 }
@@ -36,7 +42,8 @@ class FinniWalker extends StatefulWidget {
 class _FinniWalkerState extends State<FinniWalker>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, value: 1);
+      AnimationController(vsync: this, value: 1)
+        ..addListener(() => widget.onMove?.call(_now));
   late Offset _from = widget.at;
   late Offset _to = widget.at;
   bool _faceLeft = false;

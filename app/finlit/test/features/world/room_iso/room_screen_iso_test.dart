@@ -48,7 +48,10 @@ const Map<String, Size> _sizes = <String, Size>{
   'портрет 360×800': Size(360, 800),
 };
 
-Future<void> _pumpRoom(WidgetTester tester, World w, Size size) async {
+/// The room, shown whole ([showWholeRoom]: it opens close to Finni);
+/// [whole] false — the first frame.
+Future<void> _pumpRoom(WidgetTester tester, World w, Size size,
+    {bool whole = true}) async {
   await tester.pumpWidget(const SizedBox());
   await tester.runAsync(() async {
     await pumpWorldScreen(tester, const RoomScreen(), world: w, size: size);
@@ -58,6 +61,7 @@ Future<void> _pumpRoom(WidgetTester tester, World w, Size size) async {
     }
   });
   await tester.pump();
+  if (whole) await showWholeRoom(tester);
 }
 
 /// Finni walks to the thing first, then the screen or the dialog opens.
@@ -148,7 +152,12 @@ void main() {
       expect(rest, findsOneWidget, reason: 'джойстик в покое виден');
       expect(tester.getSize(rest).shortestSide, greaterThanOrEqualTo(48));
       const ValueKey<String> spot = ValueKey<String>('room:finni:spot');
-      final Offset before = tester.getCenter(find.byKey(spot));
+      // Against the door: the camera follows Finni (the room opens close to
+      // him), so on screen he stays near the middle while the room moves.
+      Offset finni() =>
+          tester.getCenter(find.byKey(spot)) -
+          tester.getCenter(find.byKey(const ValueKey<String>('room:door')));
+      final Offset before = finni();
       final TestGesture g = await tester.startGesture(tester.getCenter(rest));
       // Up on the screen — into the room, toward the bed.
       for (int i = 1; i <= 6; i++) {
@@ -160,15 +169,15 @@ void main() {
       for (int i = 0; i < 40; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
-      final Offset after = tester.getCenter(find.byKey(spot));
+      final Offset after = finni();
       expect(after.dy, lessThan(before.dy - 20),
           reason: 'Финни ушёл вглубь комнаты: $before → $after');
       await g.up();
       await tester.pump();
       expect(find.byKey(const ValueKey<String>('room:iso:pad')), findsNothing);
-      final Offset stopped = tester.getCenter(find.byKey(spot));
+      final Offset stopped = finni();
       await tester.pump(const Duration(seconds: 1));
-      expect(tester.getCenter(find.byKey(spot)), stopped,
+      expect(finni(), stopped,
           reason: 'отпустил — стоит');
       final Finder near = find.byKey(const ValueKey<String>('room:near'));
       expect(near, findsOneWidget, reason: 'Финни у вещи — её кнопка');
@@ -183,7 +192,8 @@ void main() {
   for (final double font in <double>[1.0, 1.3]) {
     testWidgets('800×360 · шрифт ×$font: Финни крупнее 56 dp, все вещи в кадре',
         (WidgetTester tester) async {
-      await _pumpRoom(tester, _livingAt(WorldStage.town), const Size(800, 360));
+      await _pumpRoom(tester, _livingAt(WorldStage.town), const Size(800, 360),
+          whole: false);
       if (font != 1.0) {
         await tester.pumpWidget(const SizedBox());
         await tester.runAsync(() async {
@@ -203,6 +213,8 @@ void main() {
               matching: find.byType(SizedBox))
           .first);
       expect(finni.height, greaterThanOrEqualTo(56), reason: '$finni');
+      // The first frame is close to Finni; «Вся комната» shows every thing.
+      await showWholeRoom(tester);
       final Rect view = Offset.zero & const Size(800, 360);
       for (final String k in <String>[
         'room:bed',

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,6 +15,7 @@ import '../goal_eta_text.dart';
 import '../pic_text.dart';
 import '../world_layout.dart';
 import '../world_state.dart';
+import 'finni_bubble.dart';
 import 'onboarding_script.dart';
 import '../home/plan_amount.dart';
 import '../home/plan_pool.dart';
@@ -24,6 +27,12 @@ import '../../../core/world_theme.dart';
 
 const TextStyle _text =
     TextStyle(fontSize: 18, height: 1.4, color: WorldColors.text);
+/// Реплика Финни в облачке: крупнее текста шага.
+const TextStyle _bubble = TextStyle(
+    fontSize: 20,
+    height: 1.35,
+    fontWeight: FontWeight.w700,
+    color: WorldColors.text);
 const TextStyle _soft =
     TextStyle(fontSize: 16, height: 1.4, color: WorldColors.textSoft);
 
@@ -92,10 +101,10 @@ class StepBar extends StatelessWidget {
 
 /// Прокручиваемая страница шага: заголовок, текст, содержимое.
 class _Page extends StatelessWidget {
-  const _Page({required this.title, this.text, required this.children});
+  const _Page({this.title, required this.children});
 
-  final String title;
-  final String? text;
+  /// Заголовок; null — его роль играет облачко Финни в [children].
+  final String? title;
   final List<Widget> children;
 
   @override
@@ -107,16 +116,14 @@ class _Page extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Semantics(
-              header: true,
-              child: Text(title,
-                  style:
-                      AppType.title(land ? 21 : 24, color: WorldColors.text))),
-          if (text != null) ...<Widget>[
-            SizedBox(height: land ? Gap.xs : Gap.sm),
-            Text(text!, style: _text),
+          if (title case final String t) ...<Widget>[
+            Semantics(
+                header: true,
+                child: Text(t,
+                    style: AppType.title(land ? 21 : 24,
+                        color: WorldColors.text))),
+            SizedBox(height: land ? Gap.sm : Gap.md),
           ],
-          SizedBox(height: land ? Gap.sm : Gap.md),
           ...children,
         ],
       ),
@@ -143,6 +150,39 @@ class _Finni extends StatelessWidget {
       semanticLabel: profile.finniName,
     );
   }
+}
+
+/// Финни во весь рост на панели (левая половина первого экрана в
+/// альбомной): высота — по панели, пиксели не плывут.
+class FinniPortrait extends StatelessWidget {
+  const FinniPortrait({super.key, required this.registry, required this.profile});
+
+  final AssetRegistry? registry;
+  final WorldProfile profile;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        key: const ValueKey<String>('onboarding:portrait'),
+        color: WorldColors.panel,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints box) {
+            final SpriteRef? f = registry?.finni(profile.species);
+            if (f == null) return const SizedBox.expand();
+            final double h =
+                math.min(box.maxHeight * 0.8, box.maxWidth * 1.1);
+            return Center(
+              child: SpriteAnim(
+                key: ValueKey<String>(
+                    'onboarding:portrait:${profile.species}:${profile.idleTag}'),
+                sprite: f,
+                tag: profile.idleTag,
+                height: h,
+                semanticLabel: profile.finniName,
+              ),
+            );
+          },
+        ),
+      );
 }
 
 // ─────────────────────────── конверты ───────────────────────────
@@ -225,53 +265,22 @@ class _Decision extends StatelessWidget {
       );
 }
 
-// ──────────────────────────── ник ────────────────────────────
+// ─────────────────────────── знакомство ───────────────────────────
 
-class NickStep extends StatelessWidget {
-  const NickStep(
-      {super.key,
-      required this.ui,
-      required this.controller,
-      required this.onChanged});
-
-  /// Подписи — из `onboarding.json → ui`.
-  final OnboardingScript ui;
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) => _Page(
-        title: ui.t('nick_title'),
-        text: ui.t('nick_text'),
-        children: <Widget>[
-          TextField(
-            key: const ValueKey<String>('onboarding-nick'),
-            controller: controller,
-            maxLength: 16,
-            maxLengthEnforcement: MaxLengthEnforcement.enforced,
-            textCapitalization: TextCapitalization.sentences,
-            style: _text,
-            decoration: InputDecoration(
-              labelText: ui.t('nick_label'),
-              hintText: ui.t('nick_hint'),
-            ),
-            onChanged: (_) => onChanged(),
-          ),
-        ],
-      );
-}
-
-// ─────────────────────────── облик ───────────────────────────
-
-class LookStep extends StatelessWidget {
-  const LookStep({
+/// Первый экран (Денис 20.10 13:46: «слева Финни, справа "привет я Финни,
+/// а как зовут тебя?" и там ввод ника игрока и выбор внешнего вида Финни»):
+/// Финни и облачко его реплики, поле ника, плитки обликов. В альбомной
+/// крупный Финни стоит в левой панели экрана ([showArt] = false).
+class WelcomeStep extends StatelessWidget {
+  const WelcomeStep({
     super.key,
     required this.ui,
     required this.registry,
     required this.profile,
-    required this.name,
+    required this.finniName,
+    required this.controller,
+    required this.onChanged,
     required this.onPick,
-    required this.onGender,
     this.showArt = true,
   });
 
@@ -279,64 +288,88 @@ class LookStep extends StatelessWidget {
   final OnboardingScript ui;
   final AssetRegistry? registry;
   final WorldProfile profile;
-  final TextEditingController name;
+
+  /// Имя друга в реплике («Привет, я Финни!»).
+  final String finniName;
+  final TextEditingController controller;
+  final VoidCallback onChanged;
   final void Function(String species, int look) onPick;
-
-  /// Мальчик или девочка (open-questions К11). 🟡 Арта по полу в реестре
-  /// пока нет — выбор сохраняется, картинка та же.
-  final ValueChanged<FinniGender> onGender;
-
-  /// Крупный Финни над плитками. В альбомной он стоит в левой панели.
   final bool showArt;
 
   @override
   Widget build(BuildContext context) {
-    final List<String> species = registry?.ids('finni') ?? _speciesFallback;
+    final Widget say = SpeechBubble(
+      key: const ValueKey<String>('onboarding:welcome:say'),
+      tail: BubbleTail.left,
+      child: Semantics(
+        header: true,
+        child: Text(ui.t('nick_title', <String, String>{'name': finniName}),
+            style: _bubble),
+      ),
+    );
     return _Page(
-      title: ui.t('look_title'),
       children: <Widget>[
-        // Имя — рядом с превью, над плитками: на 360 × 640 его видно без
-        // прокрутки (ТЗ 2.5.2.2, Приложение А шаг 3).
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            if (showArt) ...<Widget>[
+        if (showArt)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
               _Finni(registry: registry, profile: profile),
-              const SizedBox(width: Gap.sm),
+              const SizedBox(width: Gap.xs),
+              Expanded(child: say),
             ],
-            Expanded(
-              child: TextField(
-                key: const ValueKey<String>('onboarding-finni-name'),
-                controller: name,
-                maxLength: 16,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                textCapitalization: TextCapitalization.sentences,
-                style: _text,
-                decoration: InputDecoration(labelText: ui.t('name_label')),
-              ),
-            ),
-          ],
-        ),
+          )
+        else
+          say,
         const SizedBox(height: Gap.sm),
-        Row(
-          children: <Widget>[
-            for (final (FinniGender g, String title) in <(FinniGender, String)>[
-              (FinniGender.boy, ui.t('boy')),
-              (FinniGender.girl, ui.t('girl')),
-            ]) ...<Widget>[
-              if (g != FinniGender.boy) const SizedBox(width: Gap.sm),
-              Expanded(
-                child: _GenderButton(
-                  key: ValueKey<String>('gender:${g.name}'),
-                  title: title,
-                  selected: profile.gender == g,
-                  onTap: () => onGender(g),
-                ),
-              ),
-            ],
-          ],
+        // Альбомная: высоты мало — поле ника сразу под облачком (пояснение
+        // есть в «?»).
+        if (showArt) ...<Widget>[
+          Text(ui.t('nick_text'), style: _soft),
+          const SizedBox(height: Gap.xs),
+        ],
+        TextField(
+          key: const ValueKey<String>('onboarding-nick'),
+          controller: controller,
+          maxLength: OnboardingProgress.maxNameLength,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          textCapitalization: TextCapitalization.sentences,
+          style: _text,
+          decoration: InputDecoration(
+            labelText: ui.t('nick_label'),
+            hintText: ui.t('nick_hint'),
+          ),
+          onChanged: (_) => onChanged(),
         ),
+        const SizedBox(height: Gap.xs),
+        Text(ui.t('look_pick'), style: _text),
         const SizedBox(height: Gap.sm),
+        _LookTiles(
+            ui: ui, registry: registry, profile: profile, onPick: onPick),
+      ],
+    );
+  }
+}
+
+/// Облик: плитки обликов каждого вида, выбранная — с рамкой.
+class _LookTiles extends StatelessWidget {
+  const _LookTiles({
+    required this.ui,
+    required this.registry,
+    required this.profile,
+    required this.onPick,
+  });
+
+  final OnboardingScript ui;
+  final AssetRegistry? registry;
+  final WorldProfile profile;
+  final void Function(String species, int look) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> species = registry?.ids('finni') ?? _speciesFallback;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
         for (final String s in species) ...<Widget>[
           Text(ui.species[s] ?? s, style: _soft),
           const SizedBox(height: Gap.xs),
@@ -375,6 +408,82 @@ class LookStep extends StatelessWidget {
     if (looks == null || looks.length < look) return null;
     return looks[look - 1];
   }
+}
+
+// ─────────────────────────── имя друга ───────────────────────────
+
+/// Второй экран: имя друга, мальчик или девочка (облик выбран на первом).
+class FriendStep extends StatelessWidget {
+  const FriendStep({
+    super.key,
+    required this.ui,
+    required this.registry,
+    required this.profile,
+    required this.name,
+    required this.onGender,
+    this.showArt = true,
+  });
+
+  final OnboardingScript ui;
+  final AssetRegistry? registry;
+  final WorldProfile profile;
+  final TextEditingController name;
+
+  /// Мальчик или девочка (open-questions К11). 🟡 Арта по полу в реестре
+  /// пока нет — выбор меняет слова реплик, картинка та же.
+  final ValueChanged<FinniGender> onGender;
+
+  /// Финни рядом с полем имени. В альбомной он стоит в левой панели.
+  final bool showArt;
+
+  @override
+  Widget build(BuildContext context) => _Page(
+        title: ui.t('look_title'),
+        children: <Widget>[
+          // Имя — рядом с превью: на 360 × 640 его видно без прокрутки
+          // (ТЗ 2.5.2.2, Приложение А шаг 3).
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (showArt) ...<Widget>[
+                _Finni(registry: registry, profile: profile),
+                const SizedBox(width: Gap.sm),
+              ],
+              Expanded(
+                child: TextField(
+                  key: const ValueKey<String>('onboarding-finni-name'),
+                  controller: name,
+                  maxLength: OnboardingProgress.maxNameLength,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: _text,
+                  decoration: InputDecoration(labelText: ui.t('name_label')),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: <Widget>[
+              for (final (FinniGender g, String title)
+                  in <(FinniGender, String)>[
+                (FinniGender.boy, ui.t('boy')),
+                (FinniGender.girl, ui.t('girl')),
+              ]) ...<Widget>[
+                if (g != FinniGender.boy) const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: _GenderButton(
+                    key: ValueKey<String>('gender:${g.name}'),
+                    title: title,
+                    selected: profile.gender == g,
+                    onTap: () => onGender(g),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      );
 }
 
 /// Кнопка «Мальчик» / «Девочка»: выбранная залита, у неё галочка — не

@@ -14,7 +14,9 @@ import '../world_state.dart';
 import 'board/job_offer_card.dart';
 import 'job_games.dart';
 import '../../../core/world_theme.dart';
+import '../pic_text.dart';
 import '../world_dock.dart';
+import '../review/week_review_link.dart';
 
 /// S6 · «Требуется…»: доска смен (`docs/game/jobs-board.md`).
 ///
@@ -41,7 +43,7 @@ class JobBoardScreen extends StatelessWidget {
         WeekPhase.planning =>
           'Работа — после плана недели. Вернись домой и нажми «План».',
         WeekPhase.review =>
-          'Неделя кончилась. Посмотри итоги дома — и начнём новую.',
+          'Неделя кончилась. Посмотри итоги — и начнём новую.',
         WeekPhase.living => null,
       };
 
@@ -104,6 +106,15 @@ class JobBoardScreen extends StatelessWidget {
             energy: snap.energy,
             onTake: () => Navigator.of(context).pushNamed(WorldRoutes.job,
                 arguments: JobPlayArgs(o.jobId, variant: o.variant)),
+            // До плана недели — кнопка «План недели» на плашке причины.
+            onPlan: phase == WeekPhase.weekStart || phase == WeekPhase.planning
+                ? () => openWeekPlan(context, ws, say: (String text) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(SnackBar(content: PicText(text)));
+                    })
+                : null,
           ),
         );
     // Одиночные работы подряд — одной сеткой, уровни одной работы — своей
@@ -188,7 +199,7 @@ class JobBoardScreen extends StatelessWidget {
                       const SizedBox(height: Gap.sm),
                     ],
                     if (banner != null) ...<Widget>[
-                      _Banner(text: banner),
+                      _Banner(text: banner, review: phase == WeekPhase.review),
                       const SizedBox(height: Gap.md),
                     ],
                     // Сначала все работы, и открытые, и с замками: замок
@@ -304,9 +315,12 @@ class _UniversityTile extends StatelessWidget {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.text});
+  const _Banner({required this.text, this.review = false});
 
   final String text;
+
+  /// Неделя кончилась: под текстом — кнопка «Посмотреть» в итоги.
+  final bool review;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -317,15 +331,24 @@ class _Banner extends StatelessWidget {
           borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.goal),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const Icon(Icons.event_note_rounded, color: WorldColors.goal),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Text(text,
-                  style:
-                      const TextStyle(fontSize: 16, color: WorldColors.text)),
+            Row(
+              children: <Widget>[
+                const Icon(Icons.event_note_rounded, color: WorldColors.goal),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(text,
+                      style: const TextStyle(
+                          fontSize: 16, color: WorldColors.text)),
+                ),
+              ],
             ),
+            if (review) ...<Widget>[
+              const SizedBox(height: Gap.sm),
+              const WeekReviewLink(key: ValueKey<String>('jobs:banner:review')),
+            ],
           ],
         ),
       );

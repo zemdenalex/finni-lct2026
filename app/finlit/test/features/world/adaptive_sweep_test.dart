@@ -146,10 +146,20 @@ void main() {
           final SemanticsHandle sem = tester.ensureSemantics();
           await pumpListedScreen(tester, s.key, s.value.$1,
               size: size, textScale: scale);
-          if (s.value.$2 case final SweepOpen open) await open(tester);
+          // The iso room opens close to Finni (n6-room2): a thing at the
+          // frame's edge shows as a strip narrower than a finger. Targets are
+          // measured on the whole room, as the child sees it after
+          // «Вся комната»; nothing to do on other screens. A sheet or menu
+          // covers the camera button, so the room is set before it opens.
+          final SweepOpen? open = s.value.$2;
+          if (open != null) {
+            await showWholeRoom(tester);
+            await open(tester);
+          }
           expect(tester.takeException(), isNull, reason: 'переполнение');
           final List<String> bad = adaptiveProblems(tester, size);
           expect(bad, isEmpty, reason: bad.join('; '));
+          if (open == null) await showWholeRoom(tester);
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
           sem.dispose();
         });

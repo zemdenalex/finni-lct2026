@@ -296,6 +296,51 @@ void main() {
     });
   }
 
+  // Ловит (Настя 20.10, п. 12): касание экрана итогов мимо урока, пока он
+  // ждёт ответа, ничего не говорит — ребёнок не понимает, что надо выбрать
+  // вариант. Уронит: нет вспышки вариантов и выделенной подсказки по касанию
+  // пустого места, или подсказка остаётся после ответа.
+  testWidgets('касание мимо урока — варианты вспыхивают, подсказка жирнее',
+      (WidgetTester tester) async {
+    final World world = _living(worldKinds.last);
+    ok(world.demoUnlockAllJobs());
+    await pumpWorldScreen(
+        tester, const JobPlayScreen(args: JobPlayArgs('dog_walker')),
+        world: world, games: contentJobGamesDogStub);
+    await _tap(tester, 'job:start');
+    await _tap(tester, 'game:placeholder:do');
+    Color border() => ((tester
+                .widget<DecoratedBox>(
+                    find.byKey(const ValueKey<String>('lesson:choices')))
+                .decoration as BoxDecoration)
+            .border! as Border)
+        .top
+        .color;
+    FontWeight? hint() => tester
+        .widget<Text>(find.byKey(const ValueKey<String>('job:lessonFirst')))
+        .style
+        ?.fontWeight;
+    expect(border().a, 0, reason: 'до касания рамки нет');
+    expect(hint(), isNot(FontWeight.w800));
+    // Таблица оплаты — не кнопка: «пустое место» экрана итогов.
+    final Finder pay = find.byKey(const ValueKey<String>('job:result:pay'));
+    await tester.ensureVisible(pay);
+    await tester.pumpAndSettle();
+    await tester.tap(pay, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(border().a, greaterThan(0), reason: 'варианты вспыхнули');
+    expect(hint(), FontWeight.w800);
+    await tester.pumpAndSettle();
+    // Ответ дан — подсказки нет, касание больше ни к чему не ведёт.
+    final Finder choice = find.byKey(const ValueKey<String>('lesson:cushion'));
+    await tester.ensureVisible(choice);
+    await tester.pumpAndSettle();
+    await tester.tap(choice);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey<String>('job:lessonFirst')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('lesson:choices')), findsNothing);
+  });
+
   // Ловит (критерии ночи §4): после смены нет урока-решения; решение не
   // двигает монеты; итог не начинается с «Что мы поняли»; кнопки решений
   // меньше 48 dp в портрете 360 × 640 при шрифте 1,3; урок под сгибом —
@@ -557,7 +602,7 @@ void main() {
         tester
             .widget<Text>(find.byKey(const ValueKey<String>('learned:words')))
             .data,
-        contains('Смета'));
+        contains('Бюджет'));
     expect(find.textContaining('оценк'), findsNothing);
   });
 }

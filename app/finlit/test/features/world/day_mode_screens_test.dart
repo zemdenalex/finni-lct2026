@@ -43,6 +43,7 @@ void main() {
       // ждём, пока уйдёт (в front-ui-fixes касания проходят сквозь него).
       await tester.pump(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 1));
+      await showWholeRoom(tester);
       await tester.tap(find.byKey(const ValueKey<String>('room:bed')));
       await settle(tester);
       expect(
@@ -56,6 +57,10 @@ void main() {
       if (d < days) {
         expect(w.phase, WeekPhase.living, reason: 'после дня $d — утро');
         expect(w.snapshot.dayInWeek, d + 1);
+        // Настя 20.10: каждая смена дня — с репликой Финни облачком.
+        expect(find.textContaining('пойду спать', findRichText: true),
+            findsWidgets,
+            reason: 'день $d → ${d + 1}: Финни говорит, что идёт спать');
       }
     }
     expect(w.phase, WeekPhase.review);

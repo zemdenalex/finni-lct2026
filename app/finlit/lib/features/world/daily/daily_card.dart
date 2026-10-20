@@ -156,7 +156,7 @@ class DailyCard extends StatelessWidget {
   /// Коды `snapshot.doneToday` словами, в порядке дня.
   static String _doneText(Set<String> done) => <(String, String)>[
         ('meal', 'поел'),
-        ('pet', 'погладили'),
+        ('pet', 'разговор'),
         ('job', 'смена'),
         ('fridge', 'магазин'),
         ('rest', 'отдых'),

@@ -1292,29 +1292,50 @@ class RoomScene extends StatelessWidget {
                   key: finniKey,
                   child: finni == null
                       ? _SpriteStub(label: '🙂', size: 60.0 * fk)
-                      : (walking || finniMoving) && walkSheet != null
-                          // Кадры ходьбы своего облика (`finni_walk`, ветка арта).
-                          ? SpriteAnim(
-                              sprite: walkSheet,
-                              tag: 'walk-${idleTag.replaceFirst('idle-', '')}',
-                              scale: fk,
-                            )
-                          : SpriteAnim(
-                              // Реакция стоя: поза радости или усталости (A).
-                              key: ValueKey<String>(
-                                  'room:finni:pose:${posed(walking) ? pose : idleTag}'),
-                              sprite: posed(walking) ? poseSheet! : finni,
-                              // Кадры ходьбы нарисованы для первого облика —
-                              // остальные идут своим обликом, покачиваясь.
-                              tag: posed(walking)
-                                  ? pose
-                                  : (walking || finniMoving) &&
-                                          canWalk &&
-                                          idleTag == 'idle-1'
-                                      ? 'walk'
-                                      : idleTag,
-                              scale: fk,
+                      // Обе картинки построены (скрытая на паузе): ходьба
+                      // начинается сразу кадрами, без пустого кадра, пока
+                      // грузится лист (Настя 20.10: «при движении моделька
+                      // пропадает, остаётся только надпись»).
+                      : Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: <Widget>[
+                            Visibility(
+                              visible: !((walking || finniMoving) &&
+                                  walkSheet != null),
+                              maintainState: true,
+                              child: SpriteAnim(
+                                // Реакция стоя: поза радости или усталости (A).
+                                key: ValueKey<String>(
+                                    'room:finni:pose:${posed(walking) ? pose : idleTag}'),
+                                sprite: posed(walking) ? poseSheet! : finni,
+                                // Кадры ходьбы нарисованы для первого облика —
+                                // остальные идут своим обликом, покачиваясь.
+                                tag: posed(walking)
+                                    ? pose
+                                    : (walking || finniMoving) &&
+                                            canWalk &&
+                                            idleTag == 'idle-1'
+                                        ? 'walk'
+                                        : idleTag,
+                                scale: fk,
+                              ),
                             ),
+                            if (walkSheet != null)
+                              Visibility(
+                                visible: walking || finniMoving,
+                                maintainState: true,
+                                // Кадры ходьбы своего облика (`finni_walk`).
+                                child: SpriteAnim(
+                                  key:
+                                      const ValueKey<String>('room:finni:walk'),
+                                  sprite: walkSheet,
+                                  tag:
+                                      'walk-${idleTag.replaceFirst('idle-', '')}',
+                                  scale: fk,
+                                ),
+                              ),
+                          ],
+                        ),
                 ),
               ),
             ),
@@ -2373,7 +2394,7 @@ class _EdgeButton extends StatelessWidget {
             onTap: target.onTap,
             child: Material(
               key: ValueKey<String>('room:edge:${left ? 'left' : 'right'}'),
-              color: const Color(0xB30C2620),
+              color: const Color(0xB3161834), // 29.09, n6-style
               borderRadius: BorderRadius.circular(WorldRadii.tile),
               child: InkWell(
                 borderRadius: BorderRadius.circular(WorldRadii.tile),

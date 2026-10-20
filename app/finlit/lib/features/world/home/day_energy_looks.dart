@@ -4,6 +4,7 @@ import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../core/world_theme.dart';
 import '../../../domain/world/contract.dart';
+import 'game_calendar.dart';
 
 /// Варианты HUD для модели «день по энергии» (созвон 15.10: D1 сытость рядом
 /// с энергией, D2/D7 день и вечер, D3 прогресс и ачивки) при правиле «в HUD не
@@ -68,6 +69,7 @@ class DayView {
       {this.fed,
       this.day = 1,
       this.days = 1,
+      this.week = 1,
       this.time = DayTime.day,
       this.hungry = false});
 
@@ -86,6 +88,7 @@ class DayView {
         fed: sat == null ? null : sat / 100,
         day: s.dayInWeek,
         days: s.daysPerWeek,
+        week: s.weekNo,
         hungry: s.hungry);
   }
 
@@ -93,7 +96,18 @@ class DayView {
   final double? fed;
   final int day;
   final int days;
+
+  /// Номер недели — для игрового календаря ([GameCalendar]).
+  final int week;
   final DayTime time;
+
+  /// «Вт, 6 окт» — день игрового календаря на экране (Настя 20.10).
+  String get dateShort => GameCalendar.short(week: week, day: day);
+
+  /// Для TalkBack: «Вторник, 6 октября, день 2 из 7» — сколько до итогов
+  /// недели, слышно и без экрана.
+  String get dateSpoken =>
+      '${GameCalendar.spoken(week: week, day: day)}, день $day из $days';
 
   /// Модель дней включена.
   bool get on => fed != null;
@@ -142,8 +156,8 @@ class DayTimeChip extends StatelessWidget {
     final DayView m = view;
     return Semantics(
       label: m.time == DayTime.day
-          ? 'День ${m.day} из ${m.days}'
-          : 'День ${m.day} из ${m.days}, ${dayTimeWord(m.time)}',
+          ? m.dateSpoken
+          : '${m.dateSpoken}, ${dayTimeWord(m.time)}',
       excludeSemantics: true,
       child: Row(
         key: const ValueKey<String>('hud:daytime'),
@@ -168,7 +182,7 @@ class DayTimeChip extends StatelessWidget {
           },
           const SizedBox(width: 4),
           Text(
-            'День ${m.day} из ${m.days}',
+            m.dateShort,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,

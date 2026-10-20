@@ -97,7 +97,7 @@ class WorldSettingsScreen extends StatelessWidget {
                     'вибрация после удачной смены, '
                     '${music ? '«Музыка» — мелодия под игрой, ' : ''}'
                     '«Анимации» — движутся ли Финни и экраны. '
-                    '${adult ? 'Начать игру заново можно только в разделе «Взрослым» (замок в комнате).' : 'Внизу — начать игру заново и режим проверки для взрослого.'}'),
+                    '${adult ? 'Сбросить профиль можно только в разделе «Взрослым» (замок в комнате).' : 'Внизу — сбросить профиль и режим проверки для взрослого.'}'),
           ),
         ],
       ),
@@ -198,7 +198,7 @@ class _Body extends StatelessWidget {
         if (adult) ...<Widget>[
           const SizedBox(height: Gap.sm),
           const Text(
-              'Начать игру заново и режим проверки — в разделе «Взрослым» '
+              'Сбросить профиль и режим проверки — в разделе «Взрослым» '
               '(замок в комнате).',
               style: kitSoft),
         ],
@@ -208,8 +208,21 @@ class _Body extends StatelessWidget {
     // с тем же подтверждением, режим проверки — за тем же примером.
     final Widget data = _Block(
       icon: Icons.tune_rounded,
-      title: 'Игра заново и проверка',
+      title: 'Профиль и проверка',
       children: <Widget>[
+        // Настя 20.10, п. 15: «Сбросить профиль» — первой в блоке, чтобы
+        // находилась сразу.
+        OutlinedButton.icon(
+          key: WorldSettingsScreen.resetKey,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+            minimumSize: const Size.fromHeight(TapSize.min),
+          ),
+          onPressed: () => gatedWorldReset(context),
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: const Text('Сбросить профиль', style: TextStyle(fontSize: 16)),
+        ),
+        const SizedBox(height: Gap.sm),
         OutlinedButton.icon(
           key: WorldSettingsScreen.demoKey,
           style: OutlinedButton.styleFrom(
@@ -220,20 +233,8 @@ class _Body extends StatelessWidget {
           label: const Text('Режим проверки', style: TextStyle(fontSize: 16)),
         ),
         const SizedBox(height: Gap.sm),
-        OutlinedButton.icon(
-          key: WorldSettingsScreen.resetKey,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
-            minimumSize: const Size.fromHeight(TapSize.min),
-          ),
-          onPressed: () => gatedWorldReset(context),
-          icon: const Icon(Icons.delete_outline_rounded),
-          label:
-              const Text('Начать игру заново', style: TextStyle(fontSize: 16)),
-        ),
-        const SizedBox(height: Gap.sm),
         const Text(
-            'Начать заново и режим проверки — для взрослого: сначала пример '
+            'Сброс профиля и режим проверки — для взрослого: сначала пример '
             'на умножение. '
             'Всё хранится только на этом устройстве.',
             style: kitSoft),

@@ -63,7 +63,7 @@ void main() {
         named: true);
     _expectHero('university.intro', _hero(contentJobGames.university.intro),
         named: true);
-    // jobs.json → lessons.*.situation: «В студсовете Финни делал смету».
+    // jobs.json → lessons.*.situation: «В студсовете Финни делал бюджет».
     for (final WorldLesson l in c.lessons) {
       _expectHero('lessons.${l.jobId}.situation', _hero(l.situation),
           named: const <String>{'cashier', 'accountant', 'dog_walker'}

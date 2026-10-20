@@ -25,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
   /// Версия приложения. Захардкожена сознательно: package_info_plus — это
   /// ещё одна зависимость и плагин с нативной частью ради одной строки,
   /// которую всё равно правит человек при выпуске.
-  static const String version = '0.1.4';
+  static const String version = '0.1.5';
 
   @override
   Widget build(BuildContext context) {

@@ -270,7 +270,7 @@ void main() {
       await _settle(tester);
       await tester.tap(find.byKey(const ValueKey<String>('room:finni')));
       await _step(tester);
-      // Вариант A (15.10) и поглаживание (16.10): фраза мира о касании —
+      // Вариант A (15.10) и разговор по касанию (16.10, 20.10): фраза мира о касании —
       // строкой над Финни, не снекбаром; причина настроения — от мира.
       expect(world.snapshot.moodReason.code, 'mood.petted');
       expect(find.byWidgetPredicate((Widget w) {

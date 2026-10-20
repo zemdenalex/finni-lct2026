@@ -17,6 +17,10 @@ abstract final class AlinaColors {
   /// «День N из 7», активный пункт меню — [WorldColors.goldText].
   static const Color gold = WorldColors.goldText;
 
+  /// Дата в верхней строке — светлее [gold]: на стене под затемнением
+  /// золото 29.09 давало 4,2–4,35 : 1 (нужно 4,5 для 16 sp), это — 5,1+.
+  static const Color dayText = Color(0xFFFFE09E);
+
   /// Кнопка действия: заливка и текст — золото мира ([WorldColors.gold],
   /// [WorldColors.onGold]); три оттенка золота на всю игру (спека §2.1).
   static const Color buttonTop = WorldColors.gold;
@@ -111,16 +115,17 @@ class RoomHud extends StatelessWidget {
                     ),
                     if (day.on)
                       Semantics(
-                        label: 'День ${day.day} из ${day.days}',
+                        label: day.dateSpoken,
                         excludeSemantics: true,
                         child: Text(
-                          'День ${day.day} из ${day.days}',
+                          // Игровой календарь «Вт, 6 окт» (Настя 20.10).
+                          day.dateShort,
                           key: const ValueKey<String>('hud:daytime'),
                           style: const TextStyle(
                             fontSize: 16,
                             height: 1.1,
                             fontWeight: FontWeight.w800,
-                            color: AlinaColors.gold,
+                            color: AlinaColors.dayText,
                             shadows: _shadow,
                           ),
                         ),

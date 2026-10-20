@@ -16,6 +16,7 @@ import '../world_layout.dart';
 import '../world_routes.dart';
 import '../shop/shop_kit.dart' show confirmAction;
 import '../world_state.dart';
+import 'finni_bubble.dart';
 import 'onboarding_script.dart';
 import 'onboarding_steps.dart';
 import '../../../core/world_theme.dart';
@@ -24,8 +25,9 @@ import '../../../core/world_theme.dart';
 /// (Денис, 29.09: «не куча вопросов, как в опроснике, а только свой ник и
 /// выбор персонажа Финни, дальше Финни должен объяснить уже в самой игре»).
 ///
-/// Регистрация — два шага: ник · облик и имя Финни (превью сразу). Переход с
-/// облика начинает неделю 1 (`startWeek`). Дальше — комната: Финни сам
+/// Регистрация — два шага: знакомство (Финни здоровается, ник и облик,
+/// превью сразу; Денис 20.10 13:46) · имя друга и мальчик/девочка. Переход
+/// со второго начинает неделю 1 (`startWeek`). Дальше — комната: Финни сам
 /// подходит к копилке, холодильнику и двери и говорит короткими репликами
 /// из `onboarding.json`; в сценке плана ребёнок раскладывает карманные по
 /// конвертам, в сценке цели — выбирает цель. «Пропустить» ведёт сразу к
@@ -45,7 +47,7 @@ class WorldOnboardingScreen extends StatefulWidget {
 }
 
 class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
-  /// Шагов регистрации: ник · облик и имя.
+  /// Шагов регистрации: знакомство (ник и облик) · имя друга.
   static const int _regTotal = 2;
   static const int _stepFinni = OnboardingProgress.stepFinni;
   static const int _stepMoney = OnboardingProgress.stepMoney;
@@ -81,6 +83,13 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
 
   /// Идёт сохранение шага — «Дальше» и «Назад» ждут.
   bool _busy = false;
+
+  /// Спрайт Финни в комнате сценок: над ним — облачко реплики.
+  final GlobalKey _finniKey = GlobalKey();
+
+  /// Комната сценок: облачко и раскладка меняются между сценками, комната
+  /// переезжает в дереве, но не строится заново (арт уже загружен).
+  final GlobalKey _roomKey = GlobalKey();
 
   @override
   void initState() {
@@ -130,7 +139,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
 
   bool get _inScenes => _step >= _stepMoney;
 
-  /// Шаг регистрации: 0 — ник (сохранённые 0–2), 1 — облик и имя.
+  /// Шаг регистрации: 0 — ник и облик (сохранённые 0–2), 1 — имя друга.
   int get _regStep => _step >= _stepFinni ? 1 : 0;
 
   OnboardingScene? get _current {
@@ -144,10 +153,13 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
 
   /// Весь путь знакомства: регистрация и сценки (путь ребёнка 16.10,
   /// дефект 12: «Шаг 1 из 2» обещал два шага, а впереди было ещё семь).
-  int get _total => _regTotal + _ui.scenes.length;
+  /// Разговор Финни подряд — один шаг (Денис 20.10: «почему 9 шагов?»):
+  /// ник · имя друга · Финни показывает комнату · план · цель = 5.
+  int get _total => _regTotal + _ui.sceneSteps;
 
-  /// Номер шага с нуля: регистрация, потом сценка.
-  int get _stepIndex => _inScenes ? _regTotal + _scene : _regStep;
+  /// Номер шага с нуля: регистрация, потом шаг сценки.
+  int get _stepIndex =>
+      _inScenes ? _regTotal + _ui.stepOfScene(_scene) : _regStep;
 
   String get _stepOf => _ui.t('step_of',
       <String, String>{'n': '${_stepIndex + 1}', 'total': '$_total'});
@@ -439,7 +451,8 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   Widget _nextButton({bool compact = false}) {
     final OnboardingScene? sc = _current;
     final String label = !_inScenes
-        ? _ui.t(_regStep == 0 ? 'next' : 'go')
+        // Экран 1 ТЗ Насти (утверждён): «Начать приключение».
+        ? _ui.t(_regStep == 0 ? 'nick_next' : 'go')
         : switch (sc?.kind) {
             SceneKind.plan
                 when context.read<WorldState>().phase == WeekPhase.planning =>
@@ -483,15 +496,23 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   // ───────────────────────────── регистрация ─────────────────────────────
 
   Widget _regBody(AssetRegistry? reg, {bool showArt = true}) => _regStep == 0
-      ? NickStep(ui: _ui, controller: _nick, onChanged: () => setState(() {}))
-      : LookStep(
+      ? WelcomeStep(
+          ui: _ui,
+          registry: reg,
+          profile: _profile,
+          finniName: _finniName,
+          showArt: showArt,
+          controller: _nick,
+          onChanged: () => setState(() {}),
+          onPick: (String species, int look) =>
+              _pickLook(species: species, look: look),
+        )
+      : FriendStep(
           ui: _ui,
           registry: reg,
           profile: _profile,
           showArt: showArt,
           name: _name,
-          onPick: (String species, int look) =>
-              _pickLook(species: species, look: look),
           onGender: (FinniGender g) => _pickLook(gender: g),
         );
 
@@ -552,8 +573,20 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                             child: ClipRRect(
                               borderRadius:
                                   BorderRadius.circular(WorldRadii.panel),
-                              child: _Stage(
-                                  profile: _profile, snapshot: ws.snapshot),
+                              // Первый экран: Финни крупно, его реплика —
+                              // справа (Денис 20.10 13:46); дальше — комната.
+                              child: _regStep == 0
+                                  ? FutureBuilder<AssetRegistry?>(
+                                      future: _registry,
+                                      builder: (BuildContext c,
+                                              AsyncSnapshot<AssetRegistry?>
+                                                  r) =>
+                                          FinniPortrait(
+                                              registry: r.data,
+                                              profile: _profile))
+                                  : _Stage(
+                                      profile: _profile,
+                                      snapshot: ws.snapshot),
                             ),
                           ),
                         ),
@@ -653,12 +686,19 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
   /// Комната: Финни подходит к предмету сцены. В разговоре касание комнаты,
   /// Финни или предмета, к которому он подошёл, — то же, что «Дальше»;
   /// для TalkBack это кнопки «Финни» и, например, «Копилка».
-  Widget _room(WorldState ws) {
+  /// [airTop] — полоса над комнатой под облачко (портрет): комната не
+  /// растягивается на освободившуюся высоту, и Финни остаётся у предметов
+  /// в том же масштабе, что был с репликой в панели.
+  Widget _room(WorldState ws,
+      {required bool bubble,
+      double airTop = 0,
+      double bubbleWidth = 380,
+      bool bubbleName = true}) {
     final OnboardingScene? sc = _current;
     final VoidCallback? next =
         sc?.kind == SceneKind.talk && _canGoOn ? _next : null;
     VoidCallback? on(String object) => sc?.focus == object ? next : null;
-    return GestureDetector(
+    final Widget room = GestureDetector(
       behavior: HitTestBehavior.opaque,
       // Для TalkBack «Дальше» — кнопка под репликой, Финни и предмет — свои
       // кнопки; касание всей комнаты — только для пальца. Иначе комната
@@ -666,9 +706,11 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
       excludeFromSemantics: true,
       onTap: next,
       child: _SceneRoom(
+        key: _roomKey,
         profile: _profile.copyWith(finniName: _finniName),
         snapshot: ws.snapshot,
         focus: sc?.focus,
+        finniKey: _finniKey,
         onFinniTap: next,
         onPiggyTap: on('piggy'),
         onFridgeTap: on('fridge'),
@@ -676,24 +718,65 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
         onBedTap: on('bed'),
       ),
     );
+    // Денис 20.10: реплика — облачком над Финни, а не сбоку. Комната — в
+    // том же месте дерева с облачком и без: иначе она строится заново и
+    // теряет загруженный арт между сценками.
+    return Stack(
+      children: <Widget>[
+        Positioned(left: 0, top: airTop, right: 0, bottom: 0, child: room),
+        if (bubble && sc != null && _loaded != null)
+          Positioned.fill(
+            child: FinniSpeechLayer(
+              locate: (RenderBox layer) => finniRectByKey(_finniKey, layer),
+              onTap: next,
+              maxWidth: bubbleWidth,
+              child: _lineView(ws, name: bubbleName),
+            ),
+          ),
+      ],
+    );
   }
 
-  /// Реплика Финни и то, что под ней: конверты, план или цели.
-  Widget _speech(WorldState ws) {
-    final OnboardingScript? s = _loaded;
+  /// Реплика в комнате (облачко над Финни): в разговоре — всегда; план и
+  /// цель — только в альбомной, когда комнате хватает ширины на облачко
+  /// (десктоп, планшет). Иначе облачко — вверху панели, хвостиком к Финни.
+  bool _lineInRoom(double roomWidth, {required bool landscape}) {
     final OnboardingScene? sc = _current;
-    if (s == null || sc == null) return const SizedBox(height: 48);
+    if (sc == null) return false;
+    // Портрет, конверты: панель с тремя конвертами высокая, комнате остаётся
+    // полоса, где облачко легло бы на Финни, — облачко над конвертами.
+    if (sc.showEnvelopes && (!landscape || roomWidth < _envelopesBubbleMin)) {
+      return false;
+    }
+    if (sc.kind == SceneKind.talk) return true;
+    return landscape && roomWidth >= _roomBubbleMin;
+  }
+
+  /// Уже — облачко плана и цели в комнату не ставится.
+  static const double _roomBubbleMin = 320;
+
+  /// Реплика про конверты длинная: в комнату — только с такой шириной.
+  static const double _envelopesBubbleMin = 420;
+
+  /// Реплика Финни: имя и строка (облачко над Финни или в панели).
+  Widget _lineView(WorldState ws, {bool name = true}) {
+    final OnboardingScene? sc = _current;
+    if (_loaded == null || sc == null) return const SizedBox.shrink();
     final Map<String, String> v = _values(ws);
     final List<String> lines = sc.linesFor(_profile.gender);
     final String line = sc.kind == SceneKind.talk
         ? fillLine(lines[_line], v)
         : lines.map((String l) => fillLine(l, v)).join(' ');
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // План и цель длинные: имя над репликой уступает место конвертам.
-        if (sc.kind == SceneKind.talk) ...<Widget>[
-          Text(_finniName, style: AppType.title(16, color: WorldColors.gold)),
+        if (name) ...<Widget>[
+          Text(_finniName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppType.title(15, color: WorldColors.gold)),
           const SizedBox(height: 2),
         ],
         AnimatedSwitcher(
@@ -711,19 +794,39 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
             child: PicText(
               line,
               style: const TextStyle(
-                  fontSize: 18, height: 1.35, color: WorldColors.text),
+                  fontSize: 17, height: 1.3, color: WorldColors.text),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  /// Что под репликой: конверты, план или цели; [lineHere] — облачко
+  /// реплики стоит здесь же, сверху (комнате не хватило места).
+  Widget _speech(WorldState ws, {required bool lineHere, BubbleTail? tail}) {
+    final OnboardingScript? s = _loaded;
+    final OnboardingScene? sc = _current;
+    if (s == null || sc == null) return const SizedBox(height: 48);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (lineHere)
+          SpeechBubble(
+            key: const ValueKey<String>('finni:bubble'),
+            tail: tail ?? BubbleTail.up,
+            dense: !sc.showEnvelopes,
+            child: _lineView(ws, name: sc.kind == SceneKind.talk),
+          ),
         if (sc.showEnvelopes) ...<Widget>[
-          const SizedBox(height: Gap.sm),
+          if (lineHere) const SizedBox(height: Gap.sm),
           EnvelopeCards(
               need: s.envelopes.need,
               want: s.envelopes.want,
               goal: s.envelopes.goal),
         ],
         if (sc.isPlan) ...<Widget>[
-          const SizedBox(height: Gap.xs),
+          if (lineHere) const SizedBox(height: Gap.xs),
           PlanEditor(
             ui: s,
             snapshot: ws.snapshot,
@@ -740,7 +843,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
           ),
         ],
         if (sc.isGoal) ...<Widget>[
-          const SizedBox(height: Gap.sm),
+          if (lineHere) const SizedBox(height: Gap.sm),
           GoalPicker(
             ui: s,
             saved: ws.snapshot.goal,
@@ -757,7 +860,9 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
 
   /// Панель реплики: текст на тёмной панели, не на картинке (дизайн-система
   /// §1 п. 1); длинное (план, цели) прокручивается, «Дальше» — всегда внизу.
-  Widget _panel(WorldState ws, {required bool compact}) => Material(
+  Widget _panel(WorldState ws,
+          {required bool compact, required bool lineHere, BubbleTail? tail}) =>
+      Material(
         color: WorldColors.panel,
         child: Column(
           // Портрет: панель по содержимому, остальное — комнате.
@@ -768,7 +873,7 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
               child: SingleChildScrollView(
                 key: ValueKey<String>('onboarding:panel:$_scene'),
                 padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
-                child: _speech(ws),
+                child: _speech(ws, lineHere: lineHere, tail: tail),
               ),
             ),
             Padding(
@@ -788,7 +893,12 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Material(color: WorldColors.panel, child: _scenesBar()),
-                Expanded(child: _room(ws)),
+                Expanded(
+                    child: _room(ws,
+                        bubble: _lineInRoom(box.maxWidth, landscape: false),
+                        airTop: _lineInRoom(box.maxWidth, landscape: false)
+                            ? box.maxHeight * 0.36
+                            : 0)),
                 ConstrainedBox(
                   // План и цель выше реплики: три конверта — без прокрутки.
                   // План ещё выше: над строками — «Как советует Финни».
@@ -799,7 +909,9 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                             SceneKind.plan => 0.8,
                             _ => 0.72,
                           }),
-                  child: _panel(ws, compact: false),
+                  child: _panel(ws,
+                      compact: false,
+                      lineHere: !_lineInRoom(box.maxWidth, landscape: false)),
                 ),
               ],
             ),
@@ -814,14 +926,55 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
             builder: (BuildContext context, BoxConstraints box) {
               // План и цели длиннее реплики: панели — больше ширины, чтобы
               // смысл конверта вставал в строку, а не по слову.
-              final bool wide = _current?.kind != SceneKind.talk;
+              final OnboardingScene? sc = _current;
+              // Разговор без конвертов: справа осталась бы одна кнопка —
+              // комната во всю ширину, «Дальше» в её нижнем правом углу.
+              if (sc != null &&
+                  sc.kind == SceneKind.talk &&
+                  !sc.showEnvelopes) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Material(color: WorldColors.panel, child: _scenesBar()),
+                    Expanded(
+                      child: Stack(
+                        children: <Widget>[
+                          Positioned.fill(
+                              child: _room(ws,
+                                  bubble: true,
+                                  bubbleWidth: 560,
+                                  // Телефон в альбомной: над головой Финни
+                                  // мало неба — узкая полоса под облачко, а
+                                  // имя (и так понятно, кто говорит) уходит.
+                                  airTop: box.maxHeight < 500
+                                      ? box.maxHeight * 0.12
+                                      : 0,
+                                  bubbleName: box.maxHeight >= 500)),
+                          Positioned(
+                            right: Gap.md,
+                            bottom: Gap.md,
+                            width: (box.maxWidth * 0.4)
+                                .clamp(200.0, 340.0)
+                                .toDouble(),
+                            child: _nextButton(compact: true),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              final bool wide = sc?.kind != SceneKind.talk;
               final double side = (box.maxWidth * (wide ? 0.72 : 0.46))
                   .clamp(280.0, 560.0)
                   .toDouble();
+              final bool inRoom =
+                  _lineInRoom(box.maxWidth - side, landscape: true);
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Expanded(child: _room(ws)),
+                  Expanded(
+                      child: _room(ws, bubble: inRoom, bubbleWidth: 520)),
                   SizedBox(
                     width: side,
                     child: Material(
@@ -830,7 +983,11 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           _scenesBar(),
-                          Expanded(child: _panel(ws, compact: true)),
+                          Expanded(
+                              child: _panel(ws,
+                                  compact: true,
+                                  lineHere: !inRoom,
+                                  tail: BubbleTail.left)),
                         ],
                       ),
                     ),
@@ -847,9 +1004,11 @@ class _WorldOnboardingScreenState extends State<WorldOnboardingScreen> {
 /// предмету сцены ([focus]).
 class _SceneRoom extends StatefulWidget {
   const _SceneRoom({
+    super.key,
     required this.profile,
     required this.snapshot,
     required this.focus,
+    this.finniKey,
     this.onFinniTap,
     this.onPiggyTap,
     this.onFridgeTap,
@@ -860,6 +1019,7 @@ class _SceneRoom extends StatefulWidget {
   final WorldProfile profile;
   final ResourceSnapshot snapshot;
   final String? focus;
+  final GlobalKey? finniKey;
   final VoidCallback? onFinniTap;
   final VoidCallback? onPiggyTap;
   final VoidCallback? onFridgeTap;
@@ -890,6 +1050,8 @@ class _SceneRoomState extends State<_SceneRoom> {
           showName: false,
           // Полоса комнаты над планом узкая — без швов по бокам.
           cover: true,
+          // Облачко реплики ищет Финни по этому ключу.
+          finniKey: widget.finniKey,
           onFinniTap: widget.onFinniTap,
           onPiggyTap: widget.onPiggyTap,
           onFridgeTap: widget.onFridgeTap,

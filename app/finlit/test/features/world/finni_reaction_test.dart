@@ -1,6 +1,7 @@
 import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/features/world/home/finni_reaction.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
+import 'package:finlit/features/world/onboarding/finni_bubble.dart';
 import 'package:finlit/features/world/world_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -220,12 +221,13 @@ void main() {
     });
   });
 
-  // ТЗ 2.5.10.3: причина настроения — по касанию Финни, и он рад, что
-  // погладили. Уронит: касание снова уходит в снекбар над кнопками комнаты.
-  // Решение Дениса 16.10: погладить — +1 😊 раз в игровой день. Уронит:
-  // «+1» в облачке без начисления (повтор в тот же день), начисление без
-  // реакции или снова снекбар над кнопками комнаты.
-  testWidgets('погладить: +1 😊 в первый раз, повтор — без числа',
+  // ТЗ 2.5.10.3: причина настроения — по касанию Финни. Денис 20.10: «Финни
+  // друг, и при нажатии на него он должен говорить как друг с игроком» —
+  // не «погладить», не «мурлычет», без сердечек питомца. Решение 16.10
+  // остаётся: +1 😊 раз в игровой день. Уронит: касание снова «гладит»
+  // (сердечки, «погладили»), реплика не облачком, одна и та же фраза два
+  // раза подряд, «+1» без начисления или снекбар над кнопками комнаты.
+  testWidgets('касание Финни: реплика друга облачком, +1 😊 один раз в день',
       (WidgetTester tester) async {
     final World world = worldKinds.first.make();
     ok(world.startWeek());
@@ -239,27 +241,35 @@ void main() {
         tester.widgetList(find.byWidgetPredicate((Widget w) {
           final Key? k = w.key;
           return k is ValueKey<String> && k.value.startsWith('finni:reaction:');
-        })).map((Widget w) => (w.key! as ValueKey<String>).value);
+        })).map((Widget w) =>
+            (w.key! as ValueKey<String>).value.substring('finni:reaction:'.length));
     final int mood0 = s.snapshot.happiness;
     await tester.tap(find.byKey(const ValueKey<String>('room:finni')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(s.snapshot.happiness, mood0 + 1);
-    expect(lines().single, endsWith('+1 😊'));
-    expect(find.byKey(const ValueKey<String>('finni:hearts')), findsOneWidget);
+    final String first = lines().single;
+    expect(first, endsWith('+1 😊'));
+    expect(first, isNot(matches(RegExp('мурл|глад|Мур', caseSensitive: false))));
+    expect(find.byType(SpeechBubble), findsOneWidget,
+        reason: 'Финни говорит облачком, а не строкой-плашкой');
+    expect(find.byKey(const ValueKey<String>('finni:hearts')), findsNothing,
+        reason: 'сердечки — эффект питомца, не друга');
     expect(find.byType(SnackBar), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey<String>('room:finni')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(s.snapshot.happiness, mood0 + 1, reason: 'второй раз в день — 0');
-    expect(lines().single, isNot(contains('+')));
-    expect(find.byKey(const ValueKey<String>('finni:hearts')), findsOneWidget);
+    final String second = lines().single;
+    expect(second, isNot(contains('+')));
+    expect(second, isNot(first.split('\n').first),
+        reason: 'две одинаковые фразы подряд');
   });
 
-  // Уронит: реакция мира сменила поглаживание, а сердечки остались над
-  // чужой строкой (ревью 16.10).
-  testWidgets('погладили, потом решение — сердечки уходят',
+  // Уронит: реакция мира сменила разговор, а облачко осталось над чужой
+  // строкой (ревью 16.10 — тогда сердечки).
+  testWidgets('поговорили, потом решение — облачко уходит',
       (WidgetTester tester) async {
     final World world = worldKinds.first.make();
     ok(world.startWeek());
@@ -272,12 +282,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('room:finni')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const ValueKey<String>('finni:hearts')), findsOneWidget);
+    expect(find.byType(SpeechBubble), findsOneWidget);
     final WorldResult r = s.act((World w) => w.depositToGoal(20));
     expect(r.ok, isTrue, reason: r.reason);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const ValueKey<String>('finni:hearts')), findsNothing);
+    expect(find.byType(SpeechBubble), findsNothing);
   });
 
   // Ревью 16.10. Уронит: строка снова в слое Финни (кровать и холодильник

@@ -8,22 +8,25 @@ import 'iso_grid.dart';
 import 'iso_room.dart';
 
 /// Iso room colours (placeholders until Denis's iso backgrounds): walls and
-/// floor follow the «Лес» world palette, as in room-lab A. Taste is Denis's —
-/// these are not a chosen palette.
+/// floor follow the warm room of the 29.09 palette («Уютный вечер», back
+/// 20.10). Taste is Denis's — these are not a chosen palette (ratify).
 abstract final class IsoColors {
-  static const Color back = Color(0xFF1D2B2F);
-  static const Color wallLeft = Color(0xFF739E80);
-  static const Color wallRight = Color(0xFF5E8869);
+  // «Уютный вечер» (палитра 29.09, ratify n6-style 20.10): тёплая комната
+  // под тёмно-синим интерфейсом. Стены и пол — тона фронтальной комнаты 29.09
+  // (room_layout.json edge_wall / edge_floor), фон — WorldColors.night 29.09.
+  static const Color back = Color(0xFF151833);
+  static const Color wallLeft = Color(0xFFDAA879);
+  static const Color wallRight = Color(0xFFC8956A);
   static const Color wallStripe = Color(0x14FFFFFF);
-  static const Color baseboard = Color(0xFF6A4328);
-  static const Color floorA = Color(0xFFCB9364);
-  static const Color floorB = Color(0xFFC08858);
-  static const Color slab = Color(0xFF7A5232);
+  static const Color baseboard = Color(0xFF6E3F27);
+  static const Color floorA = Color(0xFFA8643F);
+  static const Color floorB = Color(0xFF9C5A39);
+  static const Color slab = Color(0xFF5E3422);
   static const Color gridLine = Color(0x22000000);
   static const Color gridEdit = Color(0x88FFF1D7);
-  static const Color ink = Color(0xC81D2B2F);
+  static const Color ink = Color(0xC8151833);
   static const Color ok = Color(0xFF43C46B);
-  static const Color gold = Color(0xFFFFCF74);
+  static const Color gold = Color(0xFFF4C542);
   static const Color wood = Color(0xFF8E5F3D);
   static const Color skyTop = Color(0xFF7CC4EE);
   static const Color skyLow = Color(0xFFD6F0FB);
@@ -41,7 +44,7 @@ abstract final class IsoColors {
   static const Color contact = Color(0x30000000);
 
   /// Inside of an opening (door, window), away from the light.
-  static const Color jamb = Color(0xFF3E5E47);
+  static const Color jamb = Color(0xFF8A6244);
 }
 
 /// How deep the door leaf and the window glass sit in the wall, cells.
@@ -305,27 +308,27 @@ class IsoShellPainter extends CustomPainter {
     // The view in content px: the canvas is already moved and scaled.
     final double top = -offset.dy / k, bottom = (size.height - offset.dy) / k;
     final double left = -offset.dx / k, right = (size.width - offset.dx) / k;
-    final double up = math.max(0, g.wallH - top) + 8;
+    // Height on a wall at slot [u] whose top edge is above the view's top.
+    double over(double u) => g.origin.dy + u * g.halfH - top + 8;
     for (final IsoWall side in IsoWall.values) {
       final double len = g.wallLen(side).toDouble();
       final Color col =
           side == IsoWall.left ? IsoColors.wallLeft : IsoColors.wallRight;
-      final double hi = g.wallH + up;
-      c.drawPath(
-          _poly(<Offset>[
-            g.wallToScreen(side, 0, g.wallH - 1),
-            g.wallToScreen(side, len, g.wallH - 1),
-            g.wallToScreen(side, len, hi),
-            g.wallToScreen(side, 0, hi),
-          ]),
-          Paint()..color = col);
-      _onWall(c, g, side, 0, len, hi, up, (Canvas u) {
-        final int stripes = (len * 2).round();
-        for (int s = 0; s < stripes; s += 2) {
-          u.drawRect(Rect.fromLTWH(s / stripes, 0, 1 / stripes, 1),
-              Paint()..color = IsoColors.wallStripe);
-        }
-      });
+      // Up: the wall goes on above its top edge, at the front end too (the
+      // end sits lower on screen than the back corner).
+      _wallBand(c, g, side, 0, len, g.wallH - 1,
+          math.max(g.wallH + 8, over(len)), col);
+      // Sideways: past its front end the wall goes on, a shade darker as the
+      // floor in front, to the view's side (n6-room2 20.10: a wide view
+      // left bare bands beside the room's front corners).
+      final double reach = side == IsoWall.left
+          ? (g.origin.dx - left) / g.halfW
+          : (right - g.origin.dx) / g.halfW;
+      final double ext = (reach - len).ceilToDouble() + 1;
+      if (ext > 0) {
+        _wallBand(c, g, side, len, len + ext, 0, over(len + ext),
+            Color.lerp(col, IsoColors.back, 0.35)!);
+      }
     }
     // Floor in front: whole cells past the front edges, to the view's bottom.
     final int far = ((bottom - g.toScreen(0, 0).dy) / g.halfH).ceil() + 2;
@@ -348,6 +351,28 @@ class IsoShellPainter extends CustomPainter {
             Paint()..color = (x + y).isEven ? a : b);
       }
     }
+  }
+
+  /// A band of [side] from slot [u0] to [u1], heights [lo]..[hi], with the
+  /// wall's stripes (whole cells, so they line up with the room's wall).
+  void _wallBand(Canvas c, IsoGrid g, IsoWall side, double u0, double u1,
+      double lo, double hi, Color col) {
+    c.drawPath(
+        _poly(<Offset>[
+          g.wallToScreen(side, u0, lo),
+          g.wallToScreen(side, u1, lo),
+          g.wallToScreen(side, u1, hi),
+          g.wallToScreen(side, u0, hi),
+        ]),
+        Paint()..color = col);
+    final double len = u1 - u0;
+    _onWall(c, g, side, u0, len, hi, hi - lo, (Canvas u) {
+      final int stripes = (len * 2).round();
+      for (int s = 0; s < stripes; s += 2) {
+        u.drawRect(Rect.fromLTWH(s / stripes, 0, 1 / stripes, 1),
+            Paint()..color = IsoColors.wallStripe);
+      }
+    });
   }
 
   /// The walls have a thickness: a light band on the top edge (with the

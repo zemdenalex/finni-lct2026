@@ -112,8 +112,9 @@ WorldConfig worldConfigFromContent(WorldContent content) {
           id: rate.id,
           variant: t.id.isEmpty ? null : t.id,
           title: t.id.isEmpty ? rate.name : '${rate.name} · ${t.name ?? t.id}',
-          // Профиль баланса: оплата × pay_scale вверх до десятка (дни).
-          pay: coins(t.pay),
+          // Профиль баланса: оплата × pay_scale вверх до десятка (дни), плюс
+          // прибавка `pay_add` (режим дней, Настя 20.10).
+          pay: coins(t.pay) + (dc.enabled ? t.payAdd : 0),
           energy: t.energy * s,
           needs: t.unlockedBy ?? rate.unlockedBy,
           moodKind: rate.moodKind,

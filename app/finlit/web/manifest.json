@@ -3,7 +3,7 @@
     "short_name": "Финни",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#151833",
+    "background_color": "#172F30",
     "theme_color": "#151833",
     "description": "Финни — игра про деньги для детей 7–11 лет",
     "orientation": "portrait-primary",

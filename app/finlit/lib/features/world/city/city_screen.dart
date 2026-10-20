@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -700,6 +701,44 @@ class _CityMapState extends State<_CityMap>
   /// Финни идёт — второе касание ждёт.
   bool _walking = false;
 
+  /// Где Финни на этом кадре пути (низ ног, px карты при 1×): по нему —
+  /// глубина слоя, пока он идёт. Без этого глубина бралась у двери, куда
+  /// он идёт, и по пути за домом Финни был нарисован поверх дома — «идёт
+  /// сквозь здания» (Настя 20.10, тема 11).
+  double? _drawnY;
+
+  /// Сколько зданий и декора нарисовано раньше Финни с ногами на [y]: при
+  /// равном низе Финни впереди, как в сортировке слоёв.
+  int _depthRank(double y) {
+    int n = 0;
+    for (final CityBuilding b in cityBuildings) {
+      if (_anchor(b).dy <= y) n++;
+    }
+    for (final CityDecor d in _geo.decor(widget.stage)) {
+      if (d.y <= y) n++;
+    }
+    return n;
+  }
+
+  /// Кадр пути [FinniWalker]: слой перестраивается, только когда Финни
+  /// переходит за низ здания или декора (раз-другой за путь).
+  void _moved(Offset at) {
+    if (!mounted || !_walking) return;
+    // Старт пути (didUpdateWidget) — ещё фаза сборки: точку старта задал
+    // сам путь.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      return;
+    }
+    final double y = at.dy / _k;
+    final double? was = _drawnY;
+    if (was != null && _depthRank(was) == _depthRank(y)) {
+      _drawnY = y;
+      return;
+    }
+    setState(() => _drawnY = y);
+  }
+
   /// Сколько длится текущий путь (для [FinniWalker]).
   Duration _walk = Duration.zero;
 
@@ -995,6 +1034,7 @@ class _CityMapState extends State<_CityMap>
       _walk = walk;
       _via = path.sublist(0, path.length - 1);
       _walking = true;
+      _drawnY = from.dy;
     });
     _follow(door, animate: true);
     await Future<void>.delayed(walk);
@@ -1016,6 +1056,7 @@ class _CityMapState extends State<_CityMap>
     if (_walking) return;
     if (widget.smooth) return _walkSmooth(b, arrive);
     final Duration walk = context.motion(_walkTime(_at, b));
+    final Offset from = _free ?? _stand(_at);
     if (_free != null) {
       // Водили джойстиком — от этой точки Финни идёт к зданию.
       setState(() => _free = null);
@@ -1032,6 +1073,7 @@ class _CityMapState extends State<_CityMap>
       _at = b;
       _walk = walk;
       _walking = true;
+      _drawnY = from.dy;
     });
     _follow(_stand(b), animate: true);
     await Future<void>.delayed(walk);
@@ -1175,10 +1217,14 @@ class _CityMapState extends State<_CityMap>
               math.max(pad, (view.height - base.height * k) / 2));
           final AssetRegistry? reg = widget.registry;
           final List<Widget> layers = <Widget>[
+            // Свой слой у земли, декора, зданий и башен: Финни идёт или
+            // камера едет — они не перерисовываются (лаги ходьбы, 20.10).
             Positioned.fill(
-              child: CustomPaint(
-                painter:
-                    CityGroundPainter(geo: _geo, stage: widget.stage, k: k),
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter:
+                      CityGroundPainter(geo: _geo, stage: widget.stage, k: k),
+                ),
               ),
             ),
           ];
@@ -1197,15 +1243,17 @@ class _CityMapState extends State<_CityMap>
                 // Верх картинки срезан по кадру — растворяем его в небе,
                 // чтобы башня уходила вверх, а не обрывалась.
                 child: IgnorePointer(
-                  child: ShaderMask(
-                    blendMode: BlendMode.dstIn,
-                    shaderCallback: (Rect r) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[Color(0x00000000), Color(0xFF000000)],
-                      stops: <double>[0, 0.3],
-                    ).createShader(r),
-                    child: PixelImage(reg?.building(id), scale: k),
+                  child: RepaintBoundary(
+                    child: ShaderMask(
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (Rect r) => const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[Color(0x00000000), Color(0xFF000000)],
+                        stops: <double>[0, 0.3],
+                      ).createShader(r),
+                      child: PixelImage(reg?.building(id), scale: k),
+                    ),
                   ),
                 ),
               ));
@@ -1230,6 +1278,7 @@ class _CityMapState extends State<_CityMap>
                   ? const <Offset>[]
                   : <Offset>[for (final Offset p in _via) p * k],
               bob: 2.0 * k,
+              onMove: _moved,
               builder: (bool walking) => IgnorePointer(
                 child: ExcludeSemantics(
                   child: _finni(reg, walking || _moving, k),
@@ -1240,7 +1289,7 @@ class _CityMapState extends State<_CityMap>
           // Простое 2.5D: здания, декор и Финни — по низу, дальние первыми.
           // При равном низе Финни впереди (он стоит перед своим зданием).
           final List<(double, int, Widget)> depth = <(double, int, Widget)>[
-            (feet.dy, 1, finniLayer),
+            (_walking ? _drawnY ?? feet.dy : feet.dy, 1, finniLayer),
           ];
           final List<CityDecor> decor = _geo.decor(widget.stage);
           for (int i = 0; i < decor.length; i++) {
@@ -1255,7 +1304,8 @@ class _CityMapState extends State<_CityMap>
                 top: r.top * k,
                 width: r.width * k,
                 height: r.height * k,
-                child: CityDecorView(decor: d, k: k, registry: reg),
+                child: RepaintBoundary(
+                    child: CityDecorView(decor: d, k: k, registry: reg)),
               ),
             ));
           }
@@ -1281,12 +1331,14 @@ class _CityMapState extends State<_CityMap>
                   excludeSemantics: true,
                   child: KeyedSubtree(
                     key: ValueKey<String>('city:building:${b.id}'),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: PixelImage(
-                        _art(reg, b.id),
-                        scale: k,
-                        fallback: _NoArt(b),
+                    child: RepaintBoundary(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: PixelImage(
+                          _art(reg, b.id),
+                          scale: k,
+                          fallback: _NoArt(b),
+                        ),
                       ),
                     ),
                   ),

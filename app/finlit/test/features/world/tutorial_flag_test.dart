@@ -40,8 +40,11 @@ bool _parsed({bool? on}) {
 void main() {
   tearDown(() => tutorialLook = TutorialLook.off);
 
-  test('флаг из файла: в сборке включён (DEN-4 T1), выключенный читается', () {
-    expect(_parsed(), isTrue);
+  // Денис 20.10: обучалка в комнате после знакомства — дубль, выключена
+  // (решение 18.10 DEN-4 T1 этим заменено). Флаг по-прежнему читается.
+  test('флаг из файла: в сборке выключен (Денис 20.10), включённый читается',
+      () {
+    expect(_parsed(), isFalse);
     expect(_parsed(on: false), isFalse);
     expect(_parsed(on: true), isTrue);
     expect(tutorialLookFor(tutorialUi: false), TutorialLook.off);

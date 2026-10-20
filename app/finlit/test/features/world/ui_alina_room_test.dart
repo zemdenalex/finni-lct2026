@@ -93,7 +93,7 @@ void main() {
         ]) {
           expect(find.byKey(ValueKey<String>(k)), findsOneWidget, reason: k);
         }
-        expect(find.text('День 1 из 7'), findsOneWidget);
+        expect(find.text('Пн, 5 окт'), findsOneWidget);
         // Подписи показателей — не мельче 14 sp: строка 14 × 1,1, ужатая
         // FittedBox меньше чем на 0,95, — уже мельче.
         for (final String word in <String>['монеты', 'силы', 'настроение']) {

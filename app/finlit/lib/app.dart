@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'app_state.dart';
 import 'core/theme.dart';
+import 'core/world_theme.dart';
 import 'domain/world/contract.dart';
 import 'features/world/world_routes.dart';
 import 'features/world/world_state.dart';
@@ -138,13 +139,16 @@ class _BootScreenState extends State<BootScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => const Scaffold(
         // Статичная заставка без анимации: бесконечный индикатор не даёт
         // виджет-тестам сойтись и зря будит GPU на старте, который по §3.4
         // обязан укладываться в пять секунд.
-        body: Center(child: Text('Финни', style: _bootTitle)),
+        //
+        // Настя 20.10: «первое, что видит игрок, — Финни в комнате». Поэтому
+        // заставка — пустой тёмный фон мира, без надписи на светлом: она
+        // живёт доли секунды и не должна мелькать отдельной картинкой между
+        // загрузкой страницы и комнатой (фон тот же, что у web/index.html).
+        backgroundColor: WorldColors.night,
+        body: SizedBox.expand(),
       );
 }
-
-/// Надпись заставки — той же гарнитурой, что заголовки в игре.
-final TextStyle _bootTitle = AppType.title(34);

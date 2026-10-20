@@ -82,10 +82,16 @@ class JobOfferCard extends StatelessWidget {
     required this.onTake,
     required this.coins,
     required this.energy,
+    this.onPlan,
   });
 
   final JobOffer offer;
   final VoidCallback onTake;
+
+  /// Смену не взять, пока нет плана недели (`phase.job`): на плашке причины
+  /// — кнопка «План недели», она открывает план, как «План» в меню (Настя
+  /// 20.10: «добавь здесь кнопку "План недели"»). null — кнопки нет.
+  final VoidCallback? onPlan;
 
   /// Монеты, которые есть сейчас (`snapshot.available`) — «было».
   final int coins;
@@ -225,40 +231,62 @@ class JobOfferCard extends StatelessWidget {
               ),
             )
           else
-            Semantics(
-              // Правило 3А: значки в причине («Нужно ⚡ 3») — словами для TalkBack.
-              label: PicText('Сейчас не взять: '
-                      '${<String>[
-                if (lock != null) lock,
-                if (other != null) other
-              ].join('. ')}')
-                  .spoken,
-              excludeSemantics: true,
-              child: Container(
-                key: ValueKey<String>('jobs:blocked:$k'),
-                constraints: const BoxConstraints(minHeight: 48),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Gap.sm, vertical: Gap.xs),
-                decoration: BoxDecoration(
-                  color: WorldColors.night,
-                  borderRadius: BorderRadius.circular(WorldRadii.button),
-                  border: Border.all(color: WorldColors.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    if (lock != null)
-                      _ReasonLine(
-                          key: ValueKey<String>('jobs:lock:$k'),
-                          icon: Icons.lock_outline_rounded,
-                          text: lock),
-                    if (lock != null && other != null)
-                      const SizedBox(height: Gap.xs),
-                    if (other != null)
-                      _ReasonLine(
-                          icon: Icons.info_outline_rounded, text: other),
+            Container(
+              key: ValueKey<String>('jobs:blocked:$k'),
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.sm, vertical: Gap.xs),
+              decoration: BoxDecoration(
+                color: WorldColors.night,
+                borderRadius: BorderRadius.circular(WorldRadii.button),
+                border: Border.all(color: WorldColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Semantics(
+                    // Правило 3А: значки в причине («Нужно ⚡ 3») — словами
+                    // для TalkBack.
+                    label: PicText('Сейчас не взять: '
+                            '${<String>[
+                      if (lock != null) lock,
+                      if (other != null) other
+                    ].join('. ')}')
+                        .spoken,
+                    excludeSemantics: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (lock != null)
+                          _ReasonLine(
+                              key: ValueKey<String>('jobs:lock:$k'),
+                              icon: Icons.lock_outline_rounded,
+                              text: lock),
+                        if (lock != null && other != null)
+                          const SizedBox(height: Gap.xs),
+                        if (other != null)
+                          _ReasonLine(
+                              icon: Icons.info_outline_rounded, text: other),
+                      ],
+                    ),
+                  ),
+                  // Кнопка — вне подписи причины: TalkBack читает её
+                  // отдельной кнопкой.
+                  if (onPlan != null && block.code == 'phase.job') ...<Widget>[
+                    const SizedBox(height: Gap.xs),
+                    SizedBox(
+                      height: TapSize.min,
+                      child: OutlinedButton.icon(
+                        key: ValueKey<String>('jobs:plan:$k'),
+                        onPressed: onPlan,
+                        icon: const Icon(Icons.account_balance_wallet_outlined),
+                        label: const Text('План недели',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
         ],

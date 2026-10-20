@@ -14,7 +14,7 @@ import '../world_state.dart';
 /// «Настройках». У FakeWorld (без файлов) — как раньше.
 bool adultSectionOn(World w) => w is! WorldGame || w.config.adultSection;
 
-/// «Начать игру заново» из «Настроек» (ТЗ §3.5.5): сначала тот же пример
+/// «Сбросить профиль» из «Настроек» (ТЗ §3.5.5): сначала тот же пример
 /// на умножение, что у «Режима проверки» ([WorldRoutes.resetGate]), потом
 /// [confirmWorldReset]. Назад или неверный ответ — ничего не стирается.
 Future<void> gatedWorldReset(BuildContext context) async {
@@ -32,7 +32,8 @@ Future<void> confirmWorldReset(BuildContext context) async {
   final bool yes = await showDialog<bool>(
         context: context,
         builder: (BuildContext c) => AlertDialog(
-          title: const Text('Начать игру заново?'),
+          // Настя 20.10, п. 15 — дословно.
+          title: const Text('Удалить прогресс и начать сначала?'),
           content: const SingleChildScrollView(
             child: Text(
               // Правила текстов 2 и 7: без «очков роста», до 140 знаков —

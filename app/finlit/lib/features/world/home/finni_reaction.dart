@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 
 import '../../../core/feel.dart';
-import '../../../core/icons.dart';
 import '../../../core/theme.dart';
 import '../../../core/world_theme.dart';
 import '../../../domain/world/contract.dart';
 import '../../../domain/world/fridge_stock.dart';
+import '../onboarding/finni_bubble.dart';
 import '../pic_text.dart';
 
 /// Реакция Финни (вариант A, выбор Дениса 15.10, `docs/final/pet-react`):
@@ -23,17 +23,24 @@ enum FinniMood { calm, joy, tired, sad, hungry }
 /// Эмоция + одна строка для ребёнка.
 @immutable
 class FinniReaction {
-  const FinniReaction(this.mood, this.line);
+  const FinniReaction(this.mood, this.line, {this.speech = false});
 
   final FinniMood mood;
   final String line;
 
-  @override
-  bool operator ==(Object other) =>
-      other is FinniReaction && other.mood == mood && other.line == line;
+  /// Финни говорит сам (касание — разговор с другом): облачко над ним, а не
+  /// строка-плашка.
+  final bool speech;
 
   @override
-  int get hashCode => Object.hash(mood, line);
+  bool operator ==(Object other) =>
+      other is FinniReaction &&
+      other.mood == mood &&
+      other.line == line &&
+      other.speech == speech;
+
+  @override
+  int get hashCode => Object.hash(mood, line, speech);
 
   @override
   String toString() => 'FinniReaction($mood: $line)';
@@ -107,14 +114,14 @@ FinniReaction? reactionFor(
 }
 
 /// Строка над головой Финни: в покое — состояние, после решения — причина
-/// (ярче, с рамкой). [hearts] — Финни погладили. Касания не ловит: Финни под
+/// (ярче, с рамкой), а слова Финни ([FinniReaction.speech]) — облачком.
+/// Касания не ловит: Финни под
 /// ней нажимается как раньше.
 class FinniBadge extends StatelessWidget {
   const FinniBadge({
     super.key,
     required this.status,
     this.reaction,
-    this.hearts = 0,
     this.maxWidth = 236,
     this.leading,
     this.name,
@@ -130,8 +137,6 @@ class FinniBadge extends StatelessWidget {
   final FinniReaction status;
   final FinniReaction? reaction;
 
-  /// Номер поглаживания: новое число — новые сердечки (ключ анимации).
-  final int hearts;
   final double maxWidth;
 
   @override
@@ -139,10 +144,42 @@ class FinniBadge extends StatelessWidget {
     final FinniReaction? r = reaction;
     final bool motion =
         !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+    final Key labelKey = ValueKey<String>(
+      r == null ? 'finni:status' : 'finni:reaction:${r.line}',
+    );
+    if (r != null && r.speech) {
+      // Слова Финни — облачком с хвостиком к нему (как в знакомстве).
+      return IgnorePointer(
+        child: Semantics(
+          liveRegion: true,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: Gap.xs),
+            child: AnimatedSwitcher(
+              duration:
+                  motion ? const Duration(milliseconds: 150) : Duration.zero,
+              child: ConstrainedBox(
+                key: labelKey,
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: SpeechBubble(
+                  child: PicText(
+                    r.line,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                      color: WorldColors.text,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final Widget label = Container(
-      key: ValueKey<String>(
-        r == null ? 'finni:status' : 'finni:reaction:${r.line}',
-      ),
+      key: labelKey,
       // С именем строка шире: имя до 12 знаков — целиком (DEN-25).
       constraints: BoxConstraints(
           maxWidth: maxWidth + (r == null && name != null ? 90 : 0)),
@@ -152,7 +189,7 @@ class FinniBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(WorldRadii.button),
         border: r == null ? null : Border.all(color: _edge(r.mood), width: 2),
       ),
-      // PicText: «+1 😊» за поглаживание — значком приложения, не эмодзи.
+      // PicText: «+1 😊» за разговор — значком приложения, не эмодзи.
       child: _withLeading(
           r == null ? leading : null,
           _withName(
@@ -175,7 +212,6 @@ class FinniBadge extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            if (hearts > 0) _Hearts(key: ValueKey<int>(hearts), motion: motion),
             AnimatedSwitcher(
               duration:
                   motion ? const Duration(milliseconds: 150) : Duration.zero,
@@ -194,49 +230,6 @@ class FinniBadge extends StatelessWidget {
         FinniMood.tired => WorldColors.textMute,
         FinniMood.calm => WorldColors.line,
       };
-}
-
-/// Два сердечка поднимаются и тают (0,9 с). «Анимации» выкл. — стоят.
-class _Hearts extends StatelessWidget {
-  const _Hearts({super.key, required this.motion});
-
-  final bool motion;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget hearts(double t) => Opacity(
-          opacity: motion ? (1 - t).clamp(0.0, 1.0) : 1,
-          child: Transform.translate(
-            offset: Offset(0, motion ? -18 * t : 0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Transform.rotate(
-                  angle: -math.pi / 14,
-                  child: const Pictogram(
-                    Pic.heart,
-                    size: 20,
-                    color: WorldColors.wants,
-                  ),
-                ),
-                const SizedBox(width: Gap.xs),
-                const Pictogram(Pic.heart, size: 26, color: WorldColors.wants),
-              ],
-            ),
-          ),
-        );
-    return SizedBox(
-      key: const ValueKey<String>('finni:hearts'),
-      height: 30,
-      child: motion
-          ? TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 900),
-              builder: (BuildContext context, double t, Widget? _) => hearts(t),
-            )
-          : hearts(0),
-    );
-  }
 }
 
 /// Строка над Финни — верхним слоем сцены (ревью 16.10): в слое Финни её

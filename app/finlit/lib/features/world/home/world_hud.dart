@@ -238,10 +238,12 @@ class WorldHud extends StatelessWidget {
               if (day.on) ...<Widget>[
                 const SizedBox(width: Gap.sm),
                 Semantics(
-                  label: 'День ${day.day} из ${day.days}',
+                  label: day.dateSpoken,
                   excludeSemantics: true,
                   child: Text(
-                    'День ${day.day}\nиз ${day.days}',
+                    // Игровой календарь (Настя 20.10): «Вт» и «6 окт» —
+                    // двумя строками, как прежде «День 2 / из 7».
+                    day.dateShort.replaceFirst(', ', '\n'),
                     key: const ValueKey<String>('hud:day'),
                     textAlign: TextAlign.right,
                     style: const TextStyle(

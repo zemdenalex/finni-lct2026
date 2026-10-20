@@ -4,19 +4,20 @@ import '../domain/models/envelope.dart';
 import 'icons.dart';
 import 'theme.dart';
 
-/// Токены нового мира — палитра «Лес» из макета Алины (концепт 03, 18.10;
-/// спека `docs/final/alina-stil-spec.md` §2.1, решение Дениса 118 «делаем
-/// как у неё»). Заменила «Уютный вечер» (тёмно-синий `#151833` + золото).
+/// Токены нового мира — палитра «Уютный вечер» сданной версии 29.09
+/// (cf9dc0e1, 0.1.0+1): тёмно-синий `#151833` + золото `#F4C542`.
+/// ratify 20.10 (Денис, фидбек 11:51 «судьям понравился изначально наш
+/// старый цвет»): вернули её вместо «Леса» Алины (84e57b8a, 18.10).
+/// Вёрстка шагов 2–6 стиля Алины (фон-комната, нижнее меню, HUD в строку,
+/// окна) осталась — вернулся только цвет. Откат — revert этого коммита.
 ///
 /// Мир — пиксель-арт высокого разрешения, интерфейс поверх него — гладкие
-/// тёмно-зелёные поверхности с золотом. Экраны не-комнаты лежат на
-/// затемнённой комнате ([WorldBackdrop]); текст никогда не лежит прямо на
-/// пёстрой картинке.
+/// тёмно-синие панели с золотом. Пёстрая тёплая сцена и холодная тёмная
+/// панель не сливаются, и текст никогда не лежит прямо на картинке.
 ///
-/// Имена прежние (их читают сотни мест и параллельные ветки) — поменялись
-/// значения. Её 9 оттенков золота сведены к трём: [gold], [onGold],
-/// [goldText]. Окна — её тёмный вариант A (`dialog #213e36`), не кремовый
-/// (design-bans).
+/// Имена токенов — из «Леса» (их читают сотни мест и параллельные ветки);
+/// токены, которых 29.09 не было, взяли значения из прежнего кода или
+/// производные от палитры 29.09 — помечено у каждого.
 ///
 /// 🔴 Действует только на маршрутах `/w/…` ([WorldTheme]). Старые экраны
 /// живут на [AppColors] и своих тестах контраста — их палитра не
@@ -24,96 +25,92 @@ import 'theme.dart';
 ///
 /// Контраст каждой пары текст/фон проверяет `world_palette_test.dart`:
 /// все ≥ 4,5:1 (ТЗ), с полупрозрачным фоном — поверх белого (худший случай).
+/// Значения 29.09 как есть дают 7 пар ниже 4,5 (подложки конвертов, «нет
+/// денег» на карточке) — три токена сдвинуты минимально, помечено ⚠.
 abstract final class WorldColors {
-  /// Фон экрана без картинки (её `bgPage` `#172f30`, pages.css
-  /// `.game:not(.in-room)`).
-  static const Color night = Color(0xFF172F30);
+  /// Фон экрана за панелями и подложка без сцены (29.09).
+  static const Color night = Color(0xFF151833);
 
-  /// Панели, окна, листы — её тёмное окно (вариант A, pages.css:L2 `dialog`).
-  static const Color panel = Color(0xFF213E36);
+  /// Панели, окна, листы (29.09).
+  static const Color panel = Color(0xFF1F2344);
 
-  /// Плитки, тихие кнопки, поля ввода, всплывашки — непрозрачные: её
-  /// `#ffffff09` полупрозрачен, а кнопка и всплывашка сквозь себя не
-  /// должны просвечивать. Для карточек на фоне экрана — [surface].
-  static const Color raised = Color(0xFF2A4840);
+  /// Плитки, тихие кнопки, поля ввода, всплывашки (29.09). Для карточек на
+  /// фоне экрана — [surface].
+  static const Color raised = Color(0xFF2B3060);
 
-  /// Тонкая рамка и разделитель (её `--line`). Декоративная: границу кнопки
-  /// задают заливка и уступ, поэтому её контраст не нарушает §3.6.
-  static const Color line = Color(0xFF3D6C57);
+  /// Тонкая рамка и разделитель (29.09). Декоративная: границу кнопки
+  /// задают заливка и уступ, поэтому её 1,9:1 не нарушает §3.6.
+  static const Color line = Color(0xFF454B82);
 
-  /// Основной текст на тёмном (её `--light`).
-  static const Color text = Color(0xFFE9F4DC);
+  /// Основной текст на тёмном (29.09).
+  static const Color text = Color(0xFFF5F2EA);
 
-  /// Заголовок экрана и окна (её `.page-heading h1`).
-  static const Color textTitle = Color(0xFFFFF1D7);
+  /// Заголовок экрана и окна — 29.09 заголовки были цвета [text].
+  static const Color textTitle = text;
 
-  /// Пояснение (её `.lead`).
-  static const Color textSoft = Color(0xFFC2CFC7);
+  /// Пояснение (29.09).
+  static const Color textSoft = Color(0xFFC3C7E4);
 
-  /// Третьестепенное: никогда не несёт смысл одно (её `--muted`).
-  static const Color textMute = Color(0xFFB0CBB4);
+  /// Третьестепенное: никогда не несёт смысл одно (29.09).
+  static const Color textMute = Color(0xFF9DA2C9);
 
-  /// Сноска только на [night] / [panel] (её `.fridge-note`; её
-  /// `.saving-footnote` `#799b83` — 4,35:1 — поднята до этого).
-  static const Color textFaint = Color(0xFF9BB49F);
+  /// Сноска только на [night] / [panel] — 29.09 её не было, = [textMute].
+  static const Color textFaint = textMute;
 
-  /// Надзаголовок, выбранный вариант, «верно» (её `--lime`).
-  static const Color accentLime = Color(0xFFC8E888);
+  /// Надзаголовок, выбранный вариант, «верно» — 29.09 «верно» было
+  /// мятным, = [needs].
+  static const Color accentLime = needs;
 
   /// Монетка, ЦЕЛЬ и главная кнопка — одним золотом сознательно: главное
-  /// действие в игре всегда про монетки и цель. Сведены `#ffd180`
-  /// `#ffcf7c` `#ffcf7a` `#ffd082` `#ffc36a`.
-  static const Color gold = Color(0xFFFFCF74);
+  /// действие в игре всегда про монетки и цель (29.09).
+  static const Color gold = Color(0xFFF4C542);
+  static const Color goldEdge = Color(0xFFC9921A);
+  static const Color onGold = Color(0xFF2A1D00);
 
-  /// Уступ золотой кнопки (её тень `0 5px 14px #3c271c28` — у нас уступ).
-  static const Color goldEdge = Color(0xFFC99A4A);
+  /// Крупные суммы и активный раздел нижнего меню — 29.09 токена не было;
+  /// светлое золото прежнего `AlinaColors.gold` (до 84e57b8a).
+  static const Color goldText = Color(0xFFF5C877);
 
-  /// Текст на золоте (её `#49321f`, 8,2:1).
-  static const Color onGold = Color(0xFF49321F);
+  /// Конверт НУЖНО (29.09).
+  static const Color needs = Color(0xFF4FD1A5);
 
-  /// Крупные суммы и активный раздел нижнего меню (её `#ffe3a4`,
-  /// сведены `#ffe4a7` `#ffe2a2` `#ffdb8b`).
-  static const Color goldText = Color(0xFFFFE3A4);
+  /// Конверт ХОЧУ (29.09).
+  static const Color wants = Color(0xFFFF8C7A);
 
-  /// Конверт НУЖНО — её шалфей (`.work-offer .action` `#a9cb8c`): акцент
-  /// части плана `#7d9c68` на тёмном фоне не даёт 4,5:1.
-  static const Color needs = Color(0xFFA9CB8C);
-
-  /// Конверт ХОЧУ — её терракота `#bc7e63`, высветленная до 4,5:1 на тёмном.
-  static const Color wants = Color(0xFFF2A98E);
-
-  /// Конверт ЦЕЛЬ — то же золото, что монетка (у неё бирюза `#659b9b` —
-  /// вкусовое, вопрос Денису в `stil-alina-flutter.md`).
+  /// Конверт ЦЕЛЬ — то же золото, что монетка.
   static const Color goal = gold;
 
-  /// Силы и настроение — её шкалы HUD.
-  static const Color energy = Color(0xFF79C7F3);
-  static const Color mood = Color(0xFFF3A1C0);
+  /// Силы и настроение (29.09).
+  static const Color energy = Color(0xFF7CC4FF);
+  static const Color mood = Color(0xFFFF8DBE);
 
-  /// Сытость — её шкала HUD.
-  static const Color fullness = Color(0xFFC0D985);
+  /// Сытость — 29.09 токена не было; прежний `AlinaColors.okDot`.
+  static const Color fullness = Color(0xFFC9DA8C);
 
   /// «Не хватает», предупреждение — всегда вместе со словом.
-  static const Color danger = Color(0xFFFFA898);
+  /// ⚠ 29.09 `#FF7A7A` → `#FF7D7D`: на карточке поверх фона экрана 4,46:1.
+  static const Color danger = Color(0xFFFF7D7D);
 
   /// Подложки конвертов на тёмном: цвет конверта, разбавленный панелью.
-  static const Color needsBg = Color(0xFF2E4D3A);
-  static const Color wantsBg = Color(0xFF4A3834);
-  static const Color goalBg = Color(0xFF4A4330);
+  /// ⚠ НУЖНО и ЦЕЛЬ темнее 29.09 (`#1E4A4F` → `#193F43`, `#4A4232` →
+  /// `#40392B`): на 29.09-значениях [textMute], [wants], [danger] давали
+  /// 3,9–4,4:1.
+  static const Color needsBg = Color(0xFF193F43);
+  static const Color wantsBg = Color(0xFF4A2E45);
+  static const Color goalBg = Color(0xFF40392B);
 
-  /// Затемнение сцены под окном (её `dialog::backdrop #16242270`, у нас
-  /// плотнее: без размытия текст за окном не должен спорить с окном).
-  static const Color scrim = Color(0x99162422);
+  /// Затемнение сцены под окном (29.09).
+  static const Color scrim = Color(0x99151833);
 
-  /// Уступ тихой кнопки и плитки.
-  static const Color raisedEdge = Color(0xFF14271F);
+  /// Уступ тихой кнопки и плитки (29.09).
+  static const Color raisedEdge = Color(0xFF1A1D3A);
 
   // ── фон экранов (шаг 2: затемнённая комната) ──
 
-  /// Затемнение комнаты под экраном: сверху и снизу (pages.css:L2
-  /// `.game:not(.in-room):before`).
-  static const Color backdropTop = Color(0xE8182D32);
-  static const Color backdropBottom = Color(0xF716392E);
+  /// Затемнение комнаты под экраном: сверху и снизу (вёрстка Алины, шаг 2;
+  /// цвет — [night] → [panel] 29.09 при её прозрачности 91 / 97 %).
+  static const Color backdropTop = Color(0xE8151833);
+  static const Color backdropBottom = Color(0xF71F2344);
 
   /// Тёмная карточка прямо на фоне экрана (её `.panel` `#ffffff09`).
   static const Color surface = Color(0x0FFFFFFF);
@@ -121,12 +118,15 @@ abstract final class WorldColors {
   /// Строка списка и вариант ответа на фоне экрана (её `.choice`).
   static const Color surfaceRow = Color(0x0AFFFFFF);
 
-  /// Нижнее меню на экранах (её `.dock` на экранах `#153c32ed`).
-  static const Color dock = Color(0xED153C32);
+  /// Нижнее меню на экранах (вёрстка Алины; цвет — [panel] 29.09 при её
+  /// прозрачности 93 %).
+  static const Color dock = Color(0xED1F2344);
 
   // ── светлые «бумажные» карточки (её доска, магазин, итог) ──
   // Фон экрана остаётся тёмным; светлые только карточки. Считать ли их
   // «кремовым фоном» из design-bans — решает Денис (спека §3).
+  // 20.10: в пакете не рисуются (PanelTone.paper никто не передаёт) —
+  // палитрой 29.09 не тронуты.
 
   /// Карточка работы (`.work-offer`).
   static const Color paper = Color(0xFFECE3C9);
@@ -149,7 +149,7 @@ abstract final class WorldColors {
   static const Color wantsPaper = Color(0xFFF1DFD1);
   static const Color goalPaper = Color(0xFFDCE9E5);
 
-  // ── город (подложка карты) ──
+  // ── город (подложка карты; в пакете не читаются) ──
   static const Color cityGround = Color(0xFF829E6D);
   static const Color cityPath = Color(0xFFC8BF8E);
 

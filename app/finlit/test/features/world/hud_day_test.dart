@@ -42,8 +42,12 @@ void main() {
     });
     await _settle(tester);
     ResourceSnapshot s = w.snapshot;
+    // Игровой календарь (Настя 20.10): день 1 недели 1 — пн 5 октября,
+    // «день N из M» остаётся для TalkBack.
+    expect(s.weekNo, 1);
     expect(_label(tester, 'hud:daytime'),
-        'День ${s.dayInWeek} из ${s.daysPerWeek}');
+        'Понедельник, 5 октября, день 1 из ${s.daysPerWeek}');
+    expect(find.text('Пн, 5 окт'), findsOneWidget);
     // Сытость — во втором ряду HUD словом и числом (вид E, 17.10).
     expect(_label(tester, 'hud:fed'), 'Сытость: ${s.satiety} из 100');
     // Верх шкалы ⚡ — мира (7 дней: 20), а не прежние 14 недели (17.10).
@@ -57,7 +61,9 @@ void main() {
     await _settle(tester);
     s = w.snapshot;
     expect(s.dayInWeek, 2);
-    expect(_label(tester, 'hud:daytime'), 'День 2 из ${s.daysPerWeek}');
+    expect(_label(tester, 'hud:daytime'),
+        'Вторник, 6 октября, день 2 из ${s.daysPerWeek}');
+    expect(find.text('Вт, 6 окт'), findsOneWidget);
     // Сытость — во втором ряду HUD словом и числом (вид E, 17.10).
     expect(_label(tester, 'hud:fed'), 'Сытость: ${s.satiety} из 100');
     sem.dispose();
@@ -124,8 +130,8 @@ void main() {
     });
     await _settle(tester);
     final ResourceSnapshot s = w.snapshot;
-    expect(
-        _label(tester, 'hud:day'), 'День ${s.dayInWeek} из ${s.daysPerWeek}');
+    expect(_label(tester, 'hud:day'),
+        'Понедельник, 5 октября, день 1 из ${s.daysPerWeek}');
     final Rect hud = tester.getRect(find.byType(WorldHud));
     expect(hud.height, lessThanOrEqualTo(WorldHud.landscapeHeight));
     final Rect coins =

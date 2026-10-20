@@ -20,6 +20,8 @@ import '../world_dock.dart';
 import '../world_state.dart';
 import 'day_energy_looks.dart';
 import 'finni_reaction.dart';
+import 'finni_talk.dart';
+import 'game_calendar.dart';
 import 'room_hud.dart';
 import 'room_scene.dart';
 import 'room_skins.dart';
@@ -136,7 +138,10 @@ class _RoomScreenState extends State<RoomScreen>
   /// комната под другим экраном, снимок не обновляется.
   ResourceSnapshot? _seen;
   FinniReaction? _reaction;
-  int _hearts = 0;
+
+  /// Касаний Финни за жизнь экрана — номер реплики друга ([finniTalkLine]).
+  int _talks = 0;
+  String? _lastTalk;
   Timer? _reactionTimer;
 
   /// Спрайт Финни — над ним строка состояния ([FinniBadgeLayer]).
@@ -438,7 +443,6 @@ class _RoomScreenState extends State<RoomScreen>
           name: s.world.room.petName ? profile.finniName : null,
           status: status,
           reaction: reaction,
-          hearts: _hearts,
           leading: switch (day.look) {
             HudLook.fedOnFinni => FedOnFinni(day.fed ?? 0),
             HudLook.moodOnFinni => MoodOnFinni(snap.happiness),
@@ -538,8 +542,9 @@ class _RoomScreenState extends State<RoomScreen>
                               '${WorldHud.energyText(snap.energy)}.'
                           : 'Неделя закончится сейчас. '
                               '⚡ осталось ${WorldHud.energyText(snap.energy)}.')
-                      : 'День закончится, утром — день ${snap.dayInWeek + 1} '
-                          'из ${snap.daysPerWeek}. Итоги недели — после дня '
+                      : 'День закончится, утром — '
+                          '${GameCalendar.short(week: snap.weekNo, day: snap.dayInWeek + 1)}. '
+                          'Итоги недели — после дня '
                           '${snap.daysPerWeek}. ⚡ осталось '
                           '${WorldHud.energyText(snap.energy)}.',
                   if (short > 0 && lastDay)
@@ -592,8 +597,17 @@ class _RoomScreenState extends State<RoomScreen>
     final WorldResult r = s.act((World w) => w.sleep());
     if (!r.ok) return _sayResult(r);
     if (r.reasonCode == 'day.next') {
-      // Утро той же недели: итогов нет, остаёмся в комнате.
-      if (mounted) _sayResult(r);
+      // Утро той же недели: итогов нет, остаёмся в комнате. Смена дня — с
+      // репликой Финни облачком (Настя 20.10: «Я устал, пойду спать»), утро —
+      // строкой внизу. Снимок — уже «виденный», иначе наблюдатель мира
+      // заменит облачко своей реакцией на сон.
+      if (!mounted) return;
+      _seen = s.snapshot;
+      _react(
+          FinniReaction(
+              FinniMood.tired, finniSleepLine(s.onboarding.finniGender)),
+          time: reasonTime);
+      _sayResult(r);
       return;
     }
     await showDialog<void>(
@@ -646,24 +660,11 @@ class _RoomScreenState extends State<RoomScreen>
   }
 
   /// Показать реакцию: поза и строка над Финни на [time].
-  void _react(
-    FinniReaction r, {
-    Duration time = reactionTime,
-    bool pet = false,
-  }) {
+  void _react(FinniReaction r, {Duration time = reactionTime}) {
     _reactionTimer?.cancel();
-    setState(() {
-      _reaction = r;
-      // Реакция мира сменила поглаживание — сердечки уходят вместе с ним.
-      _hearts = pet ? _hearts + 1 : 0;
-    });
+    setState(() => _reaction = r);
     _reactionTimer = Timer(time, () {
-      if (mounted) {
-        setState(() {
-          _reaction = null;
-          _hearts = 0;
-        });
-      }
+      if (mounted) setState(() => _reaction = null);
     });
   }
 
@@ -684,24 +685,41 @@ class _RoomScreenState extends State<RoomScreen>
     });
   }
 
-  /// Тап по Финни — погладить (решение Дениса 16.10): мир даёт +1 😊 раз
-  /// в игровой день (`finni.pet`), повтор в тот же день — без начисления
-  /// (`finni.pet_again`). Реакция — на каждое касание: сердечки, поза по
-  /// настроению, фраза мира; «+1 😊» — только когда начислено.
+  /// Тап по Финни — поговорить (Денис 20.10: «Финни друг, и при нажатии на
+  /// него он должен говорить как друг с игроком»; было «погладить» 16.10).
+  /// Мир по-прежнему даёт +1 😊 раз в игровой день (`finni.pet`), повтор в
+  /// тот же день — без начисления (`finni.pet_again`). Финни отвечает
+  /// облачком — реплика друга по ситуации ([finniTalkLine]), без повтора
+  /// подряд; «+1 😊» — только когда начислено.
   void _tapFinni() {
     final WorldState s = _state;
     final WorldResult r = s.act((World w) => w.petFinni());
     // Снимок после касания — уже «виденный»: иначе +1 😊 повторится второй
     // реакцией «Стало веселее» при следующей перерисовке.
-    _seen = s.snapshot;
+    final ResourceSnapshot snap = s.snapshot;
+    _seen = snap;
+    final double tiredBelow = s.world.cheapestActionEnergy;
     final FinniMood mood = finniStatus(
-      s.snapshot,
+      snap,
       living: s.phase == WeekPhase.living,
-      tiredBelow: s.world.cheapestActionEnergy,
+      tiredBelow: tiredBelow,
     ).mood;
+    final String? goalId = snap.activeGoalId;
+    final WorldCatalogItem? goal =
+        goalId == null ? null : s.world.catalogItem(goalId);
+    final String talk = finniTalkLine(
+      situations: talkSituations(snap,
+          tiredBelow: tiredBelow, hasGoal: goal != null),
+      n: _talks++,
+      nick: s.onboarding.nickname,
+      goalTitle: goal?.title,
+      goalLeft: goal == null ? 0 : math.max(0, goal.price - snap.saved),
+      last: _lastTalk,
+    );
+    _lastTalk = talk;
     final String line =
-        r.happiness > 0 ? '${r.reason}\n+${r.happiness} 😊' : r.reason;
-    _react(FinniReaction(mood, line), time: reasonTime, pet: true);
+        r.happiness > 0 ? '$talk\n+${r.happiness} 😊' : talk;
+    _react(FinniReaction(mood, line, speech: true), time: reasonTime);
   }
 
   void _help() {
@@ -925,8 +943,7 @@ class _RoomScreenState extends State<RoomScreen>
                       name: s.world.room.petName ? profile.finniName : null,
                       status: status,
                       reaction: reaction,
-                      hearts: _hearts,
-                      leading: switch (day.look) {
+                                  leading: switch (day.look) {
                         HudLook.fedOnFinni => FedOnFinni(day.fed ?? 0),
                         HudLook.moodOnFinni => MoodOnFinni(snap.happiness),
                         HudLook.fedWhenLow when day.fedInHud =>
@@ -1117,7 +1134,7 @@ class _RoomScreenState extends State<RoomScreen>
         ),
       ),
     );
-    final Widget bottomBar = WorldDock(
+    final WorldDock bottomBar = WorldDock(
       current: DockSection.home,
       prefix: 'room',
       onTap: (DockSection d) => switch (d) {
@@ -1355,102 +1372,127 @@ class _RoomScreenState extends State<RoomScreen>
           },
         );
 
-    return Scaffold(
-      backgroundColor: WorldColors.night,
-      body: SafeArea(
-        child: OrientationSplit(
-          // Альбомная: сцена с показателями поверх неё и панель разделов
-          // под ней; справа узкий столбец (≤ 30 % ширины) — цель, «Сейчас»
-          // и джойстик.
-          landscape: (BuildContext context) => LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints box) {
-              final double side = box.maxWidth * sidePanelShare;
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  // Сцена — на всю высоту экрана (29.09): разделы, «Сейчас» и
-                  // цель — в боковом столбце, не полосой под комнатой.
-                  Expanded(
-                    child: _messagesOver(
-                      sceneArea(
-                        withStick: true,
-                        withGoal: false,
-                        nav: tray != null
-                            ? null
-                            : Material(
-                                key: const ValueKey<String>('room:dock'),
-                                type: MaterialType.transparency,
-                                child: bottomBar,
-                              ),
+    // Альбомная, где у экранов меню — столбец слева (WithDock.shown: окно
+    // шире 724 dp — телефон ~800 боком, планшет, компьютер): у комнаты тот
+    // же столбец на том же месте. Раньше в комнате меню было полосой снизу,
+    // и при открытии любого пункта оно «уезжало влево» (Денис 20.10).
+    final Size window = MediaQuery.sizeOf(context);
+    // В «Расставить» столбец остаётся: сцена не прыгает по ширине.
+    final bool railNav =
+        WorldLayout.isLandscape(context) && WithDock.shown(window);
+    final Widget body = SafeArea(
+      child: OrientationSplit(
+        // Альбомная: сцена с показателями поверх неё и панель разделов
+        // под ней (или столбец меню слева, см. выше); справа узкий столбец
+        // (≤ 30 % ширины) — цель, «Сейчас» и джойстик.
+        landscape: (BuildContext context) => LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints box) {
+            final double side = box.maxWidth * sidePanelShare;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Сцена — на всю высоту экрана (29.09): разделы, «Сейчас» и
+                // цель — в боковом столбце, не полосой под комнатой.
+                Expanded(
+                  child: _messagesOver(
+                    sceneArea(
+                      withStick: true,
+                      withGoal: false,
+                      nav: tray != null || railNav
+                          ? null
+                          : Material(
+                              key: const ValueKey<String>('room:dock'),
+                              type: MaterialType.transparency,
+                              child: bottomBar,
+                            ),
+                    ),
+                    bottom: tray != null || railNav ? 0 : navHeight,
+                  ),
+                ),
+                Material(
+                  key: const ValueKey<String>('room:side'),
+                  color: WorldColors.panel,
+                  child: SizedBox(
+                    width: side,
+                    child: Padding(
+                      padding: const EdgeInsets.all(Gap.sm),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: tray != null
+                            ? <Widget>[
+                                Expanded(
+                                  child: SingleChildScrollView(child: tray),
+                                ),
+                              ]
+                            : <Widget>[
+                                nowButton,
+                                const SizedBox(height: Gap.sm),
+                                goalLineOf(stacked: true),
+                                const Spacer(),
+                              ],
                       ),
-                      bottom: tray != null ? 0 : navHeight,
                     ),
                   ),
-                  Material(
-                    key: const ValueKey<String>('room:side'),
-                    color: WorldColors.panel,
-                    child: SizedBox(
-                      width: side,
-                      child: Padding(
-                        padding: const EdgeInsets.all(Gap.sm),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: tray != null
-                              ? <Widget>[
-                                  Expanded(
-                                    child: SingleChildScrollView(child: tray),
-                                  ),
-                                ]
-                              : <Widget>[
-                                  nowButton,
-                                  const SizedBox(height: Gap.sm),
-                                  goalLineOf(stacked: true),
-                                  const Spacer(),
-                                ],
+                ),
+              ],
+            );
+          },
+        ),
+        // Портрет (макет Алины): сцена во всю высоту; сверху показатели,
+        // снизу на сцене — кнопка действия справа и меню из пяти разделов.
+        portrait: (BuildContext context) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(
+              child: _messagesOver(
+                sceneArea(
+                  withStick: true,
+                  withGoal: goalOverScene,
+                  action: tray != null ? null : nowButton,
+                  nav: tray != null
+                      ? null
+                      : Material(
+                          key: const ValueKey<String>('room:dock'),
+                          type: MaterialType.transparency,
+                          child: bottomBar,
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          // Портрет (макет Алины): сцена во всю высоту; сверху показатели,
-          // снизу на сцене — кнопка действия справа и меню из пяти разделов.
-          portrait: (BuildContext context) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(
-                child: _messagesOver(
-                  sceneArea(
-                    withStick: true,
-                    withGoal: goalOverScene,
-                    action: tray != null ? null : nowButton,
-                    nav: tray != null
-                        ? null
-                        : Material(
-                            key: const ValueKey<String>('room:dock'),
-                            type: MaterialType.transparency,
-                            child: bottomBar,
-                          ),
-                  ),
-                  bottom: tray != null ? 0 : navHeight + actionHeight,
+                ),
+                bottom: tray != null ? 0 : navHeight + actionHeight,
+              ),
+            ),
+            if (tray != null)
+              Material(
+                key: const ValueKey<String>('room:dock'),
+                color: WorldColors.panel,
+                child: Padding(
+                  padding: const EdgeInsets.all(Gap.sm),
+                  child: tray,
                 ),
               ),
-              if (tray != null)
-                Material(
-                  key: const ValueKey<String>('room:dock'),
-                  color: WorldColors.panel,
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.sm),
-                    child: tray,
-                  ),
-                ),
-              if (!goalOverScene && tray == null) goalStrip,
-            ],
-          ),
+            if (!goalOverScene && tray == null) goalStrip,
+          ],
         ),
       ),
+    );
+
+    return Scaffold(
+      backgroundColor: WorldColors.night,
+      body: railNav
+          ? WithDock.besideRail(
+              context: context,
+              rail: WithDock.rail(
+                key: const ValueKey<String>('room:dock'),
+                dock: WorldDock(
+                  current: DockSection.home,
+                  prefix: 'room',
+                  axis: Axis.vertical,
+                  onTap: bottomBar.onTap,
+                  more: bottomBar.more,
+                ),
+              ),
+              child: body,
+            )
+          : body,
     );
   }
 

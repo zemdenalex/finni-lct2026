@@ -43,18 +43,26 @@ class ContentLoader {
         (jsonDecode(await read('$base/$name.json')) as Map<Object?, Object?>)
             .cast<String, Object?>();
 
-    final List<Map<String, Object?>> tasks = <Map<String, Object?>>[];
-    for (final String f in taskFiles) {
-      tasks.add(await obj('tasks/$f'));
-    }
+    // Все файлы — разом, а не по одному (Настя 20.10: «ускорь загрузку»).
+    // В браузере каждое чтение ассета — отдельный сетевой запрос, и 20
+    // запросов подряд до первого экрана складывали свои задержки. Порядок
+    // ответов [Future.wait] сохраняет; первая ошибка всплывает как раньше.
+    const List<String> head = <String>[
+      'economy', 'catalog', 'goals', 'glossary', 'copy', //
+    ];
+    final List<Map<String, Object?>> all =
+        await Future.wait(<Future<Map<String, Object?>>>[
+      for (final String f in head) obj(f),
+      for (final String f in taskFiles) obj('tasks/$f'),
+    ]);
 
     return GameContent.parse(
-      economy: await obj('economy'),
-      catalog: await obj('catalog'),
-      goals: await obj('goals'),
-      tasks: tasks,
-      glossary: await obj('glossary'),
-      copy: await obj('copy'),
+      economy: all[0],
+      catalog: all[1],
+      goals: all[2],
+      tasks: all.sublist(head.length),
+      glossary: all[3],
+      copy: all[4],
       scale: scale,
     );
   }

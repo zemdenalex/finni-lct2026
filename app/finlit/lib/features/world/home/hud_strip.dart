@@ -44,7 +44,8 @@ class HudStrip extends StatelessWidget {
   /// Подложка: тёмная, полупрозрачная. Альфа 0,6 (в макете ~0,42): только
   /// так белый текст даёт контраст ≥ 4,5 и на самом светлом потолке
   /// (#f1e6d8); проверка — hud_strip_test.
-  static const Color backing = Color(0x990C2620);
+  // 29.09 (ratify: палитра 20.10).
+  static const Color backing = Color(0x99161834);
   static const Color border = Color(0x8CFFFFFF);
   static const Color divider = Color(0x66FFFFFF);
   static const List<Shadow> textShadow = <Shadow>[

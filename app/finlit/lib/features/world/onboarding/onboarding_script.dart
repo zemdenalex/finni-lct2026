@@ -26,6 +26,7 @@ class OnboardingScript {
     this.cityHint,
     this.cityEvent = const <String, String>{},
     this.citySmoothWalk = false,
+    this.cityIntro = cityIntroDefault,
   });
 
   /// Подписи знакомства, которые должны быть в `ui` (регистрация, кнопки,
@@ -38,9 +39,11 @@ class OnboardingScript {
     'nick_label',
     'nick_hint',
     'nick_help',
+    'nick_next',
     'look_title',
     'look_help',
     'name_label',
+    'look_pick',
     'boy',
     'girl',
     'look_tile',
@@ -163,7 +166,22 @@ class OnboardingScript {
       },
       citySmoothWalk:
           city is Map<String, Object?> && city['smooth_walk'] == true,
+      cityIntro: _cityIntro(city),
     );
+  }
+
+  /// `city.intro`: нет ключа — [cityIntroDefault]; есть, но не список
+  /// непустых строк — ошибка с путём (файл проверяет тест до сборки).
+  static List<String> _cityIntro(Object? city) {
+    final Object? intro = city is Map<String, Object?> ? city['intro'] : null;
+    if (intro == null) return cityIntroDefault;
+    if (intro is! List<Object?> ||
+        intro.isEmpty ||
+        intro.any((Object? l) => l is! String || l.isEmpty)) {
+      throw const FormatException(
+          'onboarding.json → city.intro: ждали непустой список строк');
+    }
+    return intro.cast<String>();
   }
 
   final List<OnboardingScene> scenes;
@@ -202,6 +220,17 @@ class OnboardingScript {
   /// Нет ключа или не true — ходьба как на 068ed67.
   final bool citySmoothWalk;
 
+  /// Подсказки первого выхода в город облачком Финни (`city.intro`, Денис
+  /// 20.10): куда идти, зачем Дом работы и Банк, как ходить.
+  final List<String> cityIntro;
+
+  /// Запасные подсказки города, если в файле нет `city.intro`.
+  static const List<String> cityIntroDefault = <String>[
+    'Это город! Нажми на здание — и я туда пойду. Или веди меня пальцем.',
+    'В Доме работы — смены: за них платят монеты, но тратятся силы ⚡.',
+    'В Банке — копилка: монеты на нашу цель.',
+  ];
+
   /// Подпись [key] с подстановками [values] (`{n}`, `{left}`, …).
   String t(String key,
           [Map<String, String> values = const <String, String>{}]) =>
@@ -233,14 +262,16 @@ class OnboardingScript {
     ui: <String, String>{
       'step_of': 'Шаг {n} из {total}',
       'back': 'Назад',
-      'nick_title': 'Как тебя звать?',
-      'nick_text': 'Придумай имя для игры.',
-      'nick_label': 'Ник',
+      'nick_title': 'Привет, я {name}! А как зовут тебя?',
+      'nick_text': 'Придумай себе игровое имя. Оно может быть любым!',
+      'nick_label': 'Твоё имя',
+      'nick_next': 'Начать приключение',
       'nick_hint': 'Ник',
       'nick_help': 'Ник — игровое имя.',
-      'look_title': 'Финни',
-      'look_help': 'Выбери героя и имя.',
-      'name_label': 'Имя',
+      'look_title': 'Как будут звать твоего друга?',
+      'look_help': 'Придумай имя другу и выбери облик.',
+      'name_label': 'Имя друга',
+      'look_pick': 'Выбери облик.',
       'boy': 'Мальчик',
       'girl': 'Девочка',
       'look_tile': '{species} {n}',
@@ -279,6 +310,25 @@ class OnboardingScript {
 
   /// Номер сцены цели: с неё продолжают, когда план уже подтверждён.
   int get goalIndex => scenes.indexWhere((OnboardingScene s) => s.isGoal);
+
+  /// Шаг полосы «Шаг N из …» для сцены [scene], с нуля, без регистрации.
+  /// Разговор подряд — один шаг «Финни показывает комнату»: реплики идут
+  /// касанием по комнате, а не решением ребёнка (Денис 20.10: «почему 9
+  /// шагов?» — было по шагу на каждую сценку). План и цель — по шагу.
+  int stepOfScene(int scene) {
+    int step = -1;
+    for (int i = 0; i <= scene && i < scenes.length; i++) {
+      final bool talkRun = i > 0 &&
+          scenes[i].kind == SceneKind.talk &&
+          scenes[i - 1].kind == SceneKind.talk;
+      if (!talkRun) step++;
+    }
+    return step < 0 ? 0 : step;
+  }
+
+  /// Сколько шагов в сценках: [stepOfScene] последней сцены + 1.
+  int get sceneSteps =>
+      scenes.isEmpty ? 0 : stepOfScene(scenes.length - 1) + 1;
 }
 
 /// Что делает ребёнок в сцене.

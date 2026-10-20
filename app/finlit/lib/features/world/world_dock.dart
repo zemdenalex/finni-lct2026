@@ -520,38 +520,28 @@ class WithDock extends StatelessWidget {
       size.width <= size.height ||
       size.width - WorldDock.railWidth >= minContentWidth;
 
-  @override
-  Widget build(BuildContext context) {
-    final bool land = WorldLayout.isLandscape(context);
-    if (!shown(MediaQuery.sizeOf(context))) return child;
-    if (!land && !inPortrait) return child;
-    final Widget dock = Material(
-      key: const ValueKey<String>('dock'),
-      color: WorldColors.dock,
-      child: SafeArea(
-        top: land,
-        right: false,
-        left: land,
-        child: land
-            ? SizedBox(
-                width: WorldDock.railWidth,
-                child: PageDock(
-                  current: current,
-                  onBlocked: onBlocked,
-                  axis: Axis.vertical,
-                ),
-              )
-            : SizedBox(
-                height: WorldDock.height,
-                child: PageDock(current: current, onBlocked: onBlocked),
-              ),
-      ),
-    );
-    if (land) {
-      return Row(
+  /// Столбец меню слева в альбомной — один и тот же у комнаты и у экранов
+  /// (Денис 20.10: «меню уходит влево, надо, чтобы в одном месте держалось»).
+  /// [dock] — `WorldDock(axis: Axis.vertical)`; [key] — `dock` или
+  /// `room:dock`. Стоит у левого края окна, системные поля забирает себе.
+  static Widget rail({required Key key, required Widget dock}) => Material(
+        key: key,
+        color: WorldColors.dock,
+        child: SafeArea(
+          right: false,
+          child: SizedBox(width: WorldDock.railWidth, child: dock),
+        ),
+      );
+
+  /// Экран справа от [rail]: без левого системного поля (его взял столбец).
+  static Widget besideRail(
+          {required BuildContext context,
+          required Widget rail,
+          required Widget child}) =>
+      Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          dock,
+          rail,
           Expanded(
             child: MediaQuery.removePadding(
               context: context,
@@ -561,7 +551,39 @@ class WithDock extends StatelessWidget {
           ),
         ],
       );
+
+  @override
+  Widget build(BuildContext context) {
+    final bool land = WorldLayout.isLandscape(context);
+    if (!shown(MediaQuery.sizeOf(context))) return child;
+    if (!land && !inPortrait) return child;
+    if (land) {
+      return besideRail(
+        context: context,
+        rail: rail(
+          key: const ValueKey<String>('dock'),
+          dock: PageDock(
+            current: current,
+            onBlocked: onBlocked,
+            axis: Axis.vertical,
+          ),
+        ),
+        child: child,
+      );
     }
+    final Widget dock = Material(
+      key: const ValueKey<String>('dock'),
+      color: WorldColors.dock,
+      child: SafeArea(
+        top: false,
+        right: false,
+        left: false,
+        child: SizedBox(
+          height: WorldDock.height,
+          child: PageDock(current: current, onBlocked: onBlocked),
+        ),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -46,9 +47,12 @@ class JobPlayScreen extends StatefulWidget {
 
 enum _Stage { offer, play, result }
 
-/// Подсказка, когда урок ждёт ответа, а ребёнок хочет уйти.
-const String lessonFirstText =
-    'Сначала выбери вариант в уроке выше — потом можно уйти.';
+/// Подсказка, когда урок ждёт ответа, а ребёнок хочет уйти (Настя 20.10:
+/// «нужна подсказка, что нужно выбрать что-то из 3 вариантов»). Варианты в
+/// альбомной — в правой колонке, в портрете — выше кнопок.
+String lessonFirstText({required bool landscape}) =>
+    'Выбери один из вариантов ${landscape ? 'справа' : 'выше'} — '
+    'потом можно идти.';
 
 class _JobPlayScreenState extends State<JobPlayScreen> {
   _Stage _stage = _Stage.offer;
@@ -85,12 +89,38 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
   /// урок ждёт ответа.
   final GlobalKey _lessonAnchor = GlobalKey();
 
+  /// Сколько раз ребёнок коснулся экрана итогов мимо урока, пока тот ждёт
+  /// ответа: 0 — не касался; каждое касание — вспышка вариантов.
+  int _nudge = 0;
+
+  /// Где палец коснулся экрана итогов: касание (не прокрутка) мимо вариантов
+  /// урока ведёт к уроку ([_toLesson]).
+  Offset? _downAt;
+
+  /// Касание экрана итогов, пока урок ждёт ответа (Настя 20.10: «при любом
+  /// нажатии»). Слой прозрачный: кнопки, прокрутка и TalkBack работают как
+  /// раньше; касание самих вариантов и сдвиг пальца (прокрутка) — не в счёт.
+  void _tapAround(PointerUpEvent e) {
+    final Offset? down = _downAt;
+    _downAt = null;
+    if (down == null || (e.position - down).distance > kTouchSlop) return;
+    final RenderObject? box = _lessonAnchor.currentContext?.findRenderObject();
+    if (box is RenderBox && box.attached) {
+      final Rect r = box.localToGlobal(Offset.zero) & box.size;
+      if (r.contains(e.position)) return;
+    }
+    _toLesson();
+  }
+
   /// Урок ждёт ответа, а ребёнок жмёт «Назад», «К доске работ» или «Домой»:
   /// раньше кнопки были погашены, и это читалось как «не работают, только
   /// перезапуск» (баг-репорт из чата задачи, 15.10). Теперь кнопка ведёт к
   /// уроку; что сделать, написано над кнопками ([lessonFirstText]). Без
   /// всплывающей строки: она ложилась на эти же кнопки.
   void _toLesson() {
+    // Подсветка вариантов и подсказки над кнопками — на каждое касание мимо
+    // урока (счётчик перезапускает вспышку).
+    setState(() => _nudge++);
     final BuildContext? c = _lessonAnchor.currentContext;
     if (c != null) {
       // Низ вариантов — у низа экрана: видны все варианты (и над ними —
@@ -230,26 +260,42 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
       // на экране оказываются все варианты, а не только заголовок.
       KeyedSubtree(
         key: _lessonAnchor,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            for (final LessonChoiceView c in l.choices) ...<Widget>[
-              OutlinedButton(
-                key: ValueKey<String>('lesson:${c.id}'),
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(TapSize.min),
-                    alignment: Alignment.centerLeft,
-                    side: const BorderSide(color: WorldColors.needs, width: 2)),
-                onPressed: c.available ? () => _chooseLesson(c.id) : null,
-                child: PicText(
-                    c.preview.isEmpty
-                        ? c.label
-                        : '${c.label} (${c.preview.text})',
-                    style: const TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: Gap.xs),
+        // Вспышка рамки вокруг вариантов, когда ребёнок жмёт мимо урока.
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey<int>(_nudge),
+          tween: Tween<double>(begin: _nudge == 0 ? 0 : 1, end: 0),
+          duration: context.motion(const Duration(milliseconds: 1400)),
+          builder: (BuildContext c, double v, Widget? child) => DecoratedBox(
+            key: const ValueKey<String>('lesson:choices'),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(WorldRadii.button),
+              border: Border.all(
+                  color: WorldColors.gold.withValues(alpha: v), width: 3),
+            ),
+            child: Padding(padding: const EdgeInsets.all(3), child: child),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final LessonChoiceView c in l.choices) ...<Widget>[
+                OutlinedButton(
+                  key: ValueKey<String>('lesson:${c.id}'),
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(TapSize.min),
+                      alignment: Alignment.centerLeft,
+                      side:
+                          const BorderSide(color: WorldColors.needs, width: 2)),
+                  onPressed: c.available ? () => _chooseLesson(c.id) : null,
+                  child: PicText(
+                      c.preview.isEmpty
+                          ? c.label
+                          : '${c.label} (${c.preview.text})',
+                      style: const TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(height: Gap.xs),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       const SizedBox(height: Gap.sm),
@@ -295,7 +341,16 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
                 onDone: (double s) => _finish(args, s),
               ),
             ),
-          _Stage.result => _resultCard(context, ws),
+          // Пока урок ждёт ответа — касание в любом месте итогов ведёт к
+          // уроку (прозрачный слой, кнопки и прокрутка работают).
+          _Stage.result => Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: lessonLock
+                  ? (PointerDownEvent e) => _downAt = e.position
+                  : null,
+              onPointerUp: lessonLock ? _tapAround : null,
+              child: _resultCard(context, ws),
+            ),
         },
       ),
     );
@@ -393,7 +448,8 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
       result: _result,
       dayBefore: _dayBefore,
       energyBefore: _energyBefore,
-      now: ws.snapshot);
+      now: ws.snapshot,
+      gender: ws.onboarding.finniGender);
 
   /// Портрет — столбиком, альбомная — две панели: [left] числа и пояснения,
   /// [right] действия.
@@ -608,9 +664,17 @@ class _JobPlayScreenState extends State<JobPlayScreen> {
         ws.world.pendingLesson!.jobId == _args?.jobId;
     final List<Widget> leave = <Widget>[
       if (mustAnswer) ...<Widget>[
-        Text(lessonFirstText,
-            key: const ValueKey<String>('job:lessonFirst'),
-            style: gameText(context)),
+        // После касания мимо урока — жирно и золотом; liveRegion — TalkBack
+        // зачитывает подсказку, когда она меняется.
+        Semantics(
+          liveRegion: true,
+          child: Text(lessonFirstText(landscape: land),
+              key: const ValueKey<String>('job:lessonFirst'),
+              style: _nudge > 0
+                  ? gameText(context).copyWith(
+                      fontWeight: FontWeight.w800, color: WorldColors.gold)
+                  : gameText(context)),
+        ),
         const SizedBox(height: Gap.sm),
       ],
       FilledButton.icon(

@@ -10,9 +10,13 @@ import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/domain/world/world_autopilot.dart';
 import 'package:finlit/domain/world/world_game.dart';
 import 'package:finlit/features/world/adult/world_adult_screen.dart';
+import 'package:finlit/features/world/bank/transfer_screen.dart'
+    show bankIntroSeen;
 import 'package:finlit/features/world/demo/world_checklist.dart';
 import 'package:finlit/features/world/demo/world_demo_screen.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
+import 'package:finlit/features/world/onboarding/city_intro_gate.dart'
+    show cityIntroSeen;
 import 'package:finlit/features/world/onboarding/world_onboarding_screen.dart';
 import 'package:finlit/features/world/settings/world_settings_screen.dart';
 import 'package:finlit/features/world/world_state.dart';
@@ -143,12 +147,19 @@ void main() {
     final AppState app = await _booted(tester);
     final WorldGame w = _world(week: true);
     WorldAutopilot(w).playWeeks(2);
+    // Подсказки уже показаны — после сброса их снова видно (Настя 20.10,
+    // п. 15: сброс — и онбординг, и подсказки с нуля).
+    await w.markSeen(cityIntroSeen);
+    await w.markSeen(bankIntroSeen);
     final WorldState ws = await pumpWorldScreen(
         tester, const WorldSettingsScreen(),
         world: w, app: app, size: const Size(360, 1400));
     final int weeks = ws.snapshot.weekNo;
     expect(weeks, greaterThan(1));
     final Finder reset = find.byKey(const ValueKey<String>('settings:reset'));
+    // Настя 20.10, п. 15: кнопка «Сбросить профиль», подтверждение её словами.
+    expect(find.descendant(of: reset, matching: find.text('Сбросить профиль')),
+        findsOneWidget);
     final Finder erase = find.text('Стереть и начать');
 
     // Барьер — тот же пример, что у «Режима проверки»; неверно — ни
@@ -174,6 +185,7 @@ void main() {
     await _solve(tester);
     expect(find.text('Отмена'), findsOneWidget);
     expect(erase, findsOneWidget);
+    expect(find.text('Удалить прогресс и начать сначала?'), findsOneWidget);
     await tester.tap(find.text('Отмена'));
     await _step(tester);
     expect(ws.snapshot.weekNo, weeks, reason: '«Отмена» ничего не стирает');
@@ -194,6 +206,8 @@ void main() {
     expect(ws.phase, WeekPhase.onboarding);
     expect(ws.snapshot.weekNo, 0);
     expect(find.byType(WorldOnboardingScreen), findsOneWidget);
+    expect(ws.world.seen(cityIntroSeen), isFalse, reason: 'подсказки города');
+    expect(ws.world.seen(bankIntroSeen), isFalse, reason: 'подсказка банка');
     expect(WorldDemoSession.adultOpened, isFalse,
         reason: 'барьер сброса — не открытие раздела S14');
   });

@@ -145,7 +145,7 @@ String _picText(WidgetTester tester, String key) => <String>[
 
 /// Мир с днями из сборки, утро первого дня; открыты все работы. Выгульщику
 /// (игра «Сделать») подбирается журнал, при котором у смены есть вопрос:
-/// каждое поглаживание питомца — новая запись журнала.
+/// каждое касание питомца — новая запись журнала.
 WorldGame _dayWorldWithQuestion() {
   for (int pets = 0; pets < 40; pets++) {
     final WorldGame w = contentDayWorld();

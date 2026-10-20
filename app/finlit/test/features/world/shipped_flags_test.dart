@@ -11,7 +11,7 @@ import 'package:finlit/features/world/city/city_screen.dart';
 import 'package:finlit/features/world/history/history_screen.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/screen_flags.dart';
-import 'package:finlit/features/world/tutorial/tutorial_gate.dart';
+import 'package:finlit/features/world/world_routes.dart';
 import 'package:finlit/features/world/tutorial/tutorial_steps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,8 +76,10 @@ void main() {
     cityLabelScale = EconomyContent.cityLabelScaleDefault;
   });
 
-  test('сборка: пять флагов включены, три — выключены', () {
-    expect(eco.tutorialUi, isTrue, reason: 'DEN-4 T1');
+  test('сборка: четыре флага включены, четыре — выключены', () {
+    // Денис 20.10 (тема 118): обучалка в комнате после знакомства — дубль,
+    // «надо старый убрать». Решение 18.10 (DEN-4 T1) этим заменено.
+    expect(eco.tutorialUi, isFalse, reason: 'Денис 20.10: одно знакомство');
     expect(eco.dayCycle.xpStages, isTrue, reason: 'DEN-35 B');
     expect(eco.achievementsDays, isTrue, reason: 'DEN-6 A');
     expect(shippedDayContent.room.petName, isTrue, reason: 'DEN-25 A');
@@ -167,19 +169,28 @@ void main() {
     expect(find.byType(AchievementsScreen), findsOneWidget);
   });
 
-  testWidgets('DEN-4 T1: первый заход в комнату — первый шаг обучалки',
+  // Денис 20.10: после сценок знакомства комната открывается без второго
+  // знакомства. Маршрут комнаты — как в приложении (`worldRoutes`), флаги
+  // экранов — как в `main.dart`. Уронит: `tutorial_ui` снова true в файле
+  // или в коде по умолчанию, маршрут комнаты сам включил обучалку.
+  testWidgets('первый заход в комнату — без второго знакомства (обучалки)',
       (WidgetTester tester) async {
     applyContentScreenFlags(eco);
-    expect(tutorialLook, TutorialLook.spotlight);
+    expect(tutorialLook, TutorialLook.off);
     final WorldGame w = _living();
     expect(isFirstVisit(w), isTrue);
     await tester.runAsync(() async {
-      await pumpWorldScreen(tester, const TutorialGate(child: RoomScreen()),
+      await pumpWorldScreen(
+          tester,
+          Builder(
+              builder: (BuildContext c) => worldRoutes[WorldRoutes.room]!(c)),
           world: w);
     });
     await _settle(tester);
+    expect(find.byType(RoomScreen), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('tutorial:step:hello')),
-        findsOneWidget);
+        findsNothing);
+    expect(find.byKey(const ValueKey<String>('tutorial:next')), findsNothing);
   });
 
   testWidgets('DEN-25 A: имя ребёнка над Финни', (WidgetTester tester) async {

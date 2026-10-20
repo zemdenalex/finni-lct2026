@@ -170,8 +170,27 @@ class IsoRoomScene extends StatefulWidget {
   /// Zoom over the fit scale: pinch stops here.
   static const double maxZoom = 3;
 
-  /// Zoom of the «К Финни» button.
+  /// Largest zoom of the first frame and of the «К Финни» button: the room
+  /// opens close to Finni, «Вся комната» shows it whole (Денис 20.10 12:51:
+  /// «камеру нужно ближе к Финни»).
   static const double finniZoom = 2.2;
+
+  /// Close up, Finni is this share of the view's height under the HUD: on
+  /// a big screen a fixed ×2.2 blew him up past the frame (1440×900).
+  static const double finniShare = 0.3;
+
+  /// The close camera is at least this much closer than the whole room: a
+  /// low view (800×360) already shows Finni at [finniShare].
+  static const double minCloseZoom = 1.3;
+
+  /// Zoom of the close camera: Finni [finniShare] of [viewH], between
+  /// [minCloseZoom] and [finniZoom]. [finniH] — Finni in the whole room, px.
+  static double closeZoom({required double finniH, required double viewH}) =>
+      finniH <= 0
+          ? finniZoom
+          : (viewH * finniShare / finniH)
+              .clamp(minCloseZoom, finniZoom)
+              .toDouble();
 
   /// Width / height of the view above which the room is framed without
   /// the wall tops and the front floor corner ([wideCropTop],
@@ -240,7 +259,8 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
   List<(int, int)> _path = const <(int, int)>[];
 
   // ───────────── camera ─────────────
-  /// Zoom over the fit scale, 1 — the whole room.
+  /// Zoom over the fit scale, 1 — the whole room. The room opens close to
+  /// Finni ([initState]).
   double _zoom = 1;
 
   /// Room point (content px) at the centre of the view; null — the room's
@@ -338,6 +358,26 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     }
   }
 
+  // ───────────── Finni alive ─────────────
+  /// Finni looks left (the pictures look right): the way he last went.
+  bool _faceLeft = false;
+  Offset? _lastFeet;
+
+  /// A hop when patted (a short run, then still: tests can settle).
+  late final AnimationController _hop;
+
+  /// Height of the hop, share of Finni's height.
+  static const double _hopLift = 0.12;
+
+  void _patFinni() {
+    if (context.motionOn) {
+      _hop
+        ..duration = const Duration(milliseconds: 360)
+        ..forward(from: 0);
+    }
+    widget.onFinniTap?.call();
+  }
+
   // ───────────── drag in «Расставить» ─────────────
   String? _dragId;
   IsoPlacement? _ghost;
@@ -348,6 +388,11 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     super.initState();
     _walk = AnimationController(vsync: this)..addListener(_tick);
     _cam = AnimationController(vsync: this)..addListener(_tick);
+    _hop = AnimationController(vsync: this);
+    // Close to Finni from the first frame; «Расставить» shows the room whole.
+    if (!widget.arrange) {
+      _follow = true;
+    }
     _spec = widget.spec ?? IsoRoomScene._loaded;
     if (_spec == null) {
       // Each room reads until one read succeeded (the bundle caches the
@@ -371,6 +416,7 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     _driveOrNull?.dispose();
     _walk.dispose();
     _cam.dispose();
+    _hop.dispose();
     super.dispose();
   }
 
@@ -379,10 +425,11 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     final _IsoView? v = _view;
     final bool toFinni = !(_follow || (v?.zoom ?? _zoom) > 1.01);
     _camFromZoom = v?.zoom ?? _zoom;
+    // Following, the zoom is the close one of the build ([closeZoom]).
     _camFromCentre = v?.centre;
     final Duration d = context.motion(const Duration(milliseconds: 380));
     setState(() {
-      _zoom = toFinni ? IsoRoomScene.finniZoom : 1;
+      _zoom = 1;
       _follow = toFinni;
       _centre = null;
     });
@@ -547,6 +594,12 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
   @override
   void didUpdateWidget(IsoRoomScene old) {
     super.didUpdateWidget(old);
+    // «Расставить» shows the room whole, as a room opened in it.
+    if (widget.arrange && !old.arrange) {
+      _follow = false;
+      _zoom = 1;
+      _centre = null;
+    }
     if (!widget.arrange && _dragId != null) {
       _dragId = null;
       _ghost = null;
@@ -674,15 +727,18 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     final Offset roomCentre = Offset(content.width / 2, cropTop + frameH / 2);
     final Offset finniCentre =
         g.toScreen(feet.x, feet.y) - Offset(0, spec.finniH * 0.45);
+    final double close =
+        IsoRoomScene.closeZoom(finniH: spec.finniH * fit, viewH: availH);
     double zoom;
     Offset centre;
     if (_cam.isAnimating) {
       final double t = Curves.easeInOut.transform(_cam.value);
-      zoom = _camFromZoom + (_zoom - _camFromZoom) * t;
+      final double to = _follow ? close : _zoom;
+      zoom = _camFromZoom + (to - _camFromZoom) * t;
       centre = Offset.lerp(_camFromCentre ?? roomCentre,
           _follow ? finniCentre : (_centre ?? roomCentre), t)!;
     } else {
-      zoom = _zoom;
+      zoom = _follow ? close : _zoom;
       centre = _follow ? finniCentre : (_centre ?? roomCentre);
     }
     if (widget.cameraFocus != null) {
@@ -956,8 +1012,18 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     Widget finniWidget() {
       final SpriteRef? sheet = reg?.finni(widget.species);
       final SpriteRef? walk = reg?.finniWalk(widget.species);
-      final bool moving = _walk.isAnimating;
-      final Offset f = toView(g.toScreen(feet.x, feet.y));
+      // Walks along a path (a tap on a thing) or under the joystick: the
+      // joystick is the main way to move, he must not glide standing.
+      final bool moving =
+          _walk.isAnimating || (_sticking && _padKnob != Offset.zero);
+      // Faces the way he goes, on screen (the pictures look right).
+      final Offset here = g.toScreen(feet.x, feet.y);
+      final Offset? was = _lastFeet;
+      if (was != null && (here.dx - was.dx).abs() > 0.01) {
+        _faceLeft = here.dx < was.dx;
+      }
+      _lastFeet = here;
+      final Offset f = toView(here);
       final double h = spec.finniH * k;
       final double w = h * 0.76;
       final String? pose = widget.finniPose;
@@ -965,19 +1031,50 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
           pose != null && (reg?.finniHasPose(widget.species, pose) ?? false)
               ? reg?.finniPoses(widget.species)
               : null;
-      final Widget sprite = sheet == null
+      final bool walking = moving && walk != null;
+      // Both pictures stay built (the hidden one paused): starting and
+      // stopping the joystick swaps them at once, without a blank frame
+      // while a sheet loads.
+      final Widget picture = sheet == null
           ? const CustomPaint(painter: IsoStubPainter(false))
-          : moving && walk != null
-              ? SpriteAnim(
-                  sprite: walk,
-                  tag: 'walk-${widget.idleTag.replaceFirst('idle-', '')}',
-                  height: h)
-              : SpriteAnim(
-                  key: ValueKey<String>(
-                      'room:finni:pose:${poseSheet != null && !moving ? pose : widget.idleTag}'),
-                  sprite: poseSheet != null && !moving ? poseSheet : sheet,
-                  tag: poseSheet != null && !moving ? pose : widget.idleTag,
-                  height: h);
+          : Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                Visibility(
+                  visible: !walking,
+                  maintainState: true,
+                  child: SpriteAnim(
+                      key: ValueKey<String>(
+                          'room:finni:pose:${poseSheet != null && !moving ? pose : widget.idleTag}'),
+                      sprite: poseSheet != null && !moving ? poseSheet : sheet,
+                      tag: poseSheet != null && !moving ? pose : widget.idleTag,
+                      // Standing: breathes (the two idle frames are nearly
+                      // the same picture).
+                      breathe: true,
+                      height: h),
+                ),
+                if (walk != null)
+                  Visibility(
+                    visible: walking,
+                    maintainState: true,
+                    child: SpriteAnim(
+                        key: const ValueKey<String>('room:finni:walk'),
+                        sprite: walk,
+                        tag: 'walk-${widget.idleTag.replaceFirst('idle-', '')}',
+                        height: h),
+                  ),
+              ],
+            );
+      // Turned and hopping inside the picture's box: the touch zone and
+      // the badge over his head ([finniKey]) stay put.
+      final Widget sprite = AnimatedBuilder(
+        animation: _hop,
+        builder: (BuildContext context, Widget? child) => Transform.translate(
+          offset: Offset(0, -math.sin(_hop.value * math.pi) * h * _hopLift),
+          child: child,
+        ),
+        child: Transform.flip(flipX: _faceLeft, child: picture),
+      );
       // The picture keeps its size; the touch zone is at least a finger
       // (a small room on a phone on its side shrinks Finni below 48 dp).
       final Rect pic = Rect.fromLTWH(f.dx - w / 2, f.dy - h * 0.97, w, h);
@@ -989,11 +1086,11 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
           button: true,
           label: '${widget.finniName}. Настроение ${widget.happiness}',
           excludeSemantics: true,
-          onTap: widget.onFinniTap,
+          onTap: widget.onFinniTap == null ? null : _patFinni,
           child: GestureDetector(
             key: const ValueKey<String>('room:finni'),
             behavior: HitTestBehavior.opaque,
-            onTap: widget.onFinniTap,
+            onTap: widget.onFinniTap == null ? null : _patFinni,
             child: Center(
               child: SizedBox(
                 width: w,
@@ -1296,7 +1393,11 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
     );
     final Widget? above = widget.aboveFinni;
     final bool zoomed = _follow || zoom > 1.01;
-    return ColoredBox(
+    // Clipped: the walls and the floor that continue past the room (tall
+    // screens) are painted beyond the scene's box and covered the menu rail
+    // on its left (n6-room 20.10).
+    return ClipRect(
+        child: ColoredBox(
       color: IsoColors.back,
       child: Stack(
         children: <Widget>[
@@ -1373,7 +1474,7 @@ class _IsoRoomSceneState extends State<IsoRoomScene>
             ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _door(AssetRegistry? reg, Rect r, Offset Function(Offset) toView,

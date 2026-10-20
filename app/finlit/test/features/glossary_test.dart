@@ -130,13 +130,13 @@ void main() {
       child: MaterialApp(
         theme: buildAppTheme(),
         home:
-            const GlossaryScreen(allOpen: true, learned: <String>{'estimate'}),
+            const GlossaryScreen(allOpen: true, learned: <String>{'income'}),
       ),
     ));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey<String>('glossary:learned:estimate')),
+    expect(find.byKey(const ValueKey<String>('glossary:learned:income')),
         findsOneWidget);
-    expect(tester.getTopLeft(find.text('Смета')).dy,
+    expect(tester.getTopLeft(find.text('Доход')).dy,
         lessThan(tester.getTopLeft(find.text('Бюджет')).dy));
   });
 }

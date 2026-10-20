@@ -16,6 +16,7 @@ import 'home/room_screen.dart';
 import 'jobs/job_board_screen.dart';
 import 'jobs/job_play_screen.dart';
 import 'leisure/leisure_screen.dart';
+import 'onboarding/city_intro_gate.dart';
 import 'onboarding/world_onboarding_screen.dart';
 import 'piggy/piggy_screen.dart';
 import 'review/week_review_screen.dart';
@@ -77,7 +78,8 @@ final Map<String, WidgetBuilder> worldRoutes = <String, WidgetBuilder>{
       const WorldTheme(child: WorldOnboardingScreen()),
   WorldRoutes.room: (_) => const WorldTheme(
       child: TutorialGate(child: DailyLayer(child: RoomScreen()))),
-  WorldRoutes.city: (_) => const WorldTheme(child: CityScreen()),
+  WorldRoutes.city: (_) =>
+      const WorldTheme(child: CityIntroGate(child: CityScreen())),
   WorldRoutes.shop: (_) => const WorldTheme(child: WorldShopScreen()),
   WorldRoutes.petShop: (_) => const WorldTheme(child: PetShopScreen()),
   WorldRoutes.jobs: (_) => const WorldTheme(child: JobBoardScreen()),

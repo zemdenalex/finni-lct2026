@@ -232,21 +232,19 @@ Future<void> _playRobotWithMistake(WidgetTester tester) async {
 
 void main() {
   group('садовник', () {
-    // Ловит (критерии ночи §8.8, ревью df2164a): у садовника снова часы —
-    // обратный отсчёт «Осталось N с» при обычных настройках.
-    testWidgets('обычные настройки — по ходам, без часов; onDone один раз',
+    // Настя 20.10: «добавь таймер, чтобы было чуть сложнее» — часы на всю
+    // смену (`timer_sec`); по ходам смена по-прежнему проходится до конца,
+    // если успеть. Ловит: часов нет; время, а не ход, обрывает успевшего.
+    testWidgets('обычные настройки — часы на смену, успел по ходам; onDone один раз',
         (WidgetTester tester) async {
       final List<double> scores = <double>[];
       await _pumpGame(tester,
           GardenerGame(content: contentJobGames.gardener, onDone: scores.add));
-      expect(find.byIcon(Icons.timer_outlined), findsNothing);
-      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
+      expect(_textIn(tester, 'gardener:left'),
+          'Осталось ${contentJobGames.gardener.timerSec} с');
       expect(
           find.byKey(const ValueKey<String>('gardener:turn')), findsOneWidget);
-      await tester.pump(const Duration(seconds: 60));
-      expect(
-          find.byKey(const ValueKey<String>('gardener:summary')), findsNothing,
-          reason: 'время само не идёт');
       await _playGardenerCalm(tester, tapGreenOnce: false);
       expect(_textIn(tester, 'gardener:summary'), contains('Получилось полить'));
       await _tap(tester, 'gardener:done');
@@ -254,7 +252,7 @@ void main() {
       expect(scores, <double>[1]);
     });
 
-    testWidgets('анимации выключены — по ходам, без часов; проходится',
+    testWidgets('анимации выключены — часы текстом, по ходам проходится',
         (WidgetTester tester) async {
       final List<double> scores = <double>[];
       await _pumpGame(tester,
@@ -262,10 +260,9 @@ void main() {
           disableAnimations: true);
       expect(
           find.byKey(const ValueKey<String>('gardener:turn')), findsOneWidget);
-      // Время само не идёт.
-      await tester.pump(const Duration(seconds: 60));
-      expect(
-          find.byKey(const ValueKey<String>('gardener:summary')), findsNothing);
+      expect(find.byKey(const ValueKey<String>('gardener:left')),
+          findsOneWidget,
+          reason: '«Уменьшить движение» — часы остаются, текстом');
       await _playGardenerCalm(tester, tapGreenOnce: true);
       expect(_textIn(tester, 'gardener:summary'),
           contains(contentJobGames.gardener.lineGreat));

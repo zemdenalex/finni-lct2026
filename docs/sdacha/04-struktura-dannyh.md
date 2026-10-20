@@ -60,7 +60,7 @@
 `parentBonus`, `stageChanged`, `dayPassed`, `lessonChoice` (урок после смены: `args.jobId`, `choiceId`,
 `title`, `word`), `mealEaten` (Финни поел: `args.foodId`, `args.price`; монеты из НУЖНО → заработок → ХОЧУ,
 ⚡ и 😊 сразу), а также виды режима дней и комнаты: `dayEnded`, `finniPetted`, `fridgeStocked`, `restAtHome`,
-`achievementEarned` (подробно — 2.2а), `envelopeTransfer` (перевод между частями в банке, только при `bank.transfer` = true; в сборке выключен) и `roomItemBought`, `roomItemPlaced`, `roomItemRemoved` (вещи комнаты на
+`achievementEarned` (подробно — 2.2а) и `roomItemBought`, `roomItemPlaced`, `roomItemRemoved` (вещи комнаты на
 сетке, 3.3). Из общих видов (`LedgerKind`) новый мир использует `pocketMoney`, `planConfirmed`, `purchase`,
 `savingsWithdraw`, `periodClosed`. Выборы без денег (`WorldChoiceKind`): `goalChosen`, `foodChosen` (домашнее
 меню — что Финни ест дома за невыбранные приёмы), `skinChosen` (какой из купленных видов предмета стоит в
@@ -194,7 +194,6 @@
 | `adult` | `section`, `weekly_bonus`, `weekly_bonus_coins` | `section` = false (раздела «Взрослым» в меню комнаты нет; экран открывается только из «Режима проверки»); `weekly_bonus` = false (в режиме дней бонус взрослого не действует; вариант A — `weekly_bonus_coins` 20 монет раз в игровую неделю — за этим флагом, выключен) |
 | `city` | `label_scale` | `label_scale` = true (подписи зданий — радиус шкалы проекта, не «пилюля») |
 | `progress` | `share_parent` | `share_parent` = false (кнопки «Отправить родителю» на «Прогрессе» нет) |
-| `bank` | `transfer` | `transfer` = false: здание «Банк» ведёт в копилку (экран с шапкой «Банк»), перевода монет между частями в сборке нет; при `true` — карточка «Что такое банк?» и кнопка «Перевод монет» (одна запись журнала `envelopeTransfer` со встречными суммами, не доход и не расход) |
 | `achievements[]`, `achievements_days_items[]` | награды, 3.4 | 12 наград + 6 под режим дней (флаг `achievements_days` = true) = 18 |
 | `week` | `max_shifts_per_week`, `max_shifts_per_job_per_week`, `required_charged_at` | в режиме дней лимитов смен нет (`day_cycle` задаёт `null`); запасной режим `days_per_week` 1 — 3 смены в неделю, 2 на одну работу. Обязательное списывается в конце недели (в днях — после 7-го дня) |
 | `energy` | `base_per_week`, `max_per_week`, `living_drain_per_action`, `sleep`, `exhausted`, `snack` | запасной режим: 10, 14, 1; сон +1 ⚡ и +3 😊. В режиме дней предел и утренний сон задаёт `day_cycle`; «на жизнь» 1 × 2 = 2 ⚡ на дело; сон в конце 7-го дня переносит +1 × 2 = +2 ⚡ в новую неделю и даёт +3 😊. Перекус 60 монет → +2 ⚡ (в запасном режиме +1), до 2 в неделю |
@@ -331,8 +330,8 @@ shift_choices:  { chance: 0.5,  items:     [ { id, work, question, options: [ { 
 Сейчас в сборке 18 наград: 12 базовых и 6 под режим дней (`achievements_days_items[]`, флаг `achievements_days` = true) —
 «Разные работы» (3 разных работы), «Пять профессий», «Везёт!», «Своё решение», «Семь дней», «Рабочие дни» (метрики
 `distinct_jobs`, `lucky_shifts`, `shift_choices`, `days_played`, `work_days`). Награды дней дают баффы (поле `effect`):
-временный +😊 сразу и каждое утро на 2–3 дня или постоянный +1 к пределу ⚡ («Семь дней», 20 → 21). Базовые 12: первая смена, 5 хороших смен, первая цель, 3 цели, неделя без нехватки, 3 недели подряд, 1000 монет
-в копилке, первый урок, 5 уроков, свой питомец, переезд в город, переезд в Москву (список и условия — [06-formuly.md](06-formuly.md)).
+временный +😊 сразу и каждое утро на 2–3 дня или постоянный +1 к пределу ⚡ («Семь дней», 20 → 21). Базовые 12: первая смена, 5 хороших смен, первая цель, 3 цели, неделя без нехватки, 3 недели подряд, копилка
+1000, первый урок, 5 уроков, свой питомец, переезд в город, переезд в Москву (список и условия — [06-formuly.md](06-formuly.md)).
 
 ## 4. Работа — `content/jobs.json`
 
@@ -341,10 +340,10 @@ shift_choices:  { chance: 0.5,  items:     [ { id, work, question, options: [ { 
 | Работа | Что в файле |
 |---|---|
 | `consultant` | `sets[]` — 4 набора по 3 товара (`items[]` с характеристиками), покупатель (`customer.line`, `budget`, `best_fit`, реплики `feedback_*`) |
-| `accountant` | помощник бухгалтера студсовета — схема консультанта: `sets[]` — 3 набора (автобус, угощение, принтер), `customer` — староста со сметой; `texts` — подписи экрана вместо «товаров» и «сканера» (`sort_intro`, `check`, `check_wait`, `all_ok`, `pick`) |
+| `accountant` | помощник бухгалтера студсовета — схема консультанта: `sets[]` — 3 набора (автобус, угощение, принтер), `customer` — староста с бюджетом; `texts` — подписи экрана вместо «товаров» и «сканера» (`sort_intro`, `check`, `check_wait`, `all_ok`, `pick`) |
 | `lessons` (не работа) | уроки после смены по id работы — по 3 на работу (всего 21), чередуются по сменам: `topic` (budget / savings / payments), `title`, `situation`, `understood` («что мы поняли»), `word` + `word_term` (Словарик), `choices[]` — 2–3: `label`, `effects` (`goal_share`, `need_share` — доля оплаты смены 0..1; `spend`; `happiness`), реплика Финни к варианту |
 | `university` (не работа) | вуз Финни на доске «Требуется…»: `title`, `intro` (почему открыты финансовые работы), `cards[]` (`title`, `text`, `source` — настоящий источник, без ссылок), `adult_note` — адреса источников, только в разделе взрослого |
-| `cashier` | `coins[]`, `bills[]`, `customers_per_shift` 2, `purchases[]` — 20 покупок (`item`, `price`, `paid_with`; `change` — для людей, сдачу считает код), `feedback` (`{diff}` — на сколько ошибся; `diff_hint_from` 1 — недостачу или лишнее показывают уже после первой неверной сдачи, NAS-3 A), `count_up` (сдачу досчитывают вверх от цены до купюры, NAS-2 А) |
+| `cashier` | `coins[]`, `bills[]`, `customers_per_shift` 2, `purchases[]` — 7 покупок (`item`, `price`, `paid_with`; `change` — для людей, сдачу считает код), `feedback` (`{diff}` — на сколько ошибся) |
 | `gardener` | `beds` 6, `grid` [столбцы, строки], `max_dry_at_once`, пороги `great_share` / `ok_share`, строки итога, ходы `calm_turns` / `calm_wilt_turns` — игра только по ходам, часов нет |
 | `courier` | `orders[]` — 3 заказа (`tier`, `maze`, `map` — карта строками: `S` старт, `G` клиент, `.` дорога, буквы — стены; `order_card`, `parcels[]` с `why` у неверных), `walls` — буква → название стены, `wrong_turn_rule` |
 | `programmer` | `tasks[]` — 3 задачи (`tier`, `device`, `goal`, `blocks[]` — палитра, `solution[]` — id блоков, могут повторяться, `hint_on_error`). Id задачи выбирает устройство в коде |

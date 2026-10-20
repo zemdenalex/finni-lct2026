@@ -14,6 +14,7 @@ import '../world_state.dart';
 import '../../../core/world_theme.dart';
 import '../pic_text.dart';
 import '../world_dock.dart';
+import '../review/week_review_link.dart';
 
 /// S8 · Парк / Кино и кафе (`docs/game/leisure.md`).
 ///
@@ -141,7 +142,7 @@ class _LeisureScreenState extends State<LeisureScreen> {
     final String? banner = switch (phase) {
       WeekPhase.living => null,
       WeekPhase.review =>
-        'Неделя кончилась. Отдохнём на следующей — сначала итоги дома.',
+        'Неделя кончилась. Отдохнём на следующей — сначала итоги.',
       _ => 'Отдых — после плана недели. Вернись домой и нажми «План».',
     };
 
@@ -150,7 +151,8 @@ class _LeisureScreenState extends State<LeisureScreen> {
         result: _result,
         dayBefore: _dayBefore,
         energyBefore: _energyBefore,
-        now: snap);
+        now: snap,
+        gender: ws.onboarding.finniGender);
     final Widget? result = _result == null
         ? null
         : _ResultCard(
@@ -163,7 +165,8 @@ class _LeisureScreenState extends State<LeisureScreen> {
         : _Note(
             key: const ValueKey<String>('leisure:banner'),
             icon: Icons.event_note_rounded,
-            text: banner);
+            text: banner,
+            review: phase == WeekPhase.review);
     const Widget intro = Text(
         'Работать или отдохнуть — решаешь ты. '
         'Цена и радость видны заранее.',
@@ -536,10 +539,14 @@ class _ResultCard extends StatelessWidget {
 }
 
 class _Note extends StatelessWidget {
-  const _Note({super.key, required this.icon, required this.text});
+  const _Note(
+      {super.key, required this.icon, required this.text, this.review = false});
 
   final IconData icon;
   final String text;
+
+  /// Неделя кончилась: под текстом — кнопка «Посмотреть» в итоги.
+  final bool review;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -549,15 +556,25 @@ class _Note extends StatelessWidget {
           borderRadius: BorderRadius.circular(WorldRadii.button),
           border: Border.all(color: WorldColors.goal),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Icon(icon, color: WorldColors.goal),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Text(text,
-                  style:
-                      const TextStyle(fontSize: 16, color: WorldColors.text)),
+            Row(
+              children: <Widget>[
+                Icon(icon, color: WorldColors.goal),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(text,
+                      style: const TextStyle(
+                          fontSize: 16, color: WorldColors.text)),
+                ),
+              ],
             ),
+            if (review) ...<Widget>[
+              const SizedBox(height: Gap.sm),
+              const WeekReviewLink(
+                  key: ValueKey<String>('leisure:banner:review')),
+            ],
           ],
         ),
       );

@@ -1928,17 +1928,17 @@ class FakeWorld implements World {
   WorldResult petFinni() {
     if (_lastFinniPetDay == _day) {
       return WorldResult(
-          ok: true, reasonCode: 'finni.pet_again', reason: '$_hero мурлычет.');
+          ok: true, reasonCode: 'finni.pet_again', reason: 'Поговорили с другом.');
     }
     _lastFinniPetDay = _day;
     final int before = _happiness;
     _happiness = (_happiness + 1).clamp(0, 100);
     _moodCause('finni.pet', _happiness - before);
-    _write(WorldLedgerKind.finniPetted, 'Финни погладили: +1 😊');
+    _write(WorldLedgerKind.finniPetted, 'Поговорили с Финни: +1 😊');
     return WorldResult(
       ok: true,
       reasonCode: 'finni.pet',
-      reason: 'Погладили — настроение чуть лучше.',
+      reason: 'Поговорили с другом — настроение чуть лучше.',
       happiness: _happiness - before,
     );
   }
