@@ -29,7 +29,7 @@ import '../../support/world_harness.dart';
 /// Уронит: комната снова в полях цвета `edge_wall` / `edge_floor`; город
 /// снова в постоянном масштабе 1,1 на любом экране.
 World _living() {
-  final World w = contentWorld()..startWeek();
+  final World w = contentFrontWorld()..startWeek();
   w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0);
   w.chooseGoal('pet_fish');
   w.completeJob('consultant', score: 1);

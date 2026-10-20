@@ -1,0 +1,36 @@
+{
+  "_note": "Комната в изометрии (V2, флаг economy.json → room.view: \"iso\"; ветка final/room-iso-v2, 19.10). Проекция 2:1, как у города. Пол — cols × rows клеток: x идёт вдоль правой стены, y — вдоль левой, (0,0) — дальний угол. Места названы теми же именами, что во фронтальной комнате (room_layout.json → slots и decor, room_skins.dart → skinSlots): купленный декор и скины встают на своё место по умолчанию. Перестановка ребёнка — запись roomItemPlaced с plane; неподходящая (за полом, поверх другой вещи) при чтении заменяется местом по умолчанию.",
+  "version": 1,
+  "grid": {
+    "cols": 6,
+    "rows": 6,
+    "tile_w": 64,
+    "tile_h": 32,
+    "wall_h": 112
+  },
+  "_grid_note": "Размер сетки — вопрос 4 Денису (4×4, 5×5, 6×6). tile_w/tile_h — логические px до масштаба камеры; камера вписывает комнату в экран целиком.",
+  "finni": { "x": 2, "y": 4, "height": 84, "r": 0.25 },
+  "pet": { "height": 30 },
+  "wall_band": { "bottom": 44, "top": 88, "high_bottom": 76, "high_top": 108 },
+  "_wall_band_note": "Настенные вещи — полоса высоты над полом (px): обычная (постер), high — светильник у потолка, sill — подоконник окна.",
+  "features": {
+    "door": { "side": "left", "u": 3, "len": 2, "height": 96 },
+    "window": { "side": "right", "u": 2, "len": 2, "bottom": 46, "top": 100 }
+  },
+  "slots": {
+    "bed": { "plane": "floor", "x": 0, "y": 0, "w": 2, "d": 1, "sprite": "room_bed_{stage}", "fit": 1.05 },
+    "bedside_cabinet": { "plane": "floor", "x": 2, "y": 0, "w": 1, "d": 1, "sprite": "room_cabinet", "fit": 0.8 },
+    "desk_chair": { "plane": "floor", "x": 4, "y": 0, "w": 2, "d": 1, "sprite": "room_desk_{stage}", "fit": 1.0 },
+    "fridge": { "plane": "floor", "x": 0, "y": 1, "w": 1, "d": 1, "sprite": "fridge", "fit": 0.85 },
+    "pet_corner": { "plane": "floor", "x": 4, "y": 4, "w": 1, "d": 1, "sprite": "room_pet_corner", "fit": 0.9 },
+    "decor_floor": { "plane": "floor", "x": 0, "y": 2, "w": 1, "d": 1, "fit": 0.6 },
+    "decor_books": { "plane": "floor", "x": 3, "y": 0, "w": 1, "d": 1, "fit": 0.75 },
+    "decor_globe": { "plane": "floor", "x": 5, "y": 1, "w": 1, "d": 1, "fit": 0.6 },
+    "decor_bear": { "plane": "floor", "x": 1, "y": 5, "w": 1, "d": 1, "fit": 0.6 },
+    "decor_rug": { "plane": "floor", "layer": "rug", "x": 2, "y": 2, "w": 2, "d": 2, "fit": 1.0 },
+    "decor_wall": { "plane": "left", "u": 1, "len": 2 },
+    "decor_ceiling": { "plane": "right", "u": 5, "len": 1, "band": "high" },
+    "item_sill": { "plane": "right", "u": 2, "len": 1, "band": "sill" }
+  },
+  "_slots_note": "sprite — картинка мебели по умолчанию (id реестра: items/night_items или room_objects; {stage} — village/town/moscow). У мест декора картинки нет: место видно, когда куплена вещь. Скин (кровать, стол, тумба) заменяет sprite. piggy — копилка на тумбе (bedside_cabinet). fit — ширина картинки в долях ширины места на экране."
+}

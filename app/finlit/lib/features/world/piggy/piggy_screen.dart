@@ -491,7 +491,7 @@ class _MovePanel extends StatelessWidget {
                     // половине) — называем монеты (проход демо 16.10).
                     semanticFormatterCallback: (double v) {
                       final int n = v.round();
-                      return '$n ${Phrases.coinWord(n)}';
+                      return '$n ${Phrases.coinsNom(n)}';
                     },
                     onChanged: (double v) =>
                         onChanged(v >= max ? max : ((v / step).round() * step)),

@@ -136,12 +136,13 @@ void main() {
       final World fresh = kind.make();
       ok(fresh.startWeek());
       final int pool = fresh.snapshot.unallocated;
-      final int bill = fresh.snapshot.weeklyBill;
       final WorldState ws = await _walk(tester, kind);
 
       expect(ws.phase, WeekPhase.living);
       expect(ws.snapshot.weekNo, 1);
-      expect(ws.snapshot.need, bill < pool ? bill : pool);
+      // `_fillNeeds` кладёт в НУЖНО всё (до «Всё уже разложено»), и счёт
+      // недели тут ни при чём: в режиме дней счёт меньше запаса.
+      expect(ws.snapshot.need, pool);
       expect(ws.snapshot.want, 0);
       expect(ws.snapshot.unallocated, 0);
       expect(ws.snapshot.activeGoalId, 'pet_fish');
@@ -394,8 +395,8 @@ void main() {
       expect(
           find.descendant(
               of: find.byType(AlertDialog),
-              matching:
-                  find.textContaining('Счета недели — $bill, а в части «Нужно»')),
+              matching: find
+                  .textContaining('Счета недели — $bill, а в части «Нужно»')),
           findsOneWidget);
       // Правило формулировок 1А: части бюджета — «Нужное», «Хочу», «Копилка»
       // обычными буквами (капс озвучка читает по буквам).

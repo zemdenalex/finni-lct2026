@@ -348,8 +348,13 @@ void main() {
       final WorldGame w = await openSleep(tester);
       final WorldExplain ex = explainFor(w);
       final SleepRule r = w.config.dayCycle.sleepRule!;
-      expect(ex.sleepShort, contains('минимум до ${r.floor.round()}'));
-      expect(ex.sleepShort, contains('не выше ${r.cap.round()}'));
+      // n5 (кадр D1 Саши): строка для ребёнка — без формулы «минимум до,
+      // но не выше; голод утром забирает 2». Порог — из sleep_rule.
+      expect(ex.sleepShort, contains('хотя бы ${r.floor.round()}'));
+      expect(ex.sleepShort, isNot(contains('голод утром забирает')));
+      expect(ex.sleepShort, isNot(contains('не выше')));
+      expect(_text(tester, 'sleep:short'),
+          isNot(contains('голод утром забирает')));
       expect(ex.sleepDetail, contains('Больше ${r.cap.round()} не бывает'));
       expect(ex.sleepShort, isNot(contains('{')));
       expect(_text(tester, 'sleep:short'), contains(ex.sleepShort!));

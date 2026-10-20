@@ -64,7 +64,11 @@ void main() {
         reason: 'заголовок до и после оплаты — то же число');
   });
 
-  test('«ещё N раз» — по оставшимся дням: день 5 без еды → 3, после — 2', () {
+  // n5 (кадр D5 Саши): после приёма в режиме дней итог говорил «Поесть на
+  // этой неделе можно ещё 2 раза», а карточка — «на сегодня еда кончилась».
+  // Теперь итог — про сегодня. Счёт по дням (mealsAvailable) не меняется.
+  test('после еды в режиме дней: «следующий приём завтра», не «на неделе ещё»',
+      () {
     final WorldGame w = contentDayWorld();
     ok(w.startWeek());
     ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
@@ -79,10 +83,11 @@ void main() {
     expect(w.snapshot.mealsLeft, 7, reason: 'сам не ел: недельных 7');
     expect(w.snapshot.mealsAvailable, 3, reason: 'дни 5, 6, 7');
     final WorldResult r = w.eat(w.snapshot.foodId!);
-    expect(r.nextStep, 'Поесть на этой неделе можно ещё 2 раза');
+    expect(r.nextStep, 'Сегодня уже поели — следующий приём завтра');
+    expect(w.snapshot.mealsAvailable, 2, reason: 'дни 6 и 7');
   });
 
-  testWidgets('магазин, день 1 после еды: «ещё 6 раз»', (
+  testWidgets('магазин, день 1 после еды: «сегодня уже поели», без «неделе»', (
     WidgetTester tester,
   ) async {
     final WorldGame w = contentDayWorld();
@@ -90,6 +95,12 @@ void main() {
     ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
     ok(w.eat(w.snapshot.foodId!));
     await pumpWorldScreen(tester, const WorldShopScreen(), world: w);
-    expect(_text('Поесть на этой неделе можно ещё 6 раз'), findsOneWidget);
+    expect(
+        find.textContaining('Сегодня уже поели — следующий приём завтра.',
+            findRichText: true),
+        findsOneWidget);
+    expect(find.textContaining('на этой неделе можно ещё', findRichText: true),
+        findsNothing,
+        reason: 'над карточкой «на сегодня еда кончилась» — не «ещё 6 раз»');
   });
 }

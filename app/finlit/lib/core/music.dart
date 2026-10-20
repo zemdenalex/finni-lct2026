@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
@@ -30,7 +31,8 @@ class AudioplayersSink implements MusicSink {
       await _play(asset);
     } on Object catch (e) {
       // Нет звука — не беда: браузер до первого касания, занятый плеер.
-      debugPrint('music: $e');
+      // Только в отладке: в релизе logcat не нужен (аудит n5, п. 3).
+      if (kDebugMode) debugPrint('music: $e');
     }
   }
 
@@ -57,7 +59,8 @@ class AudioplayersSink implements MusicSink {
     try {
       await _player.stop();
     } on Object catch (e) {
-      debugPrint('music: $e');
+      // Только в отладке: в релизе logcat не нужен (аудит n5, п. 3).
+      if (kDebugMode) debugPrint('music: $e');
     }
   }
 

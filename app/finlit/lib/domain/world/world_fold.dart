@@ -82,6 +82,9 @@ class WorldState {
   /// Вещь комнаты → левый верхний угол на сетке.
   final Map<String, RoomCell> roomPlaced = <String, RoomCell>{};
 
+  /// Iso-комната (V2): место → клетка или слот стены (`plane` в записи).
+  final Map<String, RoomIsoSpot> roomIso = <String, RoomIsoSpot>{};
+
   /// Предмет комнаты → выбранный вариант ([WorldChoiceKind.skinChosen]).
   final Map<String, String> chosenSkins = <String, String>{};
 
@@ -394,6 +397,7 @@ class WorldState {
         toolPayback: Map<String, int>.unmodifiable(toolPayback),
         roomOwned: Set<String>.unmodifiable(roomOwned.keys),
         roomPlaced: Map<String, RoomCell>.unmodifiable(roomPlaced),
+        roomIso: Map<String, RoomIsoSpot>.unmodifiable(roomIso),
         chosenSkins: Map<String, String>.unmodifiable(chosenSkins),
       );
 
@@ -627,8 +631,15 @@ class WorldState {
     } else if (k == WorldLedgerKind.roomItemBought) {
       roomOwned[a['itemId']! as String] = e.weekNo;
     } else if (k == WorldLedgerKind.roomItemPlaced) {
-      roomPlaced[a['itemId']! as String] =
-          (x: a['x']! as int, y: a['y']! as int);
+      // `plane` — запись iso-комнаты (V2): своя карта, фронтальная сетка
+      // её не видит. Старые записи без `plane` — как раньше.
+      if (a['plane'] case final String plane) {
+        roomIso[a['itemId']! as String] =
+            (plane: plane, x: a['x']! as int, y: a['y']! as int);
+      } else {
+        roomPlaced[a['itemId']! as String] =
+            (x: a['x']! as int, y: a['y']! as int);
+      }
     } else if (k == WorldLedgerKind.roomItemRemoved) {
       roomPlaced.remove(a['itemId']! as String);
     } else if (k == WorldLedgerKind.activePetChanged) {

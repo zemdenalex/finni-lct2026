@@ -22,7 +22,7 @@ void main() {
       final WorldCatalogItem poster = w.catalogItem('poster_city')!;
       ok(w.buy('poster_city'));
       ok(w.depositToGoal(30));
-      ok(w.sleep());
+      ok(sleepWeek(w));
       final int bill = w.snapshot.weeklyBill;
       ok(w.payBills());
 

@@ -117,11 +117,18 @@ void main() {
             reason: k);
         expect(find.byKey(ValueKey<String>('jobs:step:$k')), findsNothing,
             reason: 'ступень ×1 не показывается');
-        expect(
-            textOf(tester, 'jobs:left:$k'), 'смен на неделе: ${o.shiftsLeft}',
-            reason: k);
+        // Режим дней: смен без лимита — строки «смен на неделе» нет.
+        if (o.shiftsUnlimited) {
+          expect(find.byKey(ValueKey<String>('jobs:left:$k')), findsNothing,
+              reason: k);
+        } else {
+          expect(
+              textOf(tester, 'jobs:left:$k'), 'смен на неделе: ${o.shiftsLeft}',
+              reason: k);
+        }
         // Проход демо 16.10: TalkBack читал «ещё 2 смен». Число и слово
-        // согласованы: 1 смену · 2 смены · 5 смен.
+        // согласованы: 1 смену · 2 смены · 5 смен. Без лимита (дни) — нечего
+        // читать.
         final String word = switch (o.shiftsLeft % 10) {
           1 when o.shiftsLeft % 100 != 11 => 'смену',
           2 ||
@@ -130,14 +137,16 @@ void main() {
             'смены',
           _ => 'смен',
         };
-        expect(
-            find.bySemanticsLabel(
-                RegExp('Можно взять ещё ${o.shiftsLeft} $word на этой неделе')),
-            findsWidgets,
-            reason: k);
+        if (!o.shiftsUnlimited) {
+          expect(
+              find.bySemanticsLabel(RegExp(
+                  'Можно взять ещё ${o.shiftsLeft} $word на этой неделе')),
+              findsWidgets,
+              reason: k);
+        }
         // BG-05 = D27 (баг-прогон 18.10): TalkBack читал «Заплатят 141
         // монет», «Прибавка за опыт: 1 процентов». «Заплатят» — винительный:
-        // «141 монетку».
+        // «141 монету» (слово «монеты» — правило Насти, n5 #1).
         String pick(int n, String one, String few, String many) =>
             n % 100 >= 11 && n % 100 <= 14
                 ? many
@@ -148,7 +157,7 @@ void main() {
                         : many;
         expect(
             find.bySemanticsLabel(RegExp('^Заплатят ${o.pay} '
-                '${pick(o.pay, 'монетку', 'монетки', 'монеток')}[.]')),
+                '${pick(o.pay, 'монету', 'монеты', 'монет')}[.]')),
             findsWidgets,
             reason: k);
         if (o.experienceCoins > 0) {
@@ -325,10 +334,10 @@ void main() {
     });
   });
 
-  // BG-05 = D27: число на 1 (141) — «Заплатят 141 монетку» (винительный).
+  // BG-05 = D27: число на 1 (141) — «Заплатят 141 монету» (винительный).
   // Опыт вслух — без процентов, монетами (Денис 19.10): «+21 монета».
   // Доска мира в тестах таких чисел не даёт — карточка с ними.
-  testWidgets('озвучка карточки: 141 монетку, опыт +21 монета',
+  testWidgets('озвучка карточки: 141 монету, опыт +21 монета',
       (WidgetTester tester) async {
     final SemanticsHandle h = tester.ensureSemantics();
     const JobOffer o = JobOffer(
@@ -355,7 +364,7 @@ void main() {
     ));
     expect(
         find.bySemanticsLabel(
-            'Заплатят 141 монетку. Монет было 760, станет 901'),
+            'Заплатят 141 монету. Монет было 760, станет 901'),
         findsOneWidget);
     expect(
         find.bySemanticsLabel(

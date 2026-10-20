@@ -240,6 +240,8 @@ class DockMoreMenu extends StatelessWidget {
     final ({bool on, Future<void> Function() toggle})? music =
         musicSwitch(context);
     final bool adult = adultSectionOn(s.world);
+    // «Расставить вещи» — только при `room.customize`, как в 0.1.3, и для
+    // фронтальной, и для iso-комнаты (finni 20.10).
     final bool arrange = onArrange != null && s.world.room.enabled;
     Widget row(Widget icon, String text) => Row(
           children: <Widget>[

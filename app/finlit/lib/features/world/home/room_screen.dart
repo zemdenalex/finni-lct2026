@@ -10,6 +10,7 @@ import '../../../core/theme.dart';
 import '../../../domain/world/contract.dart';
 import '../../../domain/world/fridge_stock.dart';
 import '../joystick.dart';
+import '../room_iso/iso_room_scene.dart';
 import '../world_explain.dart';
 import '../world_help.dart';
 import '../world_routes.dart';
@@ -112,6 +113,15 @@ class _RoomScreenState extends State<RoomScreen>
           ? r.reason
           : (r.nextStep == null ? r.reason : '${r.reason} ${r.nextStep}.'),
     );
+  }
+
+  /// Iso-комната (V2): выбранное место встало в клетку или слот стены.
+  void _isoPlace(String slot, RoomIsoSpot spot) {
+    final WorldResult r = _state
+        .act((World w) => w.placeRoomIso(slot, spot.plane, spot.x, spot.y));
+    setState(() => _arrangeSay = r.ok
+        ? r.reason
+        : (r.nextStep == null ? r.reason : '${r.reason} ${r.nextStep}.'));
   }
 
   void _removeSel() {
@@ -375,6 +385,88 @@ class _RoomScreenState extends State<RoomScreen>
   Future<void> _openEvent() => Navigator.of(
         context,
       ).pushNamed(WorldRoutes.event, arguments: _state.world.eventBuildingId);
+
+  /// Iso-комната (V2, флаг `room.view: "iso"`): те же предметы, действия и
+  /// ключи, что у фронтальной сцены; места — по именам слотов.
+  Widget _isoScene(
+    RoomArt? art,
+    WorldState s,
+    ResourceSnapshot snap,
+    WorldProfile profile,
+    double inset,
+    List<String> decor,
+    Map<String, String> skins, {
+    required FinniReaction status,
+    required FinniReaction? reaction,
+    required String? pose,
+    required DayView day,
+    String? focus,
+  }) =>
+      IsoRoomScene(
+        cameraFocus: focus,
+        // Joystick (0.1.3 had it in the room): Finni stopped by a thing —
+        // its button, the same as the front room's.
+        onStickNear: (String? object) => setState(() {
+          _near = null;
+          _nearFree = object;
+        }),
+        art: art,
+        stage: snap.stage,
+        species: profile.species,
+        idleTag: profile.idleTag,
+        finniName: profile.finniName,
+        happiness: snap.happiness,
+        topInset: inset,
+        petId: snap.activePetId,
+        petAwake: _petAwake,
+        decorIds: decor,
+        decorTitle: (String id) => s.world.catalogItem(id)?.title ?? id,
+        furnitureSkins: furnitureSkins(skins),
+        saved: snap.roomIso,
+        arrange: _arrange,
+        selected: _sel,
+        onSelect: (String slot) => setState(() {
+          _sel = slot;
+          _arrangeSay = null;
+        }),
+        onPlace: _isoPlace,
+        onRefuse: (String why) => setState(() => _arrangeSay = why),
+        onFinniTap: _tapFinni,
+        finniPose: pose,
+        finniKey: _finniKey,
+        aboveFinni: FinniBadge(
+          name: s.world.room.petName ? profile.finniName : null,
+          status: status,
+          reaction: reaction,
+          hearts: _hearts,
+          leading: switch (day.look) {
+            HudLook.fedOnFinni => FedOnFinni(day.fed ?? 0),
+            HudLook.moodOnFinni => MoodOnFinni(snap.happiness),
+            HudLook.fedWhenLow when day.fedInHud => MoodOnFinni(snap.happiness),
+            _ => null,
+          },
+        ),
+        onPetTap:
+            snap.activePetId == null ? null : () => _tapPet(snap.activePetId!),
+        onBedTap: _arrange ? null : () => _walkThen('bed', _tapBed),
+        onDoorTap: _arrange
+            ? null
+            : () => _walkThen('door', () => _go(WorldRoutes.city)),
+        onPiggyTap: _arrange
+            ? null
+            : () => _walkThen('piggy', () => _go(WorldRoutes.piggy)),
+        onDeskTap: _arrange
+            ? null
+            : () => _walkThen('desk', () => _go(WorldRoutes.jobs)),
+        onFridgeTap: _arrange
+            ? null
+            : () => _walkThen('fridge', () => _go(WorldRoutes.shop)),
+        onWalkTo: _arrange ? null : (String id) => _walkThen(id, () {}),
+        piggySaved: snap.saved,
+        fridge: fridgeOf(snap),
+        finniNear: _near,
+        walkTime: RoomScene.roomWalk,
+      );
 
   /// Касание предмета комнаты: Финни идёт к нему, потом действие (Денис, 938:
   /// «механика хождения Финни по квартире»). Путь — [RoomScene.roomWalk],
@@ -749,21 +841,28 @@ class _RoomScreenState extends State<RoomScreen>
                 s.world.canPlaceRoomItem(_sel!, x, y) == null)
               (x: x, y: y),
     };
+    final bool iso = s.world.room.iso;
     final Widget? tray = !_arrange
         ? null
-        : _ArrangeTray(
-            room: s.world.room,
-            owned: snap.roomOwned,
-            placed: snap.roomPlaced,
-            selected: _sel,
-            say: _arrangeSay,
-            onSelect: (String id) => setState(() {
-              _sel = id;
-              _arrangeSay = null;
-            }),
-            onRemove: _removeSel,
-            onDone: _arrangeOff,
-          );
+        : iso
+            ? _IsoArrangeTray(
+                say: _arrangeSay,
+                selected: _sel,
+                onDone: _arrangeOff,
+              )
+            : _ArrangeTray(
+                room: s.world.room,
+                owned: snap.roomOwned,
+                placed: snap.roomPlaced,
+                selected: _sel,
+                say: _arrangeSay,
+                onSelect: (String id) => setState(() {
+                  _sel = id;
+                  _arrangeSay = null;
+                }),
+                onRemove: _removeSel,
+                onDone: _arrangeOff,
+              );
 
     // Событие без ответа (флаг `room.event_badge`): раньше его было видно
     // только по «!» у здания в городе — теперь и в комнате, одно касание.
@@ -784,87 +883,100 @@ class _RoomScreenState extends State<RoomScreen>
     Widget sceneWith(double inset) => FutureBuilder<RoomArt>(
           future: _art,
           // Шаг обучалки о предмете (дверь) — камера держит его в кадре.
-          builder: (BuildContext context, AsyncSnapshot<RoomArt> a) =>
-              ValueListenableBuilder<String?>(
-            valueListenable: tutorialRoomFocus,
-            builder: (BuildContext context, String? spot, _) => RoomScene(
-              cameraFocus: spot,
-              topInset: inset,
-              art: a.data,
-              stage: snap.stage,
-              species: profile.species,
-              idleTag: profile.idleTag,
-              finniName: profile.finniName,
-              // Таблички с именем в комнате нет (решение 29.09): имя слышно в
-              // подписи TalkBack самого Финни.
-              showName: false,
-              happiness: snap.happiness,
-              petId: snap.activePetId,
-              petAwake: _petAwake,
-              decorIds: decor,
-              room: s.world.room,
-              roomPlaced: snap.roomPlaced,
-              gridEdit: _arrange,
-              gridOk: okCells,
-              onCellTap: _cellTap,
-              furnitureSkins: furnitureSkins(skins),
-              onFinniTap: _tapFinni,
-              finniPose: pose,
-              finniKey: _finniKey,
-              aboveFinni: FinniBadge(
-                // DEN-25 A (флаг `room.pet_name`): имя ребёнка над Финни.
-                name: s.world.room.petName ? profile.finniName : null,
-                status: status,
-                reaction: reaction,
-                hearts: _hearts,
-                leading: switch (day.look) {
-                  HudLook.fedOnFinni => FedOnFinni(day.fed ?? 0),
-                  HudLook.moodOnFinni => MoodOnFinni(snap.happiness),
-                  HudLook.fedWhenLow when day.fedInHud =>
-                    MoodOnFinni(snap.happiness),
-                  _ => null,
-                },
-              ),
-              onPetTap: snap.activePetId == null
-                  ? null
-                  : () => _tapPet(snap.activePetId!),
-              // «Расставить»: мебель не ведёт на экраны — касание мимо
-              // клетки ничего не делает (кровать не открывает сон).
-              onBedTap: _arrange ? null : () => _walkThen('bed', _tapBed),
-              onDoorTap: _arrange
-                  ? null
-                  : () => _walkThen('door', () => _go(WorldRoutes.city)),
-              onPiggyTap: _arrange
-                  ? null
-                  : () => _walkThen('piggy', () => _go(WorldRoutes.piggy)),
-              // Стол (общая раскладка комнаты) — работа: доска смен.
-              onDeskTap: _arrange
-                  ? null
-                  : () => _walkThen('desk', () => _go(WorldRoutes.jobs)),
-              // Сумма копилки — над копилкой (из HUD убрана, Денис 29.09).
-              piggySaved: snap.saved,
-              fridge: fridgeOf(snap),
-              // Магазин открывается на вкладке «Еда» (initialTab 0).
-              onFridgeTap: _arrange
-                  ? null
-                  : () => _walkThen('fridge', () => _go(WorldRoutes.shop)),
-              // Кнопка у края (камера): Финни подходит, камера за ним.
-              onWalkTo: _arrange ? null : (String id) => _walkThen(id, () {}),
-              finniNear: _near,
-              walkTime: RoomScene.roomWalk,
-              finniFree: _free,
-              finniMoving: _moving,
-              onGeometry: (RoomGeometry g) {
-                final bool first = _geo == null;
-                _geo = g;
-                if (first) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() {});
-                  });
-                }
-              },
-            ),
-          ),
+          builder: (BuildContext context, AsyncSnapshot<RoomArt> a) => iso
+              ? ValueListenableBuilder<String?>(
+                  valueListenable: tutorialRoomFocus,
+                  builder: (BuildContext context, String? spot, _) => _isoScene(
+                      a.data, s, snap, profile, inset, decor, skins,
+                      focus: spot,
+                      status: status,
+                      reaction: reaction,
+                      pose: pose,
+                      day: day),
+                )
+              : ValueListenableBuilder<String?>(
+                  valueListenable: tutorialRoomFocus,
+                  builder: (BuildContext context, String? spot, _) => RoomScene(
+                    cameraFocus: spot,
+                    topInset: inset,
+                    art: a.data,
+                    stage: snap.stage,
+                    species: profile.species,
+                    idleTag: profile.idleTag,
+                    finniName: profile.finniName,
+                    // Таблички с именем в комнате нет (решение 29.09): имя слышно в
+                    // подписи TalkBack самого Финни.
+                    showName: false,
+                    happiness: snap.happiness,
+                    petId: snap.activePetId,
+                    petAwake: _petAwake,
+                    decorIds: decor,
+                    room: s.world.room,
+                    roomPlaced: snap.roomPlaced,
+                    gridEdit: _arrange,
+                    gridOk: okCells,
+                    onCellTap: _cellTap,
+                    furnitureSkins: furnitureSkins(skins),
+                    onFinniTap: _tapFinni,
+                    finniPose: pose,
+                    finniKey: _finniKey,
+                    aboveFinni: FinniBadge(
+                      // DEN-25 A (флаг `room.pet_name`): имя ребёнка над Финни.
+                      name: s.world.room.petName ? profile.finniName : null,
+                      status: status,
+                      reaction: reaction,
+                      hearts: _hearts,
+                      leading: switch (day.look) {
+                        HudLook.fedOnFinni => FedOnFinni(day.fed ?? 0),
+                        HudLook.moodOnFinni => MoodOnFinni(snap.happiness),
+                        HudLook.fedWhenLow when day.fedInHud =>
+                          MoodOnFinni(snap.happiness),
+                        _ => null,
+                      },
+                    ),
+                    onPetTap: snap.activePetId == null
+                        ? null
+                        : () => _tapPet(snap.activePetId!),
+                    // «Расставить»: мебель не ведёт на экраны — касание мимо
+                    // клетки ничего не делает (кровать не открывает сон).
+                    onBedTap: _arrange ? null : () => _walkThen('bed', _tapBed),
+                    onDoorTap: _arrange
+                        ? null
+                        : () => _walkThen('door', () => _go(WorldRoutes.city)),
+                    onPiggyTap: _arrange
+                        ? null
+                        : () =>
+                            _walkThen('piggy', () => _go(WorldRoutes.piggy)),
+                    // Стол (общая раскладка комнаты) — работа: доска смен.
+                    onDeskTap: _arrange
+                        ? null
+                        : () => _walkThen('desk', () => _go(WorldRoutes.jobs)),
+                    // Сумма копилки — над копилкой (из HUD убрана, Денис 29.09).
+                    piggySaved: snap.saved,
+                    fridge: fridgeOf(snap),
+                    // Магазин открывается на вкладке «Еда» (initialTab 0).
+                    onFridgeTap: _arrange
+                        ? null
+                        : () =>
+                            _walkThen('fridge', () => _go(WorldRoutes.shop)),
+                    // Кнопка у края (камера): Финни подходит, камера за ним.
+                    onWalkTo:
+                        _arrange ? null : (String id) => _walkThen(id, () {}),
+                    finniNear: _near,
+                    walkTime: RoomScene.roomWalk,
+                    finniFree: _free,
+                    finniMoving: _moving,
+                    onGeometry: (RoomGeometry g) {
+                      final bool first = _geo == null;
+                      _geo = g;
+                      if (first) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() {});
+                        });
+                      }
+                    },
+                  ),
+                ),
         );
     // Джойстик (Денис, 1001) — ввод, а не анимация: есть и с выключенными
     // «Анимациями» / «Уменьшить движение», тогда Финни идёт шагами (ТЗ
@@ -1029,7 +1141,8 @@ class _RoomScreenState extends State<RoomScreen>
             // «Расставить»: Финни не ходит, касание — клеткам сетки. Обёртка
             // джойстика остаётся (без жестов): иначе сцена пересобирается и
             // кадр мигает комнатой без арта.
-            final bool walk = withStick && !_arrange;
+            // Iso-комната (V2): Финни ходит по клеткам касанием, без джойстика.
+            final bool walk = withStick && !_arrange && !iso;
             // Сцена — на всю область; комната (общая раскладка) встаёт сразу
             // под показатели. Масштаб ограничивает сама сцена (кровать и стол
             // в покое видны на ¾, camera.foreground_shown), лишнее снизу —
@@ -1932,6 +2045,57 @@ class _ArrangeTray extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Панель «Расставить» iso-комнаты (V2): вещи выбираются касанием в самой
+/// комнате, клетки и слоты стены подсвечены; здесь — подсказка и «Готово».
+class _IsoArrangeTray extends StatelessWidget {
+  const _IsoArrangeTray({
+    required this.say,
+    required this.selected,
+    required this.onDone,
+  });
+
+  final String? say;
+  final String? selected;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        key: const ValueKey<String>('room:arrange:tray'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // Two lines kept for the words: a one-line answer after a drop
+          // used to shorten the tray, and the room jumped ~20 px down.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                minHeight:
+                    MediaQuery.textScalerOf(context).scale(15) * 1.35 * 2),
+            child: Text(
+              say ??
+                  (selected == null
+                      ? 'Перетащи вещь пальцем или нажми на неё, потом — на клетку пола или стену.'
+                      : 'Куда поставить? Подходящие места подсвечены зелёным.'),
+              key: const ValueKey<String>('room:arrange:say'),
+              style: const TextStyle(
+                  fontSize: 15, height: 1.35, color: WorldColors.text),
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              key: const ValueKey<String>('room:arrange:done'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(TapSize.min, TapSize.min),
+              ),
+              onPressed: onDone,
+              child: const Text('Готово'),
+            ),
+          ),
+        ],
+      );
 }
 
 /// Вещь в панели «Расставить»: картинка 64 dp; выбранная — в рамке,

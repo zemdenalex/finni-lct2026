@@ -51,13 +51,13 @@ String blockText(BlockReason b) =>
     b.nextStep == null ? b.text : '${b.text} ${b.nextStep}';
 
 /// DEN-36 A: что настроение **сейчас** делает с этой сменой — одной строкой
-/// («Настроение 25 сейчас: плата −21 монетка, сил уйдёт на 1 больше»; без
+/// («Настроение 25 сейчас: плата −21 монета, сил уйдёт на 1 больше»; без
 /// процентов — Т6 А, Настя 19.10). Числа — из [MoodPayNow] мира.
 String moodNowText(MoodPayNow m) {
   final int c = m.payCoins;
   final String pay = m.payPercent == 0 || c == 0
       ? 'плата обычная'
-      : 'плата ${c > 0 ? '+' : '−'}${c.abs()} ${Phrases.coinWord(c.abs())}';
+      : 'плата ${c > 0 ? '+' : '−'}${c.abs()} ${Phrases.coinsNom(c.abs())}';
   final double e = m.energyDelta;
   final String energy = e == 0
       ? 'силы как обычно'
@@ -147,7 +147,7 @@ class JobOfferCard extends StatelessWidget {
                 icon: const CoinDot(size: 20),
                 from: '$coins',
                 to: '$coinsAfter',
-                semantic: 'Заплатят ${o.pay} ${Phrases.coinWordAcc(o.pay)}. '
+                semantic: 'Заплатят ${o.pay} ${Phrases.coinsAcc(o.pay)}. '
                     'Монет было $coins, станет $coinsAfter',
               ),
               _Change(

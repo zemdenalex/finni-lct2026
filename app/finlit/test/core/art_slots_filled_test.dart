@@ -13,18 +13,29 @@ void main() {
 
   // Только то, что прошло отбор Дениса 19.10 (угол 2:1 ≈ 26,6° ± 3°,
   // ≤ 256 цветов): остальные стадии ждут новых генераций.
-  const Map<String, List<String>> stages = <String, List<String>>{
-    'cinema': <String>['moscow'],
-  };
+  // Слоты, вставленные tools/insert_building.py (шаг Б, 20.10), — по файлу
+  // `stage_art/<здание>.<стадия>` на слот: откат коммита слота убирает и его
+  // проверку, соседние слоты не задеты.
+  final List<(String, String)> stages = <(String, String)>[
+    ('cinema', 'moscow'),
+    for (final FileSystemEntity f in Directory('test/core/stage_art')
+        .listSync()
+        .whereType<File>())
+      if (f.uri.pathSegments.last.split('.')
+          case [final String b, final String s]
+          when b.isNotEmpty && const <String>{'village', 'town', 'moscow'}.contains(s))
+        (b, s),
+  ];
 
   test('у каждого здания свой рисунок на каждой стадии', () {
     final List<String> same = <String>[
-      for (final MapEntry<String, List<String>> b in stages.entries)
-        for (final String stage in b.value)
-          if (reg.building(b.key, variant: stage) == reg.building(b.key))
-            '${b.key}/$stage',
+      for (final (String b, String stage) in stages)
+        if (reg.building(b, variant: stage) == reg.building(b) ||
+            !File(reg.building(b, variant: stage)!).existsSync())
+          '$b/$stage',
     ];
-    expect(same, isEmpty, reason: 'стадия берёт рисунок по умолчанию');
+    expect(same, isEmpty,
+        reason: 'стадия берёт рисунок по умолчанию или файла нет');
   });
 
   // Слоты, которые игрок видит: декор на карте, блюда и вещи в магазине,

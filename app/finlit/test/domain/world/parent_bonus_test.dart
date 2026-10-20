@@ -53,6 +53,22 @@ int? _journalLength(World w) => w is WorldGame ? w.journal.length : null;
   return (a, b);
 }
 
+/// Режим дней (DEN-18): смен в неделю без лимита, бонус «+1 смена» не
+/// нужен — мир отказывает `parent.no_limit` с причиной, ресурсы и журнал те
+/// же. true — это проверено, и тесту лимита смен дальше идти не о чем.
+bool _refusedWithoutLimit(World w) {
+  if (!noShiftLimit(w)) return false;
+  final String before = _resources(w);
+  final int? length = _journalLength(w);
+  expect(w.canDo(WorldAction.parentBonus)?.code, 'parent.no_limit');
+  final WorldResult r = w.parentExtraShift();
+  expect((r.ok, r.reasonCode), (false, 'parent.no_limit'));
+  expect(r.reason, isNotEmpty);
+  expect(_resources(w), before);
+  expect(_journalLength(w), length);
+  return true;
+}
+
 int _left(World w, JobOffer o) =>
     w.offer(o.jobId, variant: o.variant)!.shiftsLeft;
 
@@ -64,6 +80,7 @@ void main() {
   forEachWorld((WorldKind kind) {
     test('бонус: запись с причиной, лимит +1, ресурсы те же, раз в неделю', () {
       final World w = _week1(kind);
+      if (_refusedWithoutLimit(w)) return;
       final int base = w.shiftsLimitThisWeek;
       expect(w.parentBonusThisWeek, isFalse);
       expect(w.canDo(WorldAction.parentBonus), isNull);
@@ -109,6 +126,7 @@ void main() {
     // лимит (работа A остаётся на нуле) или только лимит работы.
     test('бонус: +1 и к общему лимиту, и к лимиту каждой работы', () {
       final World w = _week1(kind);
+      if (_refusedWithoutLimit(w)) return;
       final (JobOffer a, JobOffer b) = _twoJobs(w);
       final int perJob = _left(w, a);
       // Обычная смена (оценка 0) — без лишней ⚡ за «хорошо».
@@ -132,6 +150,7 @@ void main() {
         () {
       final World w = kind.make();
       ok(w.startWeek());
+      if (_refusedWithoutLimit(w)) return;
       final int? planningLength = _journalLength(w);
       final WorldResult planning = w.parentExtraShift();
       expect(planning.reasonCode, 'phase.parentBonus');

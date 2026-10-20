@@ -51,29 +51,17 @@ class Coins extends StatelessWidget {
     );
   }
 
-  static String _word(int n) {
-    final int m10 = n % 10;
-    final int m100 = n % 100;
-    if (m100 >= 11 && m100 <= 14) return 'монеток';
-    if (m10 == 1) return 'монетка';
-    if (m10 >= 2 && m10 <= 4) return 'монетки';
-    return 'монеток';
-  }
+  /// Слово для TalkBack — «монеты» (правило Насти), как в видимых строках:
+  /// «1 монета / 2 монеты / 5 монет» (n5 #1, было «монетка / монеток»).
+  static String _word(int n) => Phrases.coinsNom(n);
 
   /// «раз / раза / раз» — для числа решений, а не монеток.
   static String timesWord(int n) => Phrases.timesWord(n);
 
   static String word(int n) => _word(n);
 
-  /// Винительный падеж: «взять одну монетку», а не «взять 1 монетка».
-  static String wordAccusative(int n) {
-    final int m10 = n % 10;
-    final int m100 = n % 100;
-    if (m100 >= 11 && m100 <= 14) return 'монеток';
-    if (m10 == 1) return 'монетку';
-    if (m10 >= 2 && m10 <= 4) return 'монетки';
-    return 'монеток';
-  }
+  /// Винительный падеж: «взять одну монету», а не «взять 1 монета».
+  static String wordAccusative(int n) => Phrases.coinsAcc(n);
 }
 
 /// Монетка — та же, что в лапках у Финни: золото, внутренний ободок и

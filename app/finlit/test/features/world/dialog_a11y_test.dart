@@ -39,10 +39,11 @@ World _saved(WorldKind kind) {
 }
 
 /// Неделя закрыта, на счета не хватает, в копилке есть — итоги предлагают
-/// взять из копилки.
+/// взять из копилки. Всё — в копилку ([_saved]): при плане «Нужно 250»
+/// остаток в режиме дней уходит в кошелёк и закрывает счёт своими.
 World _short(WorldKind kind) {
-  final World w = _living(kind);
-  ok(w.sleep());
+  final World w = _saved(kind);
+  ok(sleepWeek(w));
   return w;
 }
 

@@ -86,7 +86,9 @@ class PurchaseRules {
     }
 
     final List<ShortfallOption> options = <ShortfallOption>[];
-    if (wallet.savings >= shortfall) options.add(ShortfallOption.moveFromSavings);
+    if (wallet.savings >= shortfall) {
+      options.add(ShortfallOption.moveFromSavings);
+    }
     for (final Envelope other in Envelope.values) {
       if (other == item.envelope || other == Envelope.savings) continue;
       if (wallet.envelopes.byEnvelope(other) >= shortfall) {

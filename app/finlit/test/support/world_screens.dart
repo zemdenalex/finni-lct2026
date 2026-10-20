@@ -35,6 +35,19 @@ World livingWorld(WorldKind kind) {
   return w;
 }
 
+/// Как [livingWorld], но питомец [petId] куплен: [livingWorld] питомца не
+/// покупает, и в комнате его нет (n5 #7: зона касания питомца не
+/// проверялась ни одним тестом «по всем экранам»).
+World petWorld(WorldKind kind, String petId) {
+  final World w = livingWorld(kind);
+  final int price = w.catalogItem(petId)!.price;
+  ok(w.demoGiveCoins(price));
+  ok(w.depositToGoal(price));
+  ok(w.buy(petId));
+  expect(w.snapshot.activePetId, petId, reason: 'питомец в комнате');
+  return w;
+}
+
 /// Ник и облик выбраны, неделя 1 ждёт плана: знакомство идёт сценками в
 /// комнате.
 World scenesWorld(WorldKind kind) {

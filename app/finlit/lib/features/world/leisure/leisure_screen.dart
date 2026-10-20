@@ -398,9 +398,7 @@ class _OptionCard extends StatelessWidget {
       key: ValueKey<String>('leisure:go:${e.id}'),
       style: compact
           ? FilledButton.styleFrom(
-              minimumSize: warn.isNotEmpty
-                  ? const Size(72, 48)
-                  : const Size.fromHeight(48),
+              minimumSize: const Size.fromHeight(48),
               padding: const EdgeInsets.symmetric(horizontal: Gap.sm + Gap.xs))
           : null,
       onPressed: b == null ? onGo : null,
@@ -455,28 +453,16 @@ class _OptionCard extends StatelessWidget {
           ] else ...<Widget>[
             const Spacer(),
             const SizedBox(height: Gap.xs),
-            if (warn.isEmpty)
-              go
-            else
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        for (int i = 0; i < warn.length; i++)
-                          _warnLine(warn[i],
-                              key: i == 0
-                                  ? ValueKey<String>('leisure:block:${e.id}')
-                                  : null,
-                              top: 0),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  go,
-                ],
-              ),
+            // n5 (кадры 0.1.3): причина слева от «Пойти» при шрифте 1,3
+            // сжималась до трёх букв в строке («Не хв / атает 150.») —
+            // теперь она над кнопкой, на всю ширину карточки.
+            for (int i = 0; i < warn.length; i++)
+              _warnLine(warn[i],
+                  key:
+                      i == 0 ? ValueKey<String>('leisure:block:${e.id}') : null,
+                  top: 0),
+            if (warn.isNotEmpty) const SizedBox(height: Gap.xs),
+            go,
           ],
         ],
       ),

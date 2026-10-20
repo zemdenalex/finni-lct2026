@@ -1941,7 +1941,7 @@ class WorldGame implements World {
         'buy.points',
         'Переезд откроется, когда звёзд будет $need — сейчас '
             '${_state.growthPoints}.',
-        nextStep: 'Звёзды — за счета своими монетами, план и отложенное');
+        nextStep: 'Звёзды — за счета без помощи семьи, план и отложенное');
   }
 
   /// Уже есть: сама вещь, любой транспорт вместо транспорта, техника, чьи
@@ -2265,9 +2265,17 @@ class WorldGame implements World {
       reasonCode: 'meal.eaten',
       reason: '${f.title}: ⚡ +${energyShown(gain)}$full, '
           '😊 ${dh < 0 ? dh : '+$dh'}${f.why.isEmpty ? '' : ' — ${f.why}'}.',
+      // n5 (кадр D5): в режиме дней — про сегодня, а не «на этой неделе
+      // ещё N», когда приём на сегодня уже съеден.
       nextStep: mealsLeft > 0
-          ? 'Поесть на этой неделе можно ещё $mealsLeft '
-              '${Phrases.timesWord(mealsLeft)}'
+          ? config.dayCycle.enabled
+              ? _state.mealsToday >= _state.mealsPerDay
+                  ? 'Сегодня уже поели — следующий приём завтра'
+                  : 'Сегодня можно поесть ещё '
+                      '${_state.mealsPerDay - _state.mealsToday} '
+                      '${Phrases.timesWord(_state.mealsPerDay - _state.mealsToday)}'
+              : 'Поесть на этой неделе можно ещё $mealsLeft '
+                  '${Phrases.timesWord(mealsLeft)}'
           : heroGendered(_heroGender,
               neutral: 'Больше на этой неделе поесть нельзя',
               boy: 'На этой неделе $_hero наелся',
@@ -2456,6 +2464,23 @@ class WorldGame implements World {
   }
 
   @override
+  WorldResult placeRoomIso(String slot, String plane, int x, int y) {
+    final BlockReason? block = roomIsoBlock(slot, plane, x, y);
+    if (block != null) return block.refusal;
+    if (_state.roomIso[slot] != (plane: plane, x: x, y: y)) {
+      _write(WorldLedgerKind.roomItemPlaced, 'room.placed',
+          args: <String, Object?>{
+            'itemId': slot,
+            'x': x,
+            'y': y,
+            'plane': plane,
+          });
+    }
+    return const WorldResult(
+        ok: true, reasonCode: 'room.placed', reason: 'Вещь — на новом месте.');
+  }
+
+  @override
   WorldResult removeRoomItem(String itemId) {
     if (!_state.roomPlaced.containsKey(itemId)) {
       return const WorldResult.refused(
@@ -2600,7 +2625,7 @@ class WorldGame implements World {
           goal: -withdrawn,
           free: withdrawn,
           args: <String, Object?>{'amount': withdrawn, 'reason': 'bills'});
-      steps.add('$withdrawn из копилки');
+      steps.add('$withdrawn взяли из копилки');
     }
 
     // Шаги 1–2: по записи на счёт, корм первым.
@@ -2682,14 +2707,17 @@ class WorldGame implements World {
     }
 
     final Map<String, String> whyText = <String, String>{
-      'required_covered': 'обязательное закрыто своими монетами',
+      // n5 #3 (кадры 0.1.3): «закрыто своими монетами» рядом с «взяли из
+      // копилки» читалось как противоречие. Очко — за то, что семья не
+      // помогала, так и написано.
+      'required_covered': 'счета оплачены без помощи семьи',
       'plan_kept': 'без нехватки',
       'saved_regularly': 'отложено не меньше '
           '${shareWords((config.savedRegularlyMinShare * 100).round()).gen} '
           'дохода — так к цели приходят раньше',
     };
     final String shortfall =
-        steps.isEmpty ? '' : ' Не хватало: ${steps.join(', ')}.';
+        steps.isEmpty ? '' : ' Монет на счета не хватило: ${steps.join(', ')}.';
     // «Счета недели» — из журнала, как факт «Нужно» в плане против факта
     // (night4 #4): еда посреди недели + счета в конце. Раньше здесь стоял
     // только остаток в конце недели — «Счета недели — 670» рядом с «Нужно
@@ -2713,7 +2741,9 @@ class WorldGame implements World {
       ok: true,
       reasonCode: bills.familyHelped ? 'bills.family_help' : 'bills.paid',
       reason: '${weekBillLine(weekNeed, bills.total)}$shortfall '
-          'Звёзды: +$points'
+          // «Звёзды для переезда»: звезда — не монета (n5 #3), за звёзды
+          // Финни переезжает.
+          'Звёзды для переезда: +$points'
           '${why.isEmpty ? '' : ' (${why.map((String w) => whyText[w]).join(', ')})'}.'
           '$growthLine'
           '${grew ? ' $_hero переезжает дальше!' : ''}'

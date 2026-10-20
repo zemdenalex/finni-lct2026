@@ -10,8 +10,11 @@ import 'package:finlit/domain/world/contract.dart';
 import 'fake_world.dart';
 import 'package:finlit/domain/world/world_config.dart';
 import 'package:finlit/domain/world/world_game.dart';
+import 'package:finlit/features/world/home/room_scene.dart' show RoomScene;
 import 'package:finlit/features/world/jobs/job_games.dart';
 import 'package:finlit/features/world/onboarding/onboarding_script.dart';
+import 'package:finlit/features/world/room_iso/iso_room_scene.dart'
+    show IsoRoomScene;
 import 'package:finlit/features/world/world_explain.dart';
 import 'package:finlit/features/world/world_routes.dart';
 import 'package:finlit/features/world/world_state.dart';
@@ -119,6 +122,57 @@ final WorldConfig roomOnConfig = worldConfigFromContent(WorldContent.parse(
   roomItems: _readContent('room_items.json'),
 ));
 
+/// `economy.json` с фронтальной комнатой (`room.view: "front"`, как сдано
+/// 29.09). В сборке с 20.10 — iso; фронтальная осталась откатом флагом, и
+/// тесты сцены `RoomScene` (джойстик, ходьба, зоны предметов, сетка
+/// «Расставить» фронтальной комнаты) гоняются на ней — так видно, что откат
+/// работает.
+String frontRoom(String economyJson) {
+  final Map<String, Object?> eco =
+      jsonDecode(economyJson) as Map<String, Object?>;
+  eco['room'] = <String, Object?>{
+    ...(eco['room'] as Map<String, Object?>? ?? const <String, Object?>{}),
+    'view': 'front',
+  };
+  return jsonEncode(eco);
+}
+
+/// Комната фейка (`FakeWorld`) во фронтальном виде.
+const RoomCatalog frontRoomCatalog = RoomCatalog(view: 'front');
+
+/// Числа сборки (режим «неделя») с фронтальной комнатой.
+final WorldConfig contentFrontConfig =
+    worldConfigFromContent(WorldContent.parse(
+  economy: frontRoom(weekMode(_readContent('economy.json'))),
+  jobs: _readContent('jobs.json'),
+  events: _readContent('events.json'),
+  roomItems: _readContent('room_items.json'),
+));
+
+/// [contentWorld] с фронтальной комнатой.
+WorldGame contentFrontWorld() => WorldGame(config: contentFrontConfig);
+
+/// [worldKinds] с фронтальной комнатой.
+final List<WorldKind> frontWorldKinds = <WorldKind>[
+  WorldKind._(
+      'FakeWorld',
+      (OnboardingProgress o, OnboardingSave? s) => FakeWorld(
+          config: const WorldConfig(room: frontRoomCatalog),
+          onboarding: o,
+          saveOnboarding: s)),
+  WorldKind._(
+      'WorldGame',
+      (OnboardingProgress o, OnboardingSave? s) => WorldGame(
+          config: contentFrontConfig, onboarding: o, saveOnboarding: s)),
+];
+
+/// Сцена комнаты на экране, в любом виде (`room.view`): фронтальная
+/// [RoomScene] или iso [IsoRoomScene]. Для тестов раскладки экрана, которым
+/// вид комнаты не важен.
+final Finder roomSceneFinder = find.byWidgetPredicate(
+    (Widget w) => w is RoomScene || w is IsoRoomScene,
+    description: 'RoomScene | IsoRoomScene');
+
 String _readContent(String file) =>
     File('${WorldContentLoader.base}/$file').readAsStringSync();
 
@@ -202,6 +256,29 @@ WorldResult sleepWeek(World w) {
   }
   return r;
 }
+
+/// Режим дней: проспать до последнего дня недели, чтобы следующий «Спать»
+/// (из комнаты или `sleep()`) закрыл неделю и открыл итоги. В режиме
+/// «неделя» ничего не делает: там один сон и есть конец недели.
+void sleepToLastDay(World w) {
+  while (w.snapshot.daysPerWeek > 1 &&
+      w.snapshot.dayInWeek < w.snapshot.daysPerWeek) {
+    final WorldResult r = w.sleep();
+    expect(r.reasonCode, 'day.next', reason: 'настройка теста: $r');
+  }
+}
+
+/// Режим дней: следующее утро той же недели (одна ночь). В режиме «неделя»
+/// ничего не делает — следующего дня там нет.
+void nextDay(World w) {
+  if (w.snapshot.daysPerWeek <= 1) return;
+  final WorldResult r = w.sleep();
+  expect(r.reasonCode, 'day.next', reason: 'настройка теста: $r');
+}
+
+/// Смены в неделю без лимита (режим дней, DEN-18: ограничивают силы).
+/// Бонус «+1 смена» тогда не нужен, и мир отказывает `parent.no_limit`.
+bool noShiftLimit(World w) => w.jobBoard.any((JobOffer o) => o.shiftsUnlimited);
 
 /// Действие настройки теста обязано пройти: отказ здесь — это дыра в
 /// контракте, а не будущая загадочная ошибка ниже по тесту.

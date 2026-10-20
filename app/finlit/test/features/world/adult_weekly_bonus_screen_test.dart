@@ -40,6 +40,9 @@ WorldGame _coinsWorld() {
   )));
 }
 
+/// «монетка / монетки / монеток» — старое слово (n5: правило Насти — «монеты»).
+final RegExp _oldWord = RegExp('монет(к|ок)');
+
 Future<void> _step(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
@@ -101,14 +104,19 @@ void main() {
     await _tap(tester, 'adult:help');
     expect(find.textContaining('дополнительная смена'), findsNothing,
         reason: 'справка взрослого: бонус — монеты');
+    // n5 (0.1.4): слово — «монеты» (правило Насти), не «монетки».
     expect(
-        find.textContaining('бонус — 20 монеток раз в неделю'), findsOneWidget);
+        find.textContaining('бонус — 20 монет раз в неделю'), findsOneWidget);
+    expect(find.textContaining(_oldWord, findRichText: true), findsNothing,
+        reason: 'справка взрослого: «монеты», не «монетки»');
     await pumpWorldScreen(tester, const HistoryScreen(), state: ws);
     expect(
         find.textContaining('от взрослого: дополнительная смена',
             findRichText: true),
         findsNothing);
-    expect(find.textContaining('от взрослого: +20', findRichText: true),
+    expect(find.textContaining('от взрослого: +20 монет', findRichText: true),
         findsOneWidget);
+    expect(find.textContaining(_oldWord, findRichText: true), findsNothing,
+        reason: '«Прогресс»: «монеты», не «монетки»');
   });
 }

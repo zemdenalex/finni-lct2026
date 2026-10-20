@@ -108,7 +108,7 @@ class _PlanSheetState extends State<_PlanSheet> {
                   Text('План недели',
                       style: AppType.title(21, color: WorldColors.text)),
                   const SizedBox(height: Gap.xs),
-                  Text('Счёт недели — $bill (${billPartsText(parts)}): он '
+                  Text('Счёт недели — $bill (${billPartsText(parts)}): '
                       'его оплатит «Нужно» в конце недели.'),
                   const SizedBox(height: Gap.xs),
                   PlanPool(

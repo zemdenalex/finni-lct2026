@@ -279,6 +279,7 @@ class ResourceSnapshot {
     this.toolPayback = const <String, int>{},
     this.roomOwned = const <String>{},
     this.roomPlaced = const <String, RoomCell>{},
+    this.roomIso = const <String, RoomIsoSpot>{},
     this.dayInWeek = 1,
     this.daysPerWeek = 1,
     this.satiety,
@@ -420,6 +421,11 @@ class ResourceSnapshot {
   /// Где стоят вещи комнаты: id → левый верхний угол на сетке. Нет вещи —
   /// куплена, но не поставлена.
   final Map<String, RoomCell> roomPlaced;
+
+  /// Iso-комната (V2): место → где оно стоит ([World.placeRoomIso]). Нет
+  /// записи — место по умолчанию из `room_layout_iso.json`. Фронтальная
+  /// комната это поле не читает.
+  final Map<String, RoomIsoSpot> roomIso;
 
   /// Вид предмета комнаты, выбранный из купленных вариантов ([World.chooseSkin]):
   /// предмет (`skin_bed`, `decor_globe`) → id варианта. Из журнала — переживает
@@ -1625,6 +1631,11 @@ abstract class World {
 
   /// Убрать вещь с сетки (остаётся купленной). Запись `roomItemRemoved`.
   WorldResult removeRoomItem(String itemId);
+
+  /// Iso-комната (V2): передвинуть место [slot] ([roomIsoSlots]) в
+  /// ([plane], [x], [y]). Бесплатно, в любой фазе. Запись `roomItemPlaced`
+  /// с аргументом `plane` — в [ResourceSnapshot.roomIso], не в `roomPlaced`.
+  WorldResult placeRoomIso(String slot, String plane, int x, int y);
 
   /// Тап по питомцу: реакция всегда, 😊 — за первый тап в игровой день (T7).
   WorldResult petTap(String petId);

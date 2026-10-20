@@ -81,7 +81,8 @@ class _PetShopScreenState extends State<PetShopScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: <Widget>[
                 const PayFromTag(PayFrom.goal),
-                const Text('копим в копилке', style: kitSoft),
+                // n5: рядом с меткой «Копилка» было «копим в копилке».
+                const Text('копим на питомца', style: kitSoft),
                 Text(
                     'В копилке ${s.goal}. Счёт недели сейчас: ${s.weeklyBill}.',
                     style: kitText),

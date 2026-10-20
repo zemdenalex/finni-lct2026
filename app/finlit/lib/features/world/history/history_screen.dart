@@ -227,8 +227,8 @@ class _Summary extends StatelessWidget {
         PicText('⭐ Звёзды: ${now.growthPoints}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: Gap.xs),
-        _line('🏠 ${context.read<WorldState>().finniName} живёт: '
-            '${WeekReviewScreen.stageName(now.stage)}'),
+        _line(
+            '🏠 ${WeekReviewScreen.livesIn(context.read<WorldState>().finniName, now.stage)}'),
         _line(WeekReviewScreen.moveLine(now, catalog) ??
             '🏁 Дальше переездов нет.'),
         _line(goalLine),
@@ -262,7 +262,7 @@ class _WeekCard extends StatelessWidget {
   static String _parentLine(BuildContext context) {
     final int coins = context.read<WorldState>().world.parentBonusCoins;
     return coins > 0
-        ? '💼 от взрослого: +$coins ${Phrases.coinWord(coins)}'
+        ? '💼 от взрослого: +$coins ${Phrases.coinsNom(coins)}'
         : '💼 от взрослого: дополнительная смена';
   }
 

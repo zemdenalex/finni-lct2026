@@ -80,7 +80,7 @@ void main() {
       expect(fridgeOf(w.snapshot).snacks, 1);
       expect(fridgeOf(w.snapshot).portions, meals - 1 + 1);
 
-      ok(w.sleep());
+      ok(sleepWeek(w));
       // Итоги недели: остаток на полках до новой недели.
       expect(fridgeOf(w.snapshot).portions, meals);
       ok(w.payBills());

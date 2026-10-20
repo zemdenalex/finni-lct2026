@@ -1620,7 +1620,7 @@ class RoomScene extends StatelessWidget {
                     child: IgnorePointer(
                       child: ExcludeSemantics(
                         child: Center(
-                          child: _PiggyAmount(
+                          child: PiggyAmount(
                             key: const ValueKey<String>('room:piggy:amount'),
                             amount: piggySaved!,
                           ),
@@ -1631,18 +1631,39 @@ class RoomScene extends StatelessWidget {
                 if (petId != null)
                   at(
                     petAwake ? 'pet_floor' : 'pet_bed',
-                    GestureDetector(
-                      key: ValueKey<String>('room:pet:$petId'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onPetTap,
-                      child: pet == null
-                          ? _SpriteStub(label: '🐾', size: 24.0 * k)
-                          : SpriteAnim(
-                              sprite: pet,
-                              tag: petAwake ? 'wake' : 'sleep',
-                              scale: pk,
-                              semanticLabel: 'Питомец',
+                    // n5 #7: зона касания не меньше 48×48 dp (была ровно по
+                    // кадру спрайта: в альбомной ~18×20). Спрайт прижат к
+                    // низу зоны по центру — на слоте он стоит там же, где
+                    // раньше, а лишнее место уходит вверх и в стороны.
+                    // Для TalkBack — кнопка «Питомец», как у зон комнаты.
+                    Semantics(
+                      container: true,
+                      button: true,
+                      label: 'Питомец',
+                      child: GestureDetector(
+                        key: ValueKey<String>('room:pet:$petId'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onPetTap,
+                        child: ExcludeSemantics(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                                minWidth: edgeFinger, minHeight: edgeFinger),
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              widthFactor: 1,
+                              heightFactor: 1,
+                              child: pet == null
+                                  ? _SpriteStub(label: '🐾', size: 24.0 * k)
+                                  : SpriteAnim(
+                                      sprite: pet,
+                                      tag: petAwake ? 'wake' : 'sleep',
+                                      scale: pk,
+                                      semanticLabel: 'Питомец',
+                                    ),
                             ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (focusRect != null)
@@ -2404,8 +2425,8 @@ double followCameraX({
 
 /// Табличка суммы над копилкой: крупно, на тёмной подложке — читается на
 /// любом фоне при 360 dp.
-class _PiggyAmount extends StatelessWidget {
-  const _PiggyAmount({super.key, required this.amount});
+class PiggyAmount extends StatelessWidget {
+  const PiggyAmount({super.key, required this.amount});
 
   final int amount;
 

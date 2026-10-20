@@ -108,6 +108,49 @@ class RoomGrid {
   }
 }
 
+/// Iso-комната (V2, флаг `room.view: "iso"`): где стоит предмет на
+/// iso-сетке. [plane] — `floor` (клетка [x], [y]), `left` / `right` (стена,
+/// слот [x], [y] = 0). Запись — тот же `roomItemPlaced` с аргументом `plane`:
+/// фронтальная сетка её не читает ([ResourceSnapshot.roomIso] отдельно).
+typedef RoomIsoSpot = ({String plane, int x, int y});
+
+/// Плоскости iso-комнаты.
+const Set<String> roomIsoPlanes = <String>{'floor', 'left', 'right'};
+
+/// Имена мест, которые можно двигать в iso-комнате: мебель с действием,
+/// скины (`skinSlots`) и 8 мест декора (`decorPlace`). Те же имена, что у
+/// фронтальной раскладки, — купленное не теряется.
+const Set<String> roomIsoSlots = <String>{
+  'bed',
+  'desk_chair',
+  'bedside_cabinet',
+  'fridge',
+  'pet_corner',
+  'decor_wall',
+  'decor_floor',
+  'decor_ceiling',
+  'item_sill',
+  'decor_books',
+  'decor_globe',
+  'decor_bear',
+  'decor_rug',
+};
+
+/// Почему место [slot] нельзя записать в ([plane], [x], [y]); null — можно.
+/// Домен не знает размера iso-сетки (она в данных экрана,
+/// `room_layout_iso.json`): границы и пересечения проверяет экран при
+/// чтении, неподходящая запись — место по умолчанию.
+BlockReason? roomIsoBlock(String slot, String plane, int x, int y) {
+  if (!roomIsoSlots.contains(slot)) {
+    return BlockReason('room.unknown', 'Такого места нет: $slot.');
+  }
+  if (!roomIsoPlanes.contains(plane) || x < 0 || y < 0 || x > 63 || y > 63) {
+    return const BlockReason('room.out', 'Вещь сюда не помещается.',
+        nextStep: 'Выбери клетку ближе к середине');
+  }
+  return null;
+}
+
 /// Отказ покупки вещи комнаты, пока кастомизация выключена (`room.customize`).
 const BlockReason roomOffBlock =
     BlockReason('room.off', 'Вещей для комнаты пока нет в магазине.');
@@ -122,9 +165,23 @@ class RoomCatalog {
     this.happinessOnce = 0,
     this.eventBadge = false,
     this.petName = petNameDefault,
+    this.view = viewDefault,
   });
 
   static const RoomCatalog empty = RoomCatalog();
+
+  /// `room.view` без ключа в файле — то же, что в сборке: комната V2 в
+  /// изометрии (Денис 20.10). `front` — фронтальная, как сдано 29.09.
+  static const String viewDefault = 'iso';
+
+  /// Допустимые значения `room.view`.
+  static const Set<String> views = <String>{'front', 'iso'};
+
+  /// Флаг экрана `room.view`: `front` (как сдано) или `iso`.
+  final String view;
+
+  /// Комната в изометрии (V2).
+  bool get iso => view == 'iso';
 
   /// `room.pet_name` без ключа в файле — то же, что в сборке (DEN-25 A,
   /// Денис 18.10).

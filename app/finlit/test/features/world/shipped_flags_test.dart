@@ -87,6 +87,27 @@ void main() {
     expect(_sec(e, 'day_cycle')['mood_pay_daily'], isFalse,
         reason: 'заменит DEN-36');
     expect(_sec(e, 'room')['customize'], isFalse);
+    // Комната в изометрии (V2) — вид по умолчанию (Денис 20.10, «1 + 4»): в
+    // сборке и в content/ — iso. Уронит: «front» в любой копии. Откат —
+    // «front» в обеих копиях (фронтальная комната осталась в коде).
+    expect(_sec(e, 'room')['view'], 'iso', reason: 'Денис 20.10: iso');
+    expect(shippedDayContent.room.view, 'iso');
+    expect(shippedDayContent.room.iso, isTrue);
+    final Map<String, Object?> src =
+        jsonDecode(File('../../content/economy.json').readAsStringSync())
+            as Map<String, Object?>;
+    expect(_sec(src, 'room')['view'], 'iso', reason: 'content/economy.json');
+  });
+
+  test('room.view: «iso» и «front» читаются, чужое значение — ошибка с путём',
+      () {
+    final Map<String, Object?> e = _eco();
+    _sec(e, 'room')['view'] = 'iso';
+    expect(_parse(e).room.iso, isTrue);
+    _sec(e, 'room')['view'] = 'front';
+    expect(_parse(e).room.iso, isFalse, reason: 'откат флагом');
+    _sec(e, 'room')['view'] = 'side';
+    expect(() => _parse(e), throwsA(isA<WorldContentError>()));
   });
 
   test('без ключа — значения по умолчанию в коде, они же файл', () {
@@ -94,19 +115,23 @@ void main() {
     expect(EconomyContent.achievementsDaysDefault, eco.achievementsDays);
     expect(EconomyContent.cityLabelScaleDefault, eco.cityLabelScale);
     expect(RoomCatalog.petNameDefault, shippedDayContent.room.petName);
+    expect(RoomCatalog.viewDefault, shippedDayContent.room.view);
     expect(EconomyContent.xpStagesDefault, eco.dayCycle.xpStages);
     final Map<String, Object?> e = _eco();
     _sec(e, 'day_cycle')
       ..remove('tutorial_ui')
       ..remove('xp_stages');
     e.remove('achievements_days');
-    _sec(e, 'room').remove('pet_name');
+    _sec(e, 'room')
+      ..remove('pet_name')
+      ..remove('view');
     e.remove('city');
     final WorldContent c = _parse(e);
     expect(c.economy.tutorialUi, EconomyContent.tutorialUiDefault);
     expect(c.economy.dayCycle.xpStages, EconomyContent.xpStagesDefault);
     expect(c.economy.achievementsDays, EconomyContent.achievementsDaysDefault);
     expect(c.room.petName, RoomCatalog.petNameDefault);
+    expect(c.room.view, RoomCatalog.viewDefault);
     expect(c.economy.cityLabelScale, EconomyContent.cityLabelScaleDefault);
   });
 

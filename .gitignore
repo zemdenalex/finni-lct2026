@@ -6,6 +6,8 @@
 *.key
 *.keystore
 *.jks
+*.p12
+*.pfx
 google-services.json
 GoogleService-Info.plist
 

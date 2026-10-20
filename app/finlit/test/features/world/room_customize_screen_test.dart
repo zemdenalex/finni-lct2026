@@ -34,8 +34,10 @@ final WorldConfig _roomOn = () {
     ...(eco['room']! as Map<String, Object?>),
     'customize': true,
   };
+  // Сетка «Расставить» этого каркаса — у фронтальной комнаты; у iso-комнаты
+  // своя расстановка (test/features/world/room_iso).
   return worldConfigFromContent(WorldContent.parse(
-    economy: jsonEncode(eco),
+    economy: frontRoom(jsonEncode(eco)),
     jobs: _read('jobs.json'),
     events: _read('events.json'),
     roomItems: _read('room_items.json'),
@@ -45,7 +47,7 @@ final WorldConfig _roomOn = () {
 /// Неделя идёт, карманные в «Хочу», смены — пока хватает на [buy]; вещи
 /// куплены.
 WorldGame _world({bool flag = true, List<String> buy = const <String>[]}) {
-  final WorldGame w = flag ? WorldGame(config: _roomOn) : contentWorld();
+  final WorldGame w = flag ? WorldGame(config: _roomOn) : contentFrontWorld();
   ok(w.startWeek());
   ok(w.plan(needs: 0, wants: w.snapshot.unallocated, goal: 0));
   final int sum =

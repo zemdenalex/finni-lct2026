@@ -181,6 +181,7 @@ class FakeWorld implements World {
   /// ([roomPlaceBlock]).
   final Set<String> _roomOwned = <String>{};
   final Map<String, RoomCell> _roomPlaced = <String, RoomCell>{};
+  final Map<String, RoomIsoSpot> _roomIso = <String, RoomIsoSpot>{};
 
   // Недельные счётчики.
   int _shiftsThisWeek = 0;
@@ -397,6 +398,7 @@ class FakeWorld implements World {
         mealsPerWeek: config.mealsPerWeek,
         roomOwned: Set<String>.unmodifiable(_roomOwned),
         roomPlaced: Map<String, RoomCell>.unmodifiable(_roomPlaced),
+        roomIso: Map<String, RoomIsoSpot>.unmodifiable(_roomIso),
         chosenSkins: Map<String, String>.unmodifiable(_chosenSkins),
       );
 
@@ -1861,6 +1863,16 @@ class FakeWorld implements World {
   }
 
   @override
+  WorldResult placeRoomIso(String slot, String plane, int x, int y) {
+    final BlockReason? block = roomIsoBlock(slot, plane, x, y);
+    if (block != null) return block.refusal;
+    _roomIso[slot] = (plane: plane, x: x, y: y);
+    _write(WorldLedgerKind.roomItemPlaced, '$slot → $plane $x, $y');
+    return const WorldResult(
+        ok: true, reasonCode: 'room.placed', reason: 'Вещь — на новом месте.');
+  }
+
+  @override
   WorldResult removeRoomItem(String itemId) {
     if (_roomPlaced.remove(itemId) == null) {
       return const WorldResult.refused(
@@ -2035,7 +2047,7 @@ class FakeWorld implements World {
       missing -= withdrawn;
       // Очко «откладывал» — за чистое отложенное, как в домене.
       _depositsThisWeek -= withdrawn;
-      steps.add('$withdrawn из копилки');
+      steps.add('$withdrawn взяли из копилки');
     }
 
     // 4. Остаток — «семья помогает».
@@ -2055,7 +2067,7 @@ class FakeWorld implements World {
     int pointsFor(String reason) => config.growthPointsPerReason[reason] ?? 0;
     if (!familyHelped) {
       points += pointsFor('required_covered');
-      why.add('обязательное закрыто своими деньгами');
+      why.add('счета оплачены без помощи семьи');
     }
     if (steps.isEmpty) {
       points += pointsFor('plan_kept');
@@ -2140,12 +2152,12 @@ class FakeWorld implements World {
       ..billsPaid = true;
 
     final String shortfall =
-        steps.isEmpty ? '' : ' Не хватало: ${steps.join(', ')}.';
+        steps.isEmpty ? '' : ' Монет на счета не хватило: ${steps.join(', ')}.';
     return WorldResult(
       ok: true,
       reasonCode: familyHelped ? 'bills.family_help' : 'bills.paid',
       reason: '${weekBillLine(_week?.bills ?? due, due)}$shortfall '
-          'Звёзды: +$points'
+          'Звёзды для переезда: +$points'
           '${why.isEmpty ? '' : ' (${why.join(', ')})'}.'
           '${growth == weekGrowthUp ? ' Неделя роста: +$growthDelta 😊.' : ''}'
           '${growth == weekGrowthFlat ? ' Неделя без роста: $growthDelta 😊.' : ''}'

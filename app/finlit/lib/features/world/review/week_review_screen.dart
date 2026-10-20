@@ -78,6 +78,11 @@ class WeekReviewScreen extends StatefulWidget {
   /// Названия стадий — решение Дениса 28.09 (`economy.json →
   /// growth.stages[].name`). 🟡 Контракт их не отдаёт, поэтому копия здесь;
   /// меняются в файле — меняются и тут.
+  /// «живёт в деревне» — со строчной, внутри фразы (n5: было
+  /// «живёт: В деревне»).
+  static String livesIn(String name, WorldStage s) =>
+      '$name живёт ${_lowerFirst(stageName(s))}';
+
   static String stageName(WorldStage s) => switch (s) {
         WorldStage.village => 'В деревне',
         WorldStage.town => 'В городе',
@@ -146,7 +151,8 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
         'Что здесь?',
         'Это итоги недели. 🧾 Сначала платим обязательные счета: еда, '
             'корм питомцам, жильё. 📊 Потом сверяем план с тем, что вышло '
-            'на деле, а ⭐ дают за счета своими монетами и отложенное.');
+            'на деле, а ⭐ — не монеты: их дают за счета без помощи семьи '
+            'и отложенное.');
   }
 
   void _pay({required bool fromGoal}) {
@@ -406,8 +412,14 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
           onPressed: _back,
         ),
         automaticallyImplyLeading: false,
-        title: Text(
-            now.weekNo > 0 ? 'Итоги недели ${now.weekNo}' : 'Итоги недели'),
+        // n5 (кадры 0.1.3): в портрете при шрифте 1,3 «Итоги неде…» — заголовок
+        // ужимается, а не режется многоточием.
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+              now.weekNo > 0 ? 'Итоги недели ${now.weekNo}' : 'Итоги недели'),
+        ),
         actions: <Widget>[
           // История всех недель (S12) — отсюда тоже, не только из комнаты.
           // В портрете шапка узкая: значок съел бы заголовок, а прогресс и
@@ -653,8 +665,7 @@ class _WeekReviewScreenState extends State<WeekReviewScreen> {
       title: _paidOnOpen ? 'Звёзды' : 'Звёзды: +$gained за неделю',
       lines: <String>[
         '⭐ Всего: ${now.growthPoints}',
-        '🏠 ${world.onboarding.finniName} живёт: '
-            '${WeekReviewScreen.stageName(now.stage)}'
+        '🏠 ${WeekReviewScreen.livesIn(world.onboarding.finniName, now.stage)}'
             '${moved ? ' — переезд!' : ''}',
         move ?? '🏁 Дальше переездов нет.',
       ],

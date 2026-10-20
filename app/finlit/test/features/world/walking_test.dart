@@ -43,7 +43,7 @@ void main() {
             .copyWith(settings: const GameSettings(animationsOn: false)));
       }
       await pumpWorldScreen(tester, screen,
-          world: livingWorld(worldKinds.last), size: size, app: app);
+          world: livingWorld(frontWorldKinds.last), size: size, app: app);
       for (int i = 0; i < 20; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
         await tester.pump();
@@ -220,7 +220,7 @@ void main() {
   // 29.09: в комнате енот, в городе — зелёный росток).
   testWidgets('город: Финни на карте — облик, который выбрал ребёнок',
       (WidgetTester tester) async {
-    final World w = livingWorld(worldKinds.last);
+    final World w = livingWorld(frontWorldKinds.last);
     await tester.runAsync(() async {
       final WorldState ws = WorldState(w);
       await ws.setFinniLook(species: 'finni-a2', look: 3);
@@ -248,7 +248,7 @@ void main() {
     testWidgets('$where: в пути — кадры ходьбы выбранного облика',
         (WidgetTester tester) async {
       await tester.runAsync(() async {
-        final WorldState ws = WorldState(livingWorld(worldKinds.last));
+        final WorldState ws = WorldState(livingWorld(frontWorldKinds.last));
         await ws.setFinniLook(species: 'finni-a2', look: 3);
         await pumpWorldScreen(tester, screen, state: ws, size: portrait);
         for (int i = 0; i < 20; i++) {

@@ -52,7 +52,8 @@ class Speaker {
       _available.value = true;
     } on Object catch (e) {
       // В виджет-тестах канала платформы нет — это нормальный путь, а не сбой.
-      debugPrint('Озвучка недоступна: $e');
+      // Только в отладке: в релизе logcat не нужен (аудит n5, п. 3).
+      if (kDebugMode) debugPrint('Озвучка недоступна: $e');
     }
   }
 
@@ -63,7 +64,8 @@ class Speaker {
       await tts.stop();
       await tts.speak(text);
     } on Object catch (e) {
-      debugPrint('Не удалось озвучить: $e');
+      // Только в отладке: в релизе logcat не нужен (аудит n5, п. 3).
+      if (kDebugMode) debugPrint('Не удалось озвучить: $e');
     }
   }
 
@@ -71,7 +73,8 @@ class Speaker {
     try {
       await _tts?.stop();
     } on Object catch (e) {
-      debugPrint('Не удалось остановить озвучку: $e');
+      // Только в отладке: в релизе logcat не нужен (аудит n5, п. 3).
+      if (kDebugMode) debugPrint('Не удалось остановить озвучку: $e');
     }
   }
 

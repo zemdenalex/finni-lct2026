@@ -49,6 +49,11 @@ env:
   # docs, and server/ if the ТЗ ends up requiring one.
   APP_DIR: app/finlit
 
+# Read-only token: the jobs only check out and build; nothing writes to the
+# repo, releases or packages (n5, security audit item 4).
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze & test

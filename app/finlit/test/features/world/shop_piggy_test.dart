@@ -2,6 +2,7 @@ import 'package:finlit/features/world/goal_eta_text.dart';
 import 'package:finlit/core/art/sprite_anim.dart';
 import 'package:finlit/domain/phrases.dart';
 import 'package:finlit/domain/world/contract.dart';
+import 'package:finlit/features/world/home/world_hud.dart';
 import 'package:finlit/features/world/piggy/piggy_screen.dart';
 import 'package:finlit/features/world/shop/pet_shop_screen.dart';
 import 'package:finlit/features/world/shop/world_shop_screen.dart';
@@ -44,6 +45,23 @@ Future<WorldState> _pump(WidgetTester tester, Widget screen, World w,
 Future<void> _step(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// Открытая вкладка магазина. n5 #4: касание по надписи вкладки за краем
+/// ленты не попадало (hit-test warning), и проверка «влезает» на других
+/// отделах молча шла по первому.
+int _tabIndex(WidgetTester tester) =>
+    DefaultTabController.of(tester.element(find.byType(TabBarView))).index;
+
+/// Касание вкладки [id] (`tab:<id>`): лента вкладок прокручивается, и
+/// вкладка за краем сначала подводится под палец — иначе касание уходит
+/// мимо (n5 #4: 12 hit-test warnings в двух тестах «влезает при шрифте 1,3»).
+Future<void> _tapTab(WidgetTester tester, String id) async {
+  final Finder tab = find.byKey(ValueKey<String>('tab:$id'));
+  await tester.ensureVisible(tab);
+  await _step(tester);
+  await tester.tap(tab);
+  await _step(tester);
 }
 
 /// Список экрана (вертикальный), а не вкладки.
@@ -147,13 +165,15 @@ void main() {
           .getSemantics(find.bySemanticsLabel(RegExp('^Сил: ')).first)
           .label;
       final double before = w.snapshot.energy;
-      expect(hudEnergy(), 'Сил: ${energyShown(before)} из 14');
+      // Верх шкалы — из мира: неделя 14, режим дней 20.
+      final String top = WorldHud.energyText(WorldHud.energyMaxOf(w));
+      expect(hudEnergy(), 'Сил: ${energyShown(before)} из $top');
       await _tap(tester, 'confirm:yes');
       expect(w.snapshot.mealsThisWeek, 1);
       // ⚡ сразу видно в HUD (критерии §2 п. 4).
       expect(w.snapshot.energy, closeTo(before + fish.energy, 1e-9));
       await _step(tester);
-      expect(hudEnergy(), 'Сил: ${energyShown(w.snapshot.energy)} из 14');
+      expect(hudEnergy(), 'Сил: ${energyShown(w.snapshot.energy)} из $top');
       // «Почему» — в итоге действия (§2 п. 6).
       expect(
           tester
@@ -404,11 +424,11 @@ void main() {
         return found!.getSemanticsData().value;
       }
 
-      expect(said(), '0 ${Phrases.coinWord(0)}');
+      expect(said(), '0 ${Phrases.coinsNom(0)}');
       for (int i = 0; i < 3; i++) {
         await _tap(tester, 'withdraw:plus');
       }
-      expect(said(), '30 ${Phrases.coinWord(30)}');
+      expect(said(), '30 ${Phrases.coinsNom(30)}');
       sem.dispose();
     });
 
@@ -457,13 +477,14 @@ void main() {
           expect(find.byType(SpriteAnim), findsWidgets);
         }
         if (screen is WorldShopScreen) {
-          for (final String tab in <String>[
-            'Уют и декор',
-            'Одежда',
-            'Мебель'
+          for (final (int index, String tab) in <(int, String)>[
+            (1, 'want'),
+            (2, 'clothes'),
+            (3, 'furniture')
           ]) {
-            await tester.tap(find.text(tab));
-            await _step(tester);
+            await _tapTab(tester, tab);
+            expect(_tabIndex(tester), index,
+                reason: 'касание «$tab» не попало во вкладку');
             expect(tester.takeException(), isNull);
           }
         }
@@ -579,13 +600,14 @@ void main() {
           await _pump(tester, screen, w, textScale: 1.3, size: landscape);
           expect(tester.takeException(), isNull);
           if (screen is WorldShopScreen) {
-            for (final String tab in <String>[
-              'Уют и декор',
-              'Одежда',
-              'Мебель'
+            for (final (int index, String tab) in <(int, String)>[
+              (1, 'want'),
+              (2, 'clothes'),
+              (3, 'furniture')
             ]) {
-              await tester.tap(find.text(tab));
-              await _step(tester);
+              await _tapTab(tester, tab);
+              expect(_tabIndex(tester), index,
+                  reason: 'касание «$tab» не попало во вкладку');
               expect(tester.takeException(), isNull);
             }
           }

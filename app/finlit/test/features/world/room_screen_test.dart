@@ -4,7 +4,6 @@ import 'package:finlit/core/theme.dart';
 import 'package:finlit/data/storage.dart';
 import 'package:finlit/domain/world/contract.dart';
 import '../../support/fake_world.dart';
-import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/home/world_hud.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
@@ -246,7 +245,7 @@ void main() {
             world: _livingWorld(kind), size: landscape);
       });
       await _settle(tester);
-      final Rect scene = tester.getRect(find.byType(RoomScene));
+      final Rect scene = tester.getRect(roomSceneFinder);
       final Rect now =
           tester.getRect(find.byKey(const ValueKey<String>('room:now')));
       expect(scene.right, lessThanOrEqualTo(now.left));
@@ -338,6 +337,8 @@ void main() {
     testWidgets('«Спать» заканчивает неделю и открывает итоги',
         (WidgetTester tester) async {
       final World world = _livingWorld(kind);
+      // Режим дней: неделю закрывает сон последнего дня.
+      sleepToLastDay(world);
       await tester.runAsync(() async {
         await pumpWorldScreen(tester, const RoomScreen(), world: world);
       });
@@ -371,7 +372,7 @@ void main() {
               world: world, size: o.value);
         });
         await _settle(tester);
-        final Rect scene = tester.getRect(find.byType(RoomScene));
+        final Rect scene = tester.getRect(roomSceneFinder);
         final Finder goalKey = find.byKey(const ValueKey<String>('room:goal'));
         final Rect goal = tester.getRect(goalKey);
         final Rect now =

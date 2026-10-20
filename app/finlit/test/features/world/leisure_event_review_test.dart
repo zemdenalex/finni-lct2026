@@ -28,6 +28,17 @@ void main() {
       return w;
     }
 
+    /// Всё — в копилку: на счета своих монет не хватает, итоги предлагают
+    /// взять из копилки. Как `_living` в dialog_a11y_test. Нужно и режиму
+    /// дней: там остаток плана уходит в кошелёк, и при плане 250 счёт
+    /// недели закрывается своими.
+    World shortWorld() {
+      final World w = kind.make();
+      ok(w.startWeek());
+      ok(w.plan(needs: 0, wants: 0, goal: w.snapshot.unallocated));
+      return w;
+    }
+
     String textIn(WidgetTester tester, String key) => tester
         .widget<Text>(find
             .descendant(
@@ -298,7 +309,7 @@ void main() {
 
       testWidgets('из копилки — с подтверждением, баланс не в минусе',
           (WidgetTester tester) async {
-        final World w = livingWorld();
+        final World w = shortWorld();
         ok(sleepWeek(w));
         final int saved = w.snapshot.goal;
         expect(saved, greaterThan(0));
@@ -311,8 +322,15 @@ void main() {
         expectNotNegative(w.snapshot);
         // Ловит: строка ЦЕЛЬ в плане против факта говорит «отложили −N»,
         // когда из копилки взяли больше, чем положили.
-        final int took = -w.weekHistory.last.goal.actual;
-        expect(took, greaterThan(0), reason: 'за неделю копилка уменьшилась');
+        final int net = w.weekHistory.last.goal.actual;
+        // Режим «неделя»: счёт больше недельных карманных — из копилки взяли
+        // больше, чем положили. Режим дней: карманных больше счёта, и за
+        // неделю отложено больше, чем взято, — строка обязана сказать
+        // «отложили N» без минуса.
+        if (w.snapshot.daysPerWeek <= 1) {
+          expect(net, lessThan(0), reason: 'за неделю копилка уменьшилась');
+        }
+        final int took = -net;
         final String goalRow = tester
             .widget<Text>(find.descendant(
                 of: find.byKey(const ValueKey<String>('review:planfact:goal')),
@@ -320,10 +338,16 @@ void main() {
             .textSpan!
             .toPlainText()
             .replaceAll(' ', ' ');
-        expect(goalRow, contains('взяли из копилки $took'));
-        expect(goalRow, isNot(contains('отложили')));
-        expect(goalRow, isNot(contains('-$took')));
-        expect(goalRow, isNot(contains('−$took')));
+        if (net < 0) {
+          expect(goalRow, contains('взяли из копилки $took'));
+          expect(goalRow, isNot(contains('отложили')));
+          expect(goalRow, isNot(contains('-$took')));
+          expect(goalRow, isNot(contains('−$took')));
+        } else {
+          expect(goalRow, contains('отложили $net'));
+          expect(goalRow, isNot(contains('−')));
+          expect(goalRow, isNot(contains('-$net')));
+        }
         expect(find.byKey(const ValueKey<String>('review:new_week')),
             findsOneWidget);
       });
@@ -333,7 +357,7 @@ void main() {
       testWidgets(
           'альбомная 640 × 360, шрифт 1,3: спать → счета → новая неделя',
           (WidgetTester tester) async {
-        final World w = livingWorld();
+        final World w = shortWorld();
         ok(sleepWeek(w));
         final int week = w.snapshot.weekNo;
         await pumpReview(tester, w, size: landscape, textScale: 1.3);
@@ -452,9 +476,13 @@ void main() {
         final World w = kind.make();
         ok(w.startWeek());
         ok(w.plan(needs: 400, wants: 0, goal: 0));
-        for (int week = 0;
-            week < 12 && w.pendingEvent?.id != 'backpack_broke';
-            week++) {
+        // По ночам, а не по неделям: в режиме дней событие приходит каждое
+        // утро (`day_cycle.event_each_morning`), и «одно событие за неделю»
+        // пропускало бы шесть из семи. В режиме «неделя» ночь = неделя.
+        for (int night = 0;
+            night < 12 * w.snapshot.daysPerWeek &&
+                w.pendingEvent?.id != 'backpack_broke';
+            night++) {
           final PendingEvent? e = w.pendingEvent;
           if (e != null) {
             final List<PendingEventChoice> open = e.choices
@@ -464,7 +492,10 @@ void main() {
                   x.preview.goal.compareTo(y.preview.goal));
             ok(w.resolveEvent(open.first.id));
           }
-          if (w.phase == WeekPhase.living) ok(sleepWeek(w));
+          if (w.phase == WeekPhase.living) {
+            final WorldResult r = w.sleep();
+            if (r.reasonCode == 'day.next') continue;
+          }
           w.payBills();
           ok(w.startWeek());
           ok(w.plan(

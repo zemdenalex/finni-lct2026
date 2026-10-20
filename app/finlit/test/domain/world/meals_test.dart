@@ -71,7 +71,9 @@ void main() {
     test('приёмов в неделю не больше лимита; новая неделя — снова можно', () {
       final World w = living(needs: 400, wants: 0);
       final int meals = w.snapshot.mealsPerWeek;
+      // Режим дней: один приём в день — следующий приём наутро.
       for (int i = 0; i < meals; i++) {
+        if (i > 0) nextDay(w);
         ok(w.eat('food_simple'));
       }
       final BlockReason? b = w.canDo(WorldAction.eat, id: 'food_simple');

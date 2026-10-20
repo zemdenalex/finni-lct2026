@@ -2,7 +2,6 @@ import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/core/theme.dart';
 import 'package:finlit/features/world/city/city_screen.dart';
 import 'package:finlit/features/world/home/hud_chips.dart';
-import 'package:finlit/features/world/home/room_scene.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/world_help.dart';
 import 'package:flutter/material.dart';
@@ -105,7 +104,7 @@ void main() {
       await _settle(tester);
       final Rect dock =
           tester.getRect(find.byKey(const ValueKey<String>('room:dock')));
-      final Rect scene = tester.getRect(find.byType(RoomScene));
+      final Rect scene = tester.getRect(roomSceneFinder);
       final Rect goal =
           tester.getRect(find.byKey(const ValueKey<String>('room:goal')));
       // Весь интерфейс по вертикали (ревью В2, 29.09): фишки и строка цели
@@ -205,7 +204,7 @@ void main() {
       final Rect side =
           tester.getRect(find.byKey(const ValueKey<String>('room:side')));
       expect(side.width / landscape.width, lessThanOrEqualTo(0.30));
-      final Rect scene = tester.getRect(find.byType(RoomScene));
+      final Rect scene = tester.getRect(roomSceneFinder);
       expect(scene.top, lessThanOrEqualTo(0.5), reason: 'без полосы сверху');
       expect(
           scene.contains(tester

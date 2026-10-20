@@ -362,15 +362,25 @@ class _WorldShopScreenState extends State<WorldShopScreen> {
         neutral: 'На этой неделе больше поесть нельзя.',
         boy: 'На этой неделе $hero наелся.',
         girl: 'На этой неделе $hero наелась.');
+    // n5 (кадр D5): в режиме дней — про сегодня. Над карточкой «на сегодня
+    // еда кончилась» стояло «поесть на этой неделе можно ещё 6 раз».
+    final bool days = s.daysPerWeek > 1;
+    final bool ateToday = days &&
+        foods.isNotEmpty &&
+        w.canDo(WorldAction.eat, id: foods.first.id)?.code == 'eat.day_limit';
+    final String homeTail = 'Что не выберешь, Финни съест '
+        'дома (${home?.title.toLowerCase() ?? 'простая еда'}) — это '
+        'уже в счёте недели: ${s.weeklyBill}.';
     return _list(<Widget>[
       _intro(
           PayFrom.need,
           'обязательная трата',
           left > 0
-              ? 'Поесть на этой неделе можно ещё $left '
-                  '${Phrases.timesWord(left)}. Что не выберешь, Финни съест '
-                  'дома (${home?.title.toLowerCase() ?? 'простая еда'}) — это '
-                  'уже в счёте недели: ${s.weeklyBill}.'
+              ? days
+                  ? '${ateToday ? 'Сегодня уже поели — следующий приём '
+                      'завтра.' : 'Сегодня ещё можно поесть.'} $homeTail'
+                  : 'Поесть на этой неделе можно ещё $left '
+                      '${Phrases.timesWord(left)}. $homeTail'
               : '$full Счёт недели: ${s.weeklyBill}.'),
       if (phase != null) phase,
       CardGrid(children: <Widget>[
@@ -576,46 +586,52 @@ class _WorldShopScreenState extends State<WorldShopScreen> {
           color: WorldLayout.isLandscape(context)
               ? Colors.transparent
               : WorldColors.panel,
-          child: TabBar(
-            // Шесть отделов не встают в 360 dp — лента прокручивается.
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelPadding: WorldLayout.isLandscape(context)
-                ? const EdgeInsets.symmetric(horizontal: Gap.xs)
-                : null,
-            labelStyle:
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            tabs: <Widget>[
-              kitTab(context,
-                  key: const ValueKey<String>('tab:food'),
-                  icon: Icons.restaurant_rounded,
-                  text: 'Продукты'),
-              kitTab(context,
-                  key: const ValueKey<String>('tab:want'),
-                  icon: Icons.favorite_rounded,
-                  text: 'Уют и декор'),
-              kitTab(context,
-                  key: const ValueKey<String>('tab:clothes'),
-                  icon: Icons.checkroom_rounded,
-                  text: 'Одежда'),
-              kitTab(context,
-                  key: const ValueKey<String>('tab:furniture'),
-                  icon: Icons.bed_rounded,
-                  text: 'Мебель'),
-              kitTab(context,
-                  key: const ValueKey<String>('tab:tech'),
-                  icon: Icons.pedal_bike_rounded,
-                  text: 'Техника и транспорт'),
-              kitTab(context,
-                  key: const ValueKey<String>('tab:pets'),
-                  icon: Icons.pets_rounded,
-                  text: 'Зоомагазин'),
-              if (roomTab)
+          // n5: вкладки за правым краем без признака, что есть ещё.
+          child: _TabsMoreHint(
+            fade: WorldLayout.isLandscape(context)
+                ? WorldColors.night
+                : WorldColors.panel,
+            child: TabBar(
+              // Шесть отделов не встают в 360 dp — лента прокручивается.
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelPadding: WorldLayout.isLandscape(context)
+                  ? const EdgeInsets.symmetric(horizontal: Gap.xs)
+                  : null,
+              labelStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              tabs: <Widget>[
                 kitTab(context,
-                    key: const ValueKey<String>('tab:room'),
-                    icon: Icons.chair_rounded,
-                    text: 'Комната'),
-            ],
+                    key: const ValueKey<String>('tab:food'),
+                    icon: Icons.restaurant_rounded,
+                    text: 'Продукты'),
+                kitTab(context,
+                    key: const ValueKey<String>('tab:want'),
+                    icon: Icons.favorite_rounded,
+                    text: 'Уют и декор'),
+                kitTab(context,
+                    key: const ValueKey<String>('tab:clothes'),
+                    icon: Icons.checkroom_rounded,
+                    text: 'Одежда'),
+                kitTab(context,
+                    key: const ValueKey<String>('tab:furniture'),
+                    icon: Icons.bed_rounded,
+                    text: 'Мебель'),
+                kitTab(context,
+                    key: const ValueKey<String>('tab:tech'),
+                    icon: Icons.pedal_bike_rounded,
+                    text: 'Техника и транспорт'),
+                kitTab(context,
+                    key: const ValueKey<String>('tab:pets'),
+                    icon: Icons.pets_rounded,
+                    text: 'Зоомагазин'),
+                if (roomTab)
+                  kitTab(context,
+                      key: const ValueKey<String>('tab:room'),
+                      icon: Icons.chair_rounded,
+                      text: 'Комната'),
+              ],
+            ),
           ),
         ),
         body: _OnTabChange(
@@ -848,4 +864,71 @@ class _OnTabChangeState extends State<_OnTabChange> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Признак «вкладок ещё больше» у правого края прокручиваемой ленты: тень в
+/// цвет шапки и стрелка, пока справа есть невидимые вкладки. Касания не
+/// ловит — лента под ним листается и нажимается как раньше.
+class _TabsMoreHint extends StatefulWidget {
+  const _TabsMoreHint({required this.fade, required this.child});
+
+  final Color fade;
+  final Widget child;
+
+  @override
+  State<_TabsMoreHint> createState() => _TabsMoreHintState();
+}
+
+class _TabsMoreHintState extends State<_TabsMoreHint> {
+  bool _more = false;
+
+  bool _update(ScrollMetrics m) {
+    if (m.axis != Axis.horizontal) return false;
+    final bool more = m.extentAfter > 1;
+    if (more != _more) setState(() => _more = more);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      NotificationListener<ScrollMetricsNotification>(
+        onNotification: (ScrollMetricsNotification n) =>
+            n.depth == 0 && _update(n.metrics),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification n) =>
+              n.depth == 0 && _update(n.metrics),
+          child: Stack(
+            children: <Widget>[
+              widget.child,
+              if (_more)
+                Positioned(
+                  key: const ValueKey<String>('shop:tabs:more'),
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: 40,
+                  child: IgnorePointer(
+                    child: ExcludeSemantics(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: <Color>[
+                              widget.fade.withValues(alpha: 0),
+                              widget.fade,
+                            ],
+                          ),
+                        ),
+                        child: const Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(Icons.chevron_right_rounded,
+                              color: WorldColors.textSoft),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
 }

@@ -39,7 +39,9 @@ void main() {
             .copyWith(settings: const GameSettings(animationsOn: false)));
       }
       await pumpWorldScreen(tester, const RoomScreen(),
-          world: world ?? livingWorld(worldKinds.last), size: size, app: app);
+          world: world ?? livingWorld(frontWorldKinds.last),
+          size: size,
+          app: app);
       for (int i = 0; i < 20; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
         await tester.pump();
@@ -341,7 +343,7 @@ void main() {
   Future<void> pumpCity(WidgetTester tester, {Size size = portrait}) async {
     await tester.runAsync(() async {
       await pumpWorldScreen(tester, const CityScreen(),
-          world: livingWorld(worldKinds.last), size: size);
+          world: livingWorld(frontWorldKinds.last), size: size);
       for (int i = 0; i < 20; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
         await tester.pump();
@@ -564,7 +566,7 @@ void main() {
 
 /// Комната стадии [stage] посреди недели — как стенд `tool/render_world_screens_test.dart`.
 World _livingAt(WorldStage stage) {
-  final WorldGame w = contentWorld();
+  final WorldGame w = contentFrontWorld();
   WorldAutopilot(w).playToStage(stage);
   if (w.phase == WeekPhase.review) w.payBills();
   if (w.phase == WeekPhase.weekStart) w.startWeek();

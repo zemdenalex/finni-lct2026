@@ -790,19 +790,34 @@ class WorldContent {
                 ?.opt('pet_name')
                 ?.boolean ??
             RoomCatalog.petNameDefault,
+        view: _roomView(_Node.root('economy.json', economy)),
       ),
     );
   }
+}
+
+/// `economy.json → room.view`: `front` (как сдано) или `iso` (V2). Нет
+/// ключа — [RoomCatalog.viewDefault]; другое значение — ошибка с путём.
+String _roomView(_Node economy) {
+  final _Node? v = economy.opt('room')?.opt('view');
+  if (v == null) return RoomCatalog.viewDefault;
+  final String s = v.string;
+  if (!RoomCatalog.views.contains(s)) {
+    throw WorldContentError(
+        'economy.json', 'room.view', 'нужно «front» или «iso», а не «$s»');
+  }
+  return s;
 }
 
 /// `room_items.json`: сетка комнаты и вещи для неё. Ошибка — с путём.
 RoomCatalog _parseRoom(_Node? r,
     {required bool enabled,
     bool eventBadge = false,
-    bool petName = RoomCatalog.petNameDefault}) {
+    bool petName = RoomCatalog.petNameDefault,
+    String view = RoomCatalog.viewDefault}) {
   if (r == null) {
     return RoomCatalog(
-        enabled: enabled, eventBadge: eventBadge, petName: petName);
+        enabled: enabled, eventBadge: eventBadge, petName: petName, view: view);
   }
   final _Node g = r['grid'];
   final int cols = g['cols'].integer, rows = g['rows'].integer;
@@ -846,6 +861,7 @@ RoomCatalog _parseRoom(_Node? r,
     enabled: enabled,
     eventBadge: eventBadge,
     petName: petName,
+    view: view,
     happinessOnce: r.opt('happiness_once')?.integer ?? 0,
     grid: RoomGrid(
       cols: cols,

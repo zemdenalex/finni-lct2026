@@ -2,9 +2,14 @@ import 'package:finlit/core/theme.dart';
 import 'package:finlit/domain/phrases.dart';
 import 'package:finlit/domain/world/lesson_rules.dart';
 import 'package:finlit/domain/world/world_game.dart';
+import 'package:finlit/domain/world/contract.dart';
 import 'package:finlit/features/world/home/room_screen.dart';
 import 'package:finlit/features/world/jobs/games/consultant_game.dart';
+import 'package:finlit/features/world/jobs/job_board_screen.dart';
+import 'package:finlit/features/world/piggy/piggy_screen.dart';
+import 'package:finlit/features/world/shop/world_shop_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsData, SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/world_harness.dart';
@@ -133,4 +138,81 @@ void main() {
         findsOneWidget);
     h.dispose();
   });
+
+  // 0.1.4 n5 #1: озвучка TalkBack — тоже «монеты» (правило Насти), как
+  // видимые строки в 0.1.3. На кадрах 0.1.3 доска читала «Заплатят 90
+  // монеток»; цена в магазине (виджет Coins), бегунок банка и строка
+  // настроения на карточке смены говорили «монетка / монеток».
+  // Защищает: ни одна метка или значение для скринридера на экранах мира, где
+  // озвучиваются монеты, не говорит «монетк…/монеток». Уронит: новая метка
+  // через [Phrases.coinWord] / [Phrases.coinWordAcc] / `Coins.word`. Почему не
+  // ловили: тесты сверяли форму слова по числу, а не само слово.
+  final RegExp oldWord = RegExp('монет(к|ок)');
+  bool spoken(SemanticsNode n, RegExp r) {
+    final SemanticsData d = n.getSemanticsData();
+    return r.hasMatch(d.label) || r.hasMatch(d.value) || r.hasMatch(d.hint);
+  }
+
+  for (final (String name, Widget screen, World Function() make)
+      in <(String, Widget, World Function())>[
+    (
+      'доска смен (дни)',
+      const JobBoardScreen(),
+      () {
+        final WorldGame w = contentDayWorld();
+        ok(w.startWeek());
+        ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
+        return w;
+      }
+    ),
+    (
+      'магазин',
+      const WorldShopScreen(),
+      () {
+        final WorldGame w = contentDayWorld();
+        ok(w.startWeek());
+        ok(w.plan(needs: 0, wants: w.snapshot.unallocated, goal: 0));
+        return w;
+      }
+    ),
+    (
+      'банк (бегунки)',
+      const PiggyScreen(),
+      () {
+        final WorldGame w = contentDayWorld();
+        ok(w.startWeek());
+        ok(w.plan(needs: 0, wants: 0, goal: w.snapshot.unallocated));
+        return w;
+      }
+    ),
+  ]) {
+    testWidgets('$name: для TalkBack «монеты», не «монетки»',
+        (WidgetTester tester) async {
+      final SemanticsHandle h = tester.ensureSemantics();
+      final World w = make();
+      await tester.runAsync(() async {
+        await pumpWorldScreen(tester, screen, world: w, explain: explainFor(w));
+        for (int i = 0; i < 10; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+          await tester.pump();
+        }
+      });
+      await tester.pump(const Duration(milliseconds: 400));
+      // Контроль: на экране вообще озвучиваются монеты — иначе пустой
+      // результат ниже ничего не доказывает.
+      expect(
+          find.semantics.byPredicate(
+              (SemanticsNode n) => spoken(n, RegExp(r'\d+ монет'))),
+          findsAtLeast(1),
+          reason: '$name: нет ни одной метки «N монет…»');
+      final List<String> bad = <String>[
+        for (final SemanticsNode n in find.semantics
+            .byPredicate((SemanticsNode n) => spoken(n, oldWord))
+            .evaluate())
+          '${n.getSemanticsData().label} | ${n.getSemanticsData().value}',
+      ];
+      expect(bad, isEmpty, reason: '$name: «монетки» в озвучке');
+      h.dispose();
+    });
+  }
 }

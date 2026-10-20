@@ -178,7 +178,7 @@ class _WorldAdultScreenState extends State<WorldAdultScreen> {
   static String _bonusWhat(BuildContext context) {
     final int coins = context.read<WorldState>().world.parentBonusCoins;
     return coins > 0
-        ? '$coins ${Phrases.coinWord(coins)}'
+        ? '$coins ${Phrases.coinsNom(coins)}'
         : 'дополнительная смена';
   }
 

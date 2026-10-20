@@ -82,8 +82,7 @@ void main() {
       await open(tester, w);
 
       expect(_plan(tester), (0, 0, 0), reason: 'конверты с нуля');
-      expect(_rest(tester),
-          'Не разложено: $total — уйдёт в заработок.');
+      expect(_rest(tester), 'Не разложено: $total — уйдёт в заработок.');
       for (int i = 0; i < 3; i++) {
         await _press(tester, 'Копилка: больше');
       }
@@ -180,5 +179,27 @@ void main() {
         findsNothing);
     expect(find.text('В копилке: $saved — на цель, тратить нельзя'),
         findsOneWidget);
+  });
+
+  // n5 #2 (кадры 0.1.3, план 2-й недели): «Счёт недели — 790 (…): он его
+  // оплатит «Нужно» в конце недели» — лишнее «он». Защищает: строка счёта
+  // в листе плана читается без него. Уронит: «он» вернулся в литерал.
+  // Почему не ловили: строку счёта в листе плана не сверял ни один тест.
+  testWidgets('план 2-й недели: «…: его оплатит «Нужно»», без лишнего «он»',
+      (WidgetTester tester) async {
+    final World w = contentDayWorld();
+    ok(w.startWeek());
+    ok(w.plan(needs: w.snapshot.unallocated, wants: 0, goal: 0));
+    expect(sleepWeek(w).ok, isTrue);
+    ok(w.payBills(takeFromGoal: true));
+    ok(w.startWeek());
+    expect(w.snapshot.weekNo, 2);
+    await open(tester, w);
+    final Finder line = find.textContaining('Счёт недели — ');
+    expect(line, findsOneWidget);
+    final String text = tester.widget<Text>(line).data!;
+    expect(text, contains('): его оплатит «Нужно» в конце недели.'),
+        reason: text);
+    expect(text, isNot(contains(' он его ')), reason: text);
   });
 }

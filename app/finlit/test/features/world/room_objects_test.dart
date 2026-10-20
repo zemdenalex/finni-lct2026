@@ -23,6 +23,8 @@ import '../../support/world_harness.dart';
 World _livingAt(WorldStage stage) {
   final World w = FakeWorld(
       config: WorldConfig(
+          // Зоны предметов — фронтальной комнаты (откат флагом `room.view`).
+          room: frontRoomCatalog,
           // Стадия по очкам: тест про экран стадии, а не про переезд.
           stageByRent: false,
           stageMinPoints: <int>[
